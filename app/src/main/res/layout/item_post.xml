@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardBackgroundColor="#1E2D5A"
+    app:cardElevation="4dp"
+    app:strokeColor="#2A3F7E"
+    app:strokeWidth="1dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <!-- SOL DAİRE - BÖLÜM KISALTMASI -->
+        <TextView
+            android:id="@+id/tvDept"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:gravity="center"
+            android:textSize="10sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:background="@drawable/blob_blue"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btnEdit"/>
+
+        <!-- BAŞLIK -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:textColor="#FFFFFF"
+            android:maxLines="2"
+            android:ellipsize="end"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tvDept"
+            app:layout_constraintEnd_toStartOf="@id/scoreCard"/>
+
+        <!-- EMAIL -->
+        <TextView
+            android:id="@+id/tvEmail"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="2dp"
+            android:textSize="12sp"
+            android:textColor="#AAB6D6"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/tvTitle"
+            app:layout_constraintStart_toEndOf="@id/tvDept"
+            app:layout_constraintEnd_toStartOf="@id/scoreCard"/>
+
+        <!-- AÇIKLAMA -->
+        <TextView
+            android:id="@+id/tvDesc"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="2dp"
+            android:textSize="12sp"
+            android:textColor="#AAB6D6"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/tvEmail"
+            app:layout_constraintStart_toEndOf="@id/tvDept"
+            app:layout_constraintEnd_toStartOf="@id/scoreCard"/>
+
+        <!-- PUAN KARTI - İÇİNDE 3 TEXTVIEW VAR -->
+        <LinearLayout
+            android:id="@+id/scoreCard"
+            android:layout_width="64dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="@drawable/blob_blue"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btnEdit">
+
+            <TextView
+                android:id="@+id/tvRating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0.0"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="puan"
+                android:textSize="10sp"
+                android:textColor="#AAB6D6"/>
+
+            <TextView
+                android:id="@+id/tvRatingCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 oy"
+                android:textSize="10sp"
+                android:textColor="#AAB6D6"/>
+
+        </LinearLayout>
+
+        <!-- DÜZENLE BUTONU -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnEdit"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="8dp"
+            android:text="✏️ Düzenle"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:visibility="gone"
+            app:cornerRadius="12dp"
+            app:backgroundTint="#2A3F7E"
+            app:strokeColor="#3D5AFE"
+            app:strokeWidth="1dp"
+            app:layout_constraintTop_toBottomOf="@id/tvDesc"
+            app:layout_constraintStart_toEndOf="@id/tvDept"
+            app:layout_constraintEnd_toStartOf="@id/btnDelete"/>
+
+        <!-- SİL BUTONU -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginTop="12dp"
+            android:text="🗑️ Sil"
+            android:textSize="12sp"
+            android:textColor="#AAB6D6"
+            android:visibility="gone"
+            app:cornerRadius="12dp"
+            app:backgroundTint="#1A2A5E"
+            app:strokeColor="#2A3F7E"
+            app:strokeWidth="1dp"
+            app:layout_constraintTop_toBottomOf="@id/tvDesc"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "265717228588",
+    "project_id": "campusnote-7d1a2",
+    "storage_bucket": "campusnote-7d1a2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:265717228588:android:3de90f4ecbc9342108dd89",
+        "android_client_info": {
+          "package_name": "duygu.yilmaz.simpleexample"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCc7u9TlV4pDf0Bfims23uGE7uxiTvgY3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

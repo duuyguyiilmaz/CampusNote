@@ -1,0 +1,70 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Base.Theme.SimpleExample" parent="Theme.Material3.DayNight.NoActionBar">
+    </style>
+
+    <style name="Theme.SimpleExample" parent="Base.Theme.SimpleExample" />
+
+    <style name="BottomNavText">
+        <item name="android:textSize">11sp</item>
+    </style>
+
+    <!-- CAMPUSNOTE TYPOGRAPHY -->
+    <style name="AppText" />
+
+    <style name="AppText.Title">
+        <item name="android:textSize">28sp</item>
+        <item name="android:fontFamily">@font/poppins_semibold</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="AppText.Subtitle">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/poppins_medium</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="AppText.Label">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/poppins_medium</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="AppText.Body">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/poppins_regular</item>
+    </style>
+
+    <style name="AppText.Caption">
+        <item name="android:textSize">13sp</item>
+        <item name="android:fontFamily">@font/poppins_medium</item>
+        <item name="android:letterSpacing">0.12</item>
+    </style>
+
+    <style name="AppText.Button">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/poppins_semibold</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="AppText.StepNumber">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/poppins_semibold</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="AppText.CardTitle">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/poppins_semibold</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="AppText.CardBody">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/poppins_regular</item>
+        <item name="android:textColor">@color/text_white_80</item>
+    </style>
+
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Leaderboard kart rengi -->
+    <solid android:color="#1E2D5A"/>
+
+    <!-- Köşe yuvarlama -->
+    <corners android:radius="16dp"/>
+
+    <!-- İnce border (Leaderboard stroke ile uyumlu) -->
+    <stroke
+        android:width="1dp"
+        android:color="#2A3F7E"/>
+
+</shape>

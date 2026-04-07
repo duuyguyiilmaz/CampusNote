@@ -1,0 +1,28 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="AppText" />
+
+    <style name="AppText.Title">
+        <item name="android:textSize">28sp</item>
+        <item name="android:fontFamily">@font/poppins_semibold</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="AppText.Body">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/poppins_regular</item>
+    </style>
+
+    <style name="AppText.Caption">
+        <item name="android:textSize">13sp</item>
+        <item name="android:fontFamily">@font/poppins_medium</item>
+        <item name="android:letterSpacing">0.12</item>
+    </style>
+
+    <style name="AppText.Button">
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">@font/poppins_medium</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

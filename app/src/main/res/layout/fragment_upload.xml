@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/gradient_background"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/tvUploadTitle"
+            style="@style/AppText.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Not Paylaş"
+            android:textColor="@color/white"
+            android:layout_marginBottom="0dp"/>
+
+        <TextView
+            android:id="@+id/tvUploadSubtitle"
+            style="@style/AppText.Subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Notlarını paylaş, herkese faydalı ol!"
+            android:textColor="#AAB6D6"
+            android:layout_marginBottom="24dp"/>
+
+
+        <LinearLayout
+            android:id="@+id/cardUploadForm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:background="@drawable/glass_card_bg"
+            android:layout_marginBottom="16dp">
+
+
+            <TextView
+                style="@style/AppText.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ders Adı"
+                android:layout_marginBottom="4dp"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilCourse"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="#F5F7FA"
+                app:boxCornerRadiusTopStart="12dp"
+                app:boxCornerRadiusTopEnd="12dp"
+                app:boxCornerRadiusBottomStart="12dp"
+                app:boxCornerRadiusBottomEnd="12dp"
+                app:boxStrokeColor="#D0D6E0"
+                app:hintTextColor="#8A94A6"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etCourse"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:hint="Örn: Veri Yapıları"
+                    android:inputType="text"
+                    android:textColor="#1A1A1A"
+                    android:textColorHint="#8A94A6"
+                    android:textSize="14sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:fontFamily="@font/poppins_regular"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+
+            <TextView
+                style="@style/AppText.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Not Başlığı"
+                android:layout_marginBottom="4dp"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="#F5F7FA"
+                app:boxCornerRadiusTopStart="12dp"
+                app:boxCornerRadiusTopEnd="12dp"
+                app:boxCornerRadiusBottomStart="12dp"
+                app:boxCornerRadiusBottomEnd="12dp"
+                app:boxStrokeColor="#D0D6E0"
+                app:hintTextColor="#8A94A6"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:hint="Örn: 3. Hafta Ders Notları"
+                    android:inputType="text"
+                    android:textColor="#1A1A1A"
+                    android:textColorHint="#8A94A6"
+                    android:textSize="14sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:fontFamily="@font/poppins_regular"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+
+            <TextView
+                style="@style/AppText.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Açıklama"
+                android:layout_marginBottom="4dp"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilDesc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="#F5F7FA"
+                app:boxCornerRadiusTopStart="12dp"
+                app:boxCornerRadiusTopEnd="12dp"
+                app:boxCornerRadiusBottomStart="12dp"
+                app:boxCornerRadiusBottomEnd="12dp"
+                app:boxStrokeColor="#D0D6E0"
+                app:hintTextColor="#8A94A6"
+                android:layout_marginBottom="16dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etDesc"
+                    android:layout_width="match_parent"
+                    android:layout_height="120dp"
+                    android:gravity="top"
+                    android:hint="Notun hakkında kısa bir açıklama yaz..."
+                    android:inputType="textMultiLine"
+                    android:textColor="#1A1A1A"
+                    android:textColorHint="#8A94A6"
+                    android:textSize="14sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="16dp"
+                    android:fontFamily="@font/poppins_regular"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnUpload"
+            style="@style/AppText.Button"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="Notu Paylaş"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="60dp"
+            app:cornerRadius="28dp"
+            app:backgroundTint="@color/primary"
+            app:strokeColor="#2A3F7E"
+            app:strokeWidth="1dp"
+            app:elevation="6dp"/>
+
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>
