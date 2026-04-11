@@ -13,18 +13,21 @@
         android:orientation="vertical"
         android:paddingBottom="100dp">
 
-
+        <!-- BAŞLIK -->
         <TextView
+            android:id="@+id/tvProfileTitle"
             style="@style/AppText.Title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Profilim"
-            android:textColor="@color/white"
+            android:textColor="@color/soft_orange"
             android:layout_marginStart="24dp"
             android:layout_marginTop="24dp"
             android:layout_marginBottom="16dp"/>
 
+        <!-- AVATAR -->
         <androidx.cardview.widget.CardView
+            android:id="@+id/cardAvatar"
             android:layout_width="90dp"
             android:layout_height="90dp"
             android:layout_gravity="center"
@@ -36,21 +39,22 @@
                 android:id="@+id/tvAvatar"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:text="👤"
+                android:text=""
                 android:textSize="36sp"
                 android:textColor="@color/white"
                 android:gravity="center"/>
         </androidx.cardview.widget.CardView>
 
-
+        <!-- KULLANICI BİLGİLERİ -->
         <LinearLayout
+            android:id="@+id/layoutUserInfo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="24dp"
             android:paddingTop="20dp">
 
-
+            <!-- EMAIL KARTI -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -60,11 +64,11 @@
                 android:layout_marginBottom="12dp"
                 android:gravity="center_vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="✉️"
-                    android:textSize="22sp"
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_email"
+                    app:tint="@color/soft_orange"
                     android:layout_marginEnd="12dp"/>
 
                 <LinearLayout
@@ -84,12 +88,12 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="—"
-                        android:textColor="@color/white"/>
+                        android:textColor="@color/white"
+                        android:textSize="13sp"/>
                 </LinearLayout>
-
             </LinearLayout>
 
-
+            <!-- BÖLÜM KARTI -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -99,11 +103,11 @@
                 android:layout_marginBottom="12dp"
                 android:gravity="center_vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🎓"
-                    android:textSize="22sp"
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_department"
+                    app:tint="@color/soft_orange"
                     android:layout_marginEnd="12dp"/>
 
                 <LinearLayout
@@ -125,12 +129,308 @@
                         android:text="—"
                         android:textColor="@color/white"/>
                 </LinearLayout>
-
             </LinearLayout>
-
         </LinearLayout>
 
+        <!-- PUAN DURUMU KARTI -->
+        <LinearLayout
+            android:id="@+id/cardPoints"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:background="@drawable/glass_card_bg"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="12dp">
 
+            <!-- BAŞLIK -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_trophy"
+                    android:layout_marginEnd="12dp"/>
+
+                <TextView
+                    style="@style/AppText.CardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Puan Durumu"
+                    android:textColor="@color/soft_orange"/>
+            </LinearLayout>
+
+            <!-- PUAN GÖSTERGE -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/tvPoints"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textSize="32sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/white"
+                    android:fontFamily="@font/poppins_semibold"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" / 100 Puan"
+                    android:textSize="16sp"
+                    android:textColor="#AAB6D6"
+                    android:fontFamily="@font/poppins_regular"/>
+            </LinearLayout>
+
+            <!-- PROGRESS BAR -->
+            <ProgressBar
+                android:id="@+id/progressPoints"
+                style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="12dp"
+                android:max="100"
+                android:progress="0"
+                android:progressDrawable="@drawable/progress_bar_points"
+                android:layout_marginBottom="8dp"/>
+
+            <!-- KALAN PUAN -->
+            <TextView
+                android:id="@+id/tvPointsRemaining"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="100 puana ulaşınca indirimleri açarsın!"
+                android:textSize="12sp"
+                android:textColor="#AAB6D6"
+                android:fontFamily="@font/poppins_regular"/>
+        </LinearLayout>
+
+        <!-- İNDİRİMLER KARTI -->
+        <LinearLayout
+            android:id="@+id/cardDiscounts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:background="@drawable/glass_card_bg"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginBottom="12dp">
+
+            <!-- BAŞLIK -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_gift"
+                    android:layout_marginEnd="12dp"/>
+
+                <TextView
+                    style="@style/AppText.CardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="İndirimlerim"
+                    android:textColor="@color/soft_orange"/>
+            </LinearLayout>
+
+            <!-- KİLİTLİ DURUM -->
+            <LinearLayout
+                android:id="@+id/layoutDiscountsLocked"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="16dp"
+                android:visibility="visible">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_lock"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="100 puana ulaşınca indirimler açılır!"
+                    android:textSize="13sp"
+                    android:textColor="#AAB6D6"
+                    android:gravity="center"
+                    android:fontFamily="@font/poppins_regular"/>
+            </LinearLayout>
+
+            <!-- AÇIK DURUM - İNDİRİM LİSTESİ -->
+            <LinearLayout
+                android:id="@+id/layoutDiscountsUnlocked"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <!-- İndirim 1 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp"
+                    android:background="@drawable/discount_item_bg"
+                    android:layout_marginBottom="8dp">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_coffee"
+                        android:layout_marginEnd="12dp"/>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Cafe Nero"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:fontFamily="@font/poppins_medium"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tüm içeceklerde geçerli"
+                            android:textSize="11sp"
+                            android:textColor="#AAB6D6"/>
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="%15"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/soft_orange"
+                        android:fontFamily="@font/poppins_semibold"/>
+                </LinearLayout>
+
+                <!-- İndirim 2 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp"
+                    android:background="@drawable/discount_item_bg"
+                    android:layout_marginBottom="8dp">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_pizza"
+                        android:layout_marginEnd="12dp"/>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Domino's Pizza"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:fontFamily="@font/poppins_medium"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Orta ve büyük boy pizzalarda"
+                            android:textSize="11sp"
+                            android:textColor="#AAB6D6"/>
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="%10"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/soft_orange"
+                        android:fontFamily="@font/poppins_semibold"/>
+                </LinearLayout>
+
+                <!-- İndirim 3 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp"
+                    android:background="@drawable/discount_item_bg">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_book"
+                        android:layout_marginEnd="12dp"/>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="D&amp;R"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:fontFamily="@font/poppins_medium"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Kırtasiye ürünlerinde"
+                            android:textSize="11sp"
+                            android:textColor="#AAB6D6"/>
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="%20"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/soft_orange"
+                        android:fontFamily="@font/poppins_semibold"/>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- NOTLARIM BAŞLIK -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -147,7 +447,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Notlarım"
-                android:textColor="@color/white"/>
+                android:textColor="@color/soft_orange"
+                android:textSize="18sp"/>
 
             <TextView
                 android:id="@+id/tvNoteCount"
@@ -157,6 +458,7 @@
                 android:text="0 not"/>
         </LinearLayout>
 
+        <!-- EMPTY STATE -->
         <LinearLayout
             android:id="@+id/layoutEmptyNotes"
             android:layout_width="match_parent"
@@ -166,11 +468,10 @@
             android:padding="32dp"
             android:visibility="gone">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="\uD83D\uDCEC"
-                android:textSize="48sp"/>
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_empty_notes"/>
 
             <TextView
                 android:id="@+id/tvEmptyTitle"
@@ -188,14 +489,16 @@
                 android:text="İlk notunu paylaş!"/>
         </LinearLayout>
 
+        <!-- NOTLARIM LİSTESİ -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMyNotes"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:paddingHorizontal="16dp"
             android:nestedScrollingEnabled="false"
             android:clipToPadding="false"/>
 
-
+        <!-- ÇIKIŞ BUTONU -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLogout"
             style="@style/AppText.Button"
@@ -206,11 +509,11 @@
             android:layout_marginTop="24dp"
             app:cornerRadius="28dp"
             app:backgroundTint="@color/primary"
-            app:strokeWidth="0dp"
-            app:icon="@android:drawable/ic_menu_close_clear_cancel"
+            app:strokeColor="#2A3F7E"
+            app:strokeWidth="1dp"
+            app:icon="@drawable/ic_logout"
             app:iconTint="@color/white"
             app:iconGravity="textStart"/>
 
     </LinearLayout>
-
 </androidx.core.widget.NestedScrollView>

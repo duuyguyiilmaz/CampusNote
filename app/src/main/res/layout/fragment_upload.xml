@@ -13,15 +13,16 @@
         android:orientation="vertical"
         android:padding="24dp">
 
+        <!-- BAŞLIK -->
         <TextView
             android:id="@+id/tvUploadTitle"
             style="@style/AppText.Title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Not Paylaş"
-            android:textColor="@color/white"
-            android:layout_marginBottom="0dp"/>
+            android:textColor="@color/soft_orange"/>
 
+        <!-- ALT BAŞLIK -->
         <TextView
             android:id="@+id/tvUploadSubtitle"
             style="@style/AppText.Subtitle"
@@ -31,7 +32,7 @@
             android:textColor="#AAB6D6"
             android:layout_marginBottom="24dp"/>
 
-
+        <!-- FORM KARTI -->
         <LinearLayout
             android:id="@+id/cardUploadForm"
             android:layout_width="match_parent"
@@ -41,7 +42,7 @@
             android:background="@drawable/glass_card_bg"
             android:layout_marginBottom="16dp">
 
-
+            <!-- DERS ADI -->
             <TextView
                 style="@style/AppText.Label"
                 android:layout_width="wrap_content"
@@ -54,30 +55,34 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:startIconDrawable="@drawable/ic_book"
+                app:startIconTint="@color/soft_orange"
                 app:boxBackgroundColor="#F5F7FA"
                 app:boxCornerRadiusTopStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxStrokeColor="#D0D6E0"
-                app:hintTextColor="#8A94A6"
-                android:layout_marginBottom="12dp">
+                app:errorTextColor="@color/soft_orange"
+                app:errorIconTint="@color/soft_orange"
+                app:boxStrokeErrorColor="@color/soft_orange"
+                app:errorEnabled="true"
+                android:layout_marginBottom="8dp">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etCourse"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
                     android:hint="Örn: Veri Yapıları"
                     android:inputType="text"
                     android:textColor="#1A1A1A"
                     android:textColorHint="#8A94A6"
                     android:textSize="14sp"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
                     android:fontFamily="@font/poppins_regular"/>
             </com.google.android.material.textfield.TextInputLayout>
 
-
+            <!-- NOT BAŞLIĞI -->
             <TextView
                 style="@style/AppText.Label"
                 android:layout_width="wrap_content"
@@ -90,30 +95,34 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:startIconDrawable="@drawable/ic_title"
+                app:startIconTint="@color/soft_orange"
                 app:boxBackgroundColor="#F5F7FA"
                 app:boxCornerRadiusTopStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxStrokeColor="#D0D6E0"
-                app:hintTextColor="#8A94A6"
-                android:layout_marginBottom="12dp">
+                app:errorTextColor="@color/soft_orange"
+                app:errorIconTint="@color/soft_orange"
+                app:boxStrokeErrorColor="@color/soft_orange"
+                app:errorEnabled="true"
+                android:layout_marginBottom="8dp">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etTitle"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
                     android:hint="Örn: 3. Hafta Ders Notları"
                     android:inputType="text"
                     android:textColor="#1A1A1A"
                     android:textColorHint="#8A94A6"
                     android:textSize="14sp"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
                     android:fontFamily="@font/poppins_regular"/>
             </com.google.android.material.textfield.TextInputLayout>
 
-
+            <!-- AÇIKLAMA -->
             <TextView
                 style="@style/AppText.Label"
                 android:layout_width="wrap_content"
@@ -126,34 +135,190 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:startIconDrawable="@drawable/ic_description"
+                app:startIconTint="@color/soft_orange"
                 app:boxBackgroundColor="#F5F7FA"
                 app:boxCornerRadiusTopStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"
                 app:boxCornerRadiusBottomEnd="12dp"
                 app:boxStrokeColor="#D0D6E0"
-                app:hintTextColor="#8A94A6"
-                android:layout_marginBottom="16dp">
+                app:errorTextColor="@color/soft_orange"
+                app:errorIconTint="@color/soft_orange"
+                app:boxStrokeErrorColor="@color/soft_orange"
+                app:errorEnabled="true"
+                android:layout_marginBottom="8dp">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etDesc"
                     android:layout_width="match_parent"
-                    android:layout_height="120dp"
+                    android:layout_height="100dp"
                     android:gravity="top"
                     android:hint="Notun hakkında kısa bir açıklama yaz..."
                     android:inputType="textMultiLine"
                     android:textColor="#1A1A1A"
                     android:textColorHint="#8A94A6"
                     android:textSize="14sp"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:paddingTop="16dp"
-                    android:paddingBottom="16dp"
                     android:fontFamily="@font/poppins_regular"/>
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- ETİKET -->
+            <TextView
+                style="@style/AppText.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Etiket"
+                android:layout_marginBottom="4dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/spinner_background"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_label"
+                    app:tint="@color/soft_orange"
+                    android:layout_marginEnd="12dp"/>
+
+                <Spinner
+                    android:id="@+id/spTag"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"/>
+            </LinearLayout>
+
+            <!-- DOSYA YÜKLEME BUTONLARI -->
+            <TextView
+                style="@style/AppText.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dosya Ekle"
+                android:layout_marginBottom="8dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <!-- PDF YÜKLE -->
+                <LinearLayout
+                    android:id="@+id/btnSelectPdf"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:background="@drawable/upload_button_bg"
+                    android:padding="16dp"
+                    android:layout_marginEnd="8dp">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/ic_pdf"
+                        app:tint="@color/soft_orange"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="PDF Yükle"
+                        android:textColor="@color/white"
+                        android:textSize="12sp"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="@font/poppins_medium"/>
+                </LinearLayout>
+
+                <!-- FOTOĞRAF YÜKLE -->
+                <LinearLayout
+                    android:id="@+id/btnSelectImage"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:background="@drawable/upload_button_bg"
+                    android:padding="16dp"
+                    android:layout_marginStart="8dp">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/ic_image"
+                        app:tint="@color/soft_orange"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Fotoğraf Yükle"
+                        android:textColor="@color/white"
+                        android:textSize="12sp"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="@font/poppins_medium"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- SEÇİLEN DOSYA ÖNİZLEME -->
+            <LinearLayout
+                android:id="@+id/layoutFilePreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/file_preview_bg"
+                android:padding="12dp"
+                android:layout_marginTop="12dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/ivFileIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_pdf"
+                    app:tint="@color/soft_orange"/>
+
+                <TextView
+                    android:id="@+id/tvFileName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="dosya_adi.pdf"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:maxLines="1"
+                    android:ellipsize="middle"
+                    android:layout_marginStart="12dp"
+                    android:fontFamily="@font/poppins_regular"/>
+
+                <ImageView
+                    android:id="@+id/btnRemoveFile"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_close"
+                    app:tint="#FF6B6B"
+                    android:padding="2dp"/>
+            </LinearLayout>
+
         </LinearLayout>
 
+        <!-- PROGRESS BAR -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:indeterminateTint="@color/soft_orange"/>
+
+        <!-- PAYLAŞ BUTONU -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUpload"
             style="@style/AppText.Button"
@@ -161,13 +326,11 @@
             android:layout_height="52dp"
             android:text="Notu Paylaş"
             android:layout_marginTop="16dp"
-            android:layout_marginBottom="60dp"
+            android:layout_marginBottom="80dp"
             app:cornerRadius="28dp"
             app:backgroundTint="@color/primary"
             app:strokeColor="#2A3F7E"
-            app:strokeWidth="1dp"
-            app:elevation="6dp"/>
+            app:strokeWidth="1dp"/>
 
     </LinearLayout>
-
 </androidx.core.widget.NestedScrollView>

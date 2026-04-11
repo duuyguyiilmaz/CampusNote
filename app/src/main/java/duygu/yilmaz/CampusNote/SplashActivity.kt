@@ -5,7 +5,6 @@ import android.content.Intent
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
-import com.bumptech.glide.Glide
 import com.google.android.material.button.MaterialButton
 
 class SplashActivity : AppCompatActivity() {
@@ -21,10 +20,8 @@ class SplashActivity : AppCompatActivity() {
         val tvSlogan    = findViewById<TextView>(R.id.tvSlogan)
 
 
-        Glide.with(this)
-            .load(R.drawable.campusnote__11)
-            .fitCenter()
-            .into(ivLogo)
+
+        ivLogo.setImageResource(R.drawable.campusnote__11)
 
         tvWelcome.animate()
             .alpha(1f)
@@ -33,7 +30,6 @@ class SplashActivity : AppCompatActivity() {
             .setDuration(600)
             .start()
 
-        // 2. Logo - 700ms sonra
         ivLogo.scaleX = 0.5f
         ivLogo.scaleY = 0.5f
         ivLogo.animate()
@@ -44,7 +40,6 @@ class SplashActivity : AppCompatActivity() {
             .setDuration(800)
             .start()
 
-        // 3. Slogan - 1600ms sonra
         tvSlogan.animate()
             .alpha(1f)
             .translationYBy(-20f)
@@ -52,14 +47,12 @@ class SplashActivity : AppCompatActivity() {
             .setDuration(600)
             .start()
 
-        // 4. Loading - 2000ms sonra
         progressBar.animate()
             .alpha(1f)
             .setStartDelay(2000)
             .setDuration(400)
             .start()
 
-        // 5. Başla butonu - 2500ms sonra
         btnNext.animate()
             .alpha(1f)
             .translationYBy(-20f)
@@ -71,19 +64,9 @@ class SplashActivity : AppCompatActivity() {
             .start()
 
         btnNext.setOnClickListener {
-            // OnboardingActivity'nin var olduğunu varsayıyoruz.
-            // Eğer ismi farklıysa burayı düzeltmelisiniz.
-            try {
-                val intent = Intent(this, Class.forName("duygu.yilmaz.simpleexample.OnboardingActivity"))
-                startActivity(intent)
-                overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
-                finish()
-            } catch (e: ClassNotFoundException) {
-                // Eğer OnboardingActivity yoksa MainActivity'ye git
-                val intent = Intent(this, MainActivity::class.java)
-                startActivity(intent)
-                finish()
-            }
+            val intent = Intent(this, OnboardingActivity::class.java)
+            startActivity(intent)
+            finish()
         }
     }
 }

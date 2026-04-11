@@ -7,7 +7,7 @@
     android:orientation="vertical"
     android:background="@drawable/gradient_background">
 
-
+    <!-- BAŞLIK -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -23,7 +23,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Liderlik Tablosu"
-            android:textColor="@color/white"/>
+            android:textColor="@color/soft_orange"/>
 
         <TextView
             android:id="@+id/tvLeaderboardSubtitle"
@@ -31,12 +31,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="En çok oylanan notlar burada!"
-            android:textColor="#AAB6D6"
-            android:layout_marginTop="0dp"/>
-
+            android:textColor="#AAB6D6"/>
     </LinearLayout>
 
+    <!-- MADALYA BADGE'LERİ -->
     <LinearLayout
+        android:id="@+id/layoutBadges"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -103,10 +103,9 @@
                 android:textStyle="bold"
                 android:textColor="#CD7F32"/>
         </androidx.cardview.widget.CardView>
-
     </LinearLayout>
 
-
+    <!-- AYIRICI ÇİZGİ -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
@@ -115,7 +114,7 @@
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="8dp"/>
 
-
+    <!-- RECYCLERVIEW -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvLeaderboard"
         android:layout_width="match_parent"
@@ -125,5 +124,41 @@
         android:paddingEnd="16dp"
         android:paddingBottom="92dp"
         android:clipToPadding="false"/>
+
+    <!-- EMPTY STATE -->
+    <LinearLayout
+        android:id="@+id/layoutEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        android:padding="32dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🏆"
+            android:textSize="64sp"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            style="@style/AppText.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Henüz sıralama yok"
+            android:textColor="@color/soft_orange"
+            android:gravity="center"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            style="@style/AppText.Subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Not paylaşıldıkça ve oylandıkça\nliderlik tablosu oluşacak!"
+            android:textColor="#AAB6D6"
+            android:gravity="center"/>
+    </LinearLayout>
 
 </LinearLayout>

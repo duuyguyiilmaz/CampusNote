@@ -6,14 +6,13 @@
     android:layout_height="match_parent"
     android:background="@drawable/gradient_background">
 
-
     <TextView
         android:id="@+id/tvFeedTitle"
         style="@style/AppText.Title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Ders Notları"
-        android:textColor="@color/white"
+        android:textColor="@color/soft_orange"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginTop="36dp"
@@ -28,84 +27,102 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Bölümündeki notları keşfet!"
-        android:textColor="#AAB6D6"
+        android:textColor="#B4C1E3"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
-        android:layout_marginTop="0dp"
+        android:layout_marginTop="8dp"
         android:gravity="center"
         app:layout_constraintTop_toBottomOf="@id/tvFeedTitle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvFeed"
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefresh"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="14dp"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="92dp"
-        android:clipToPadding="false"
         app:layout_constraintTop_toBottomOf="@id/tvFeedSubtitle"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-
-    <LinearLayout
-        android:id="@+id/layoutLocked"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="32dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvFeed"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="92dp"
+            android:clipToPadding="false"/>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <ScrollView
+        android:id="@+id/layoutLocked"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/tvFeedSubtitle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="📚"
-            android:textSize="72sp"
-            android:gravity="center"
-            android:layout_marginBottom="20dp"/>
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingStart="32dp"
+            android:paddingEnd="32dp"
+            android:paddingTop="48dp"
+            android:paddingBottom="120dp">
 
-        <TextView
-            style="@style/AppText.Title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Henüz not yüklemedin!"
-            android:textColor="@color/white"
-            android:gravity="center"
-            android:layout_marginBottom="12dp"/>
+            <ImageView
+                android:id="@+id/ivLockedIcon"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:src="@drawable/outline_add_notes_24"
+                android:contentDescription="Ders Notları"
+                android:scaleType="fitCenter"
+                android:layout_marginBottom="24dp"
+                app:tint="@color/soft_orange"/>
 
-        <TextView
-            style="@style/AppText.Subtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Tüm ders notlarına ulaşmak için&#10;sen de hemen bir not paylaş!"
-            android:textColor="#AAB6D6"
-            android:gravity="center"
-            android:lineSpacingExtra="0dp"
-            android:layout_marginBottom="36dp"/>
+            <TextView
+                android:id="@+id/tvLockedTitle"
+                style="@style/AppText.Title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Henüz not yüklemedin!"
+                android:textColor="@color/soft_orange"
+                android:gravity="center"
+                android:layout_marginBottom="12dp"/>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnUpload"
-            style="@style/AppText.Button"
-            android:layout_width="wrap_content"
-            android:layout_height="52dp"
-            android:text="Not Yükle"
-            android:textColor="@color/text_white"
-            android:paddingStart="36dp"
-            android:paddingEnd="36dp"
-            app:cornerRadius="28dp"
-            app:backgroundTint="#1E2D5A"
-            app:elevation="6dp"/>
+            <TextView
+                android:id="@+id/tvLockedDesc"
+                style="@style/AppText.Subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tüm ders notlarına ulaşmak için\nsen de hemen bir not paylaş!"
+                android:textColor="#AAB6D6"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="32dp"/>
 
-    </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUpload"
+                style="@style/AppText.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:text="Not Yükle"
+                android:textColor="@color/white"
+                android:paddingStart="48dp"
+                android:paddingEnd="48dp"
+                app:cornerRadius="28dp"
+                app:backgroundTint="@color/primary"
+                app:strokeColor="#2A3F7E"
+                app:strokeWidth="1dp"/>
+
+        </LinearLayout>
+    </ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

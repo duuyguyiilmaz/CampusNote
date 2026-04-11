@@ -11,42 +11,74 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
         android:paddingTop="32dp"
-        android:paddingBottom="100dp">
+        android:paddingBottom="120dp">
 
-
+        <!-- BAŞLIK -->
         <TextView
+            style="@style/AppText.Title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text=" Notu Düzenle"
-            android:textSize="26sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:text="Notu Düzenle"
+            android:textColor="@color/soft_orange"
             android:layout_marginBottom="8dp"/>
 
         <TextView
+            style="@style/AppText.Label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Notunun bilgilerini güncelleyebilirsin"
-            android:textSize="13sp"
-            android:textColor="#AAB6D6"
             android:layout_marginBottom="32dp"/>
 
-
+        <!-- DERS ADI INPUT -->
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilEditCourse"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="📝  Başlık"
+            android:hint="Ders Adı"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_marginBottom="16dp"
             app:boxCornerRadiusTopStart="12dp"
             app:boxCornerRadiusTopEnd="12dp"
             app:boxCornerRadiusBottomStart="12dp"
             app:boxCornerRadiusBottomEnd="12dp"
-            app:boxStrokeColor="@color/accent"
+            app:boxStrokeColor="@color/soft_orange"
             app:boxBackgroundColor="#1A2A5E"
-            app:hintTextColor="@color/white">
+            app:hintTextColor="@color/soft_orange"
+            app:startIconDrawable="@drawable/ic_department"
+            app:startIconTint="@color/soft_orange">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etEditCourse"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#AAB6D6"
+                android:inputType="text"
+                android:padding="16dp"
+                android:fontFamily="@font/poppins_regular"/>
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- BAŞLIK INPUT -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilEditTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Başlık"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_marginBottom="16dp"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusTopEnd="12dp"
+            app:boxCornerRadiusBottomStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            app:boxStrokeColor="@color/soft_orange"
+            app:boxBackgroundColor="#1A2A5E"
+            app:hintTextColor="@color/soft_orange"
+            app:startIconDrawable="@drawable/ic_edit"
+            app:startIconTint="@color/soft_orange">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etEditTitle"
@@ -55,24 +87,28 @@
                 android:textColor="#FFFFFF"
                 android:textColorHint="#AAB6D6"
                 android:inputType="text"
-                android:padding="16dp"/>
+                android:padding="16dp"
+                android:fontFamily="@font/poppins_regular"/>
 
         </com.google.android.material.textfield.TextInputLayout>
 
-
+        <!-- AÇIKLAMA INPUT -->
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilEditDesc"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="📄  Açıklama"
+            android:hint="Açıklama"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_marginBottom="32dp"
+            android:layout_marginBottom="16dp"
             app:boxCornerRadiusTopStart="12dp"
             app:boxCornerRadiusTopEnd="12dp"
             app:boxCornerRadiusBottomStart="12dp"
             app:boxCornerRadiusBottomEnd="12dp"
-            app:boxStrokeColor="@color/accent"
+            app:boxStrokeColor="@color/soft_orange"
             app:boxBackgroundColor="#1A2A5E"
-            app:hintTextColor="@color/white">
+            app:hintTextColor="@color/soft_orange"
+            app:startIconDrawable="@drawable/ic_description"
+            app:startIconTint="@color/soft_orange">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etEditDesc"
@@ -81,15 +117,74 @@
                 android:textColor="#FFFFFF"
                 android:textColorHint="#AAB6D6"
                 android:inputType="textMultiLine"
-                android:minLines="5"
+                android:minLines="4"
                 android:gravity="top"
-                android:padding="16dp"/>
+                android:padding="16dp"
+                android:fontFamily="@font/poppins_regular"/>
 
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- ETİKET SEÇİMİ -->
+        <TextView
+            style="@style/AppText.Label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Etiket"
+            android:layout_marginBottom="8dp"/>
 
+        <Spinner
+            android:id="@+id/spEditTag"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/glass_card_bg"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- MEVCUT DOSYA BİLGİSİ -->
+        <LinearLayout
+            android:id="@+id/layoutCurrentFile"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="14dp"
+            android:background="@drawable/glass_card_bg"
+            android:layout_marginBottom="24dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/ivCurrentFileIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_description"
+                app:tint="@color/soft_orange"
+                android:layout_marginEnd="12dp"/>
+
+            <TextView
+                android:id="@+id/tvCurrentFileName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="dosya.pdf"
+                android:textColor="@color/white"
+                android:textSize="13sp"
+                android:fontFamily="@font/poppins_regular"
+                android:singleLine="true"
+                android:ellipsize="middle"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mevcut dosya"
+                android:textColor="#AAB6D6"
+                android:textSize="11sp"
+                android:fontFamily="@font/poppins_regular"/>
+        </LinearLayout>
+
+        <!-- KAYDET BUTONU -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSave"
+            style="@style/AppText.Button"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:text="Kaydet"
@@ -98,22 +193,28 @@
             android:textColor="@color/white"
             android:layout_marginBottom="12dp"
             app:cornerRadius="28dp"
-            app:backgroundTint="#1A2A5E"
+            app:backgroundTint="@color/soft_orange"
+            app:icon="@drawable/ic_save"
+            app:iconTint="@color/white"
+            app:iconGravity="textStart"
             app:elevation="6dp"/>
 
-
+        <!-- İPTAL BUTONU -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCancel"
+            style="@style/AppText.Button"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:text="İptal"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/white"
-            android:layout_marginBottom="12dp"
             app:cornerRadius="28dp"
-            app:backgroundTint="#1A2A5E"
+            app:backgroundTint="@color/primary"
+            app:strokeColor="#2A3F7E"
+            app:strokeWidth="1dp"
             app:elevation="6dp"/>
+
     </LinearLayout>
 
 </androidx.core.widget.NestedScrollView>

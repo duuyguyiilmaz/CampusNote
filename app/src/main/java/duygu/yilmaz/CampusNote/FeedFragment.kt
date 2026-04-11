@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -15,11 +16,13 @@ import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import android.widget.TextView
+
 
 class FeedFragment : Fragment() {
 
     private lateinit var rvFeed: RecyclerView
-    private lateinit var layoutLocked: LinearLayout
+    private lateinit var layoutLocked: ScrollView
     private lateinit var btnUpload: MaterialButton
     private lateinit var adapter: PostAdapter
 
@@ -51,6 +54,30 @@ class FeedFragment : Fragment() {
             activity?.findViewById<BottomNavigationView>(R.id.bottomNav)
                 ?.selectedItemId = R.id.nav_upload
         }
+        animateViews(view)
+
+
+    }
+    private fun animateViews(view: View) {
+        val tvTitle = view.findViewById<TextView>(R.id.tvFeedTitle)
+        val tvSubtitle = view.findViewById<TextView>(R.id.tvFeedSubtitle)
+
+        tvTitle.alpha = 0f
+        tvTitle.translationY = -20f
+        tvTitle.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(500)
+            .start()
+
+        tvSubtitle.alpha = 0f
+        tvSubtitle.translationY = -15f
+        tvSubtitle.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setStartDelay(200)
+            .setDuration(400)
+            .start()
     }
 
     override fun onStart() {
@@ -83,7 +110,6 @@ class FeedFragment : Fragment() {
                     return@addOnSuccessListener
                 }
 
-                // ✅ KİLİT KONTROLÜ: artık notes sorgusu yok
                 val hasUploaded = userSnap.getBoolean("hasUploadedNote") ?: false
                 showLocked(hasUploaded)
 
@@ -92,7 +118,6 @@ class FeedFragment : Fragment() {
                     return@addOnSuccessListener
                 }
 
-                // ✅ Kendi bölümündeki HERKESİN notları
                 feedListener?.remove()
                 feedListener = db.collection("notes")
                     .whereEqualTo("department", myDept)

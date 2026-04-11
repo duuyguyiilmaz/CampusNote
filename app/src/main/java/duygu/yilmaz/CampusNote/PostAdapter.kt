@@ -87,7 +87,7 @@ class PostAdapter(
             return
         }
 
-        val ratings = arrayOf("⭐ 1", "⭐⭐ 2", "⭐⭐⭐ 3", "⭐⭐⭐⭐ 4", "⭐⭐⭐⭐⭐ 5")
+        val ratings = arrayOf("1", "2", "3", "4", "5")
 
         AlertDialog.Builder(holder.itemView.context)
             .setTitle("Puan Ver")
@@ -107,8 +107,9 @@ class PostAdapter(
 
         ratingRef.get().addOnSuccessListener { ratingSnap ->
             if (ratingSnap.exists()) {
+                // Daha önce oy verilmiş — güncelle
                 val oldRating = ratingSnap.getLong("rating")?.toFloat() ?: 0f
-                val diff      = newRating - oldRating
+                val diff = newRating - oldRating
 
                 docRef.get().addOnSuccessListener { noteSnap ->
                     val oldSum   = noteSnap.getLong("ratingSum")   ?: 0L
@@ -121,9 +122,17 @@ class PostAdapter(
                         "avgRating" to newAvg
                     ))
                     ratingRef.update("rating", newRating.toLong())
-                    Toast.makeText(holder.itemView.context, "Puanın güncellendi! ⭐", Toast.LENGTH_SHORT).show()
+
+                    // Not sahibine puan farkını ekle
+                    val diffInt = diff.toInt()
+                    if (diffInt != 0) {
+                        addPointsToNoteOwner(post.uploaderUid, diffInt)
+                    }
+
+                    Toast.makeText(holder.itemView.context, "Puanın güncellendi!", Toast.LENGTH_SHORT).show()
                 }
             } else {
+                // İlk kez oy veriliyor
                 docRef.get().addOnSuccessListener { noteSnap ->
                     val oldSum   = noteSnap.getLong("ratingSum")   ?: 0L
                     val oldCount = noteSnap.getLong("ratingCount") ?: 0L
@@ -141,9 +150,28 @@ class PostAdapter(
                         "noteId" to post.id,
                         "rating" to newRating.toLong()
                     ))
-                    Toast.makeText(holder.itemView.context, "Puan verildi! ⭐", Toast.LENGTH_SHORT).show()
+
+                    // Not sahibine yıldız sayısı kadar puan ekle
+                    addPointsToNoteOwner(post.uploaderUid, newRating.toInt())
+
+                    Toast.makeText(holder.itemView.context, "Puan verildi!", Toast.LENGTH_SHORT).show()
                 }
             }
+        }
+    }
+
+    /**
+     * Not sahibinin puanına verilen yıldız sayısı kadar ekler.
+     * Negatif diff gelirse puan düşer (oy güncellemesinde).
+     */
+    private fun addPointsToNoteOwner(ownerUid: String, pointsToAdd: Int) {
+        if (ownerUid.isEmpty()) return
+
+        val userRef = db.collection("users").document(ownerUid)
+        userRef.get().addOnSuccessListener { snap ->
+            val currentPoints = snap.getLong("points")?.toInt() ?: 0
+            val newPoints = (currentPoints + pointsToAdd).coerceAtLeast(0)
+            userRef.update("points", newPoints)
         }
     }
 

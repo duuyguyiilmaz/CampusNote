@@ -1,70 +1,70 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <style name="Base.Theme.SimpleExample" parent="Theme.Material3.DayNight.NoActionBar">
-    </style>
 
-    <style name="Theme.SimpleExample" parent="Base.Theme.SimpleExample" />
+    <style name="Base.Theme.CampusNote" parent="Theme.Material3.DayNight.NoActionBar" />
+    <style name="Theme.CampusNote" parent="Base.Theme.CampusNote" />
 
-    <style name="BottomNavText">
-        <item name="android:textSize">11sp</item>
-    </style>
-
-    <!-- CAMPUSNOTE TYPOGRAPHY -->
     <style name="AppText" />
 
-    <style name="AppText.Title">
-        <item name="android:textSize">28sp</item>
-        <item name="android:fontFamily">@font/poppins_semibold</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:letterSpacing">0.02</item>
-    </style>
-
-    <style name="AppText.Subtitle">
-        <item name="android:textSize">16sp</item>
-        <item name="android:fontFamily">@font/poppins_medium</item>
-        <item name="android:textColor">@color/white</item>
-    </style>
-
-    <style name="AppText.Label">
-        <item name="android:textSize">14sp</item>
-        <item name="android:fontFamily">@font/poppins_medium</item>
-        <item name="android:textColor">@color/white</item>
-    </style>
-
-    <style name="AppText.Body">
-        <item name="android:textSize">16sp</item>
+    <style name="AppText.Regular" parent="AppText">
         <item name="android:fontFamily">@font/poppins_regular</item>
     </style>
 
-    <style name="AppText.Caption">
-        <item name="android:textSize">13sp</item>
+    <style name="AppText.Medium" parent="AppText">
         <item name="android:fontFamily">@font/poppins_medium</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="AppText.Semibold" parent="AppText">
+        <item name="android:fontFamily">@font/poppins_semibold</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="AppText.Title" parent="AppText.Semibold">
+        <item name="android:textSize">28sp</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textColor">@color/text_white</item>
+    </style>
+
+    <style name="AppText.Subtitle" parent="AppText.Medium">
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="AppText.Label" parent="AppText.Medium">
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="AppText.Body" parent="AppText.Regular">
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="AppText.Caption" parent="AppText.Medium">
+        <item name="android:textSize">13sp</item>
         <item name="android:letterSpacing">0.12</item>
     </style>
 
-    <style name="AppText.Button">
+    <style name="AppText.Button" parent="AppText.Semibold">
         <item name="android:textSize">16sp</item>
-        <item name="android:fontFamily">@font/poppins_semibold</item>
-        <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">false</item>
     </style>
 
-    <style name="AppText.StepNumber">
+    <style name="AppText.StepNumber" parent="AppText.Semibold">
         <item name="android:textSize">16sp</item>
-        <item name="android:fontFamily">@font/poppins_semibold</item>
         <item name="android:textColor">@color/white</item>
     </style>
 
-    <style name="AppText.CardTitle">
+    <style name="AppText.CardTitle" parent="AppText.Semibold">
         <item name="android:textSize">16sp</item>
-        <item name="android:fontFamily">@font/poppins_semibold</item>
-        <item name="android:textColor">@color/white</item>
+        <item name="android:textColor">#F0945F</item>
     </style>
 
-    <style name="AppText.CardBody">
+    <style name="AppText.CardBody" parent="AppText.Regular">
         <item name="android:textSize">14sp</item>
-        <item name="android:fontFamily">@font/poppins_regular</item>
         <item name="android:textColor">@color/text_white_80</item>
+    </style>
+
+    <style name="BottomNavText">
+        <item name="android:textSize">11sp</item>
     </style>
 
 </resources>
