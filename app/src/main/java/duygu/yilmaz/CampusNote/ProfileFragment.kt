@@ -44,7 +44,6 @@ class ProfileFragment : Fragment() {
 
     private lateinit var myNotesAdapter: PostAdapter
     private var myNotesListener: ListenerRegistration? = null
-    private var userListener: ListenerRegistration? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -169,8 +168,7 @@ class ProfileFragment : Fragment() {
         super.onStart()
         myNotesListener?.remove()
         myNotesListener = null
-        userListener?.remove()
-        userListener = null
+
         loadProfileAndMyNotes()
     }
 
@@ -178,8 +176,7 @@ class ProfileFragment : Fragment() {
         super.onStop()
         myNotesListener?.remove()
         myNotesListener = null
-        userListener?.remove()
-        userListener = null
+
     }
 
     private fun loadProfileAndMyNotes() {
@@ -189,24 +186,18 @@ class ProfileFragment : Fragment() {
             return
         }
 
-        // Email & Avatar
         val emailText = user.email ?: "—"
         tvEmail.text = emailText
         tvAvatar.text = emailText.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
 
-        // Kullanıcı bilgileri ve puanı — REALTIME LISTENER
-        userListener?.remove()
-        userListener = db.collection("users").document(user.uid)
-            .addSnapshotListener { snap, e ->
-                if (e != null || snap == null || !isAdded) return@addSnapshotListener
-
-                tvDepartment.text = snap.getString("department") ?: "—"
-
-                val points = snap.getLong("points")?.toInt() ?: 0
-                updatePointsUI(points)
+        db.collection("users").document(user.uid)
+            .get()
+            .addOnSuccessListener { snap ->
+                if (isAdded) {
+                    tvDepartment.text = snap.getString("department") ?: "—"
+                }
             }
 
-        // Kullanıcının notları
         myNotesListener?.remove()
         myNotesListener = db.collection("notes")
             .whereEqualTo("uploaderUid", user.uid)
@@ -216,6 +207,8 @@ class ProfileFragment : Fragment() {
                     return@addSnapshotListener
                 }
                 if (snap == null || !isAdded) return@addSnapshotListener
+
+                var totalPoints = 0L
 
                 val posts = snap.documents.mapNotNull { d ->
                     val title = d.getString("title") ?: return@mapNotNull null
@@ -234,6 +227,9 @@ class ProfileFragment : Fragment() {
 
                     val avgRating = d.getDouble("avgRating") ?: 0.0
                     val ratingCount = d.getLong("ratingCount") ?: 0L
+                    val ratingSum = d.getLong("ratingSum") ?: 0L
+
+                    totalPoints += ratingSum
 
                     Post(
                         id = d.id,
@@ -244,12 +240,15 @@ class ProfileFragment : Fragment() {
                         timeMills = time,
                         uploaderUid = uploaderUid,
                         avgRating = avgRating,
-                        ratingCount = ratingCount
+                        ratingCount = ratingCount,
+                        ratingSum = ratingSum
                     )
                 }.sortedByDescending { it.timeMills }
 
                 myNotesAdapter.refresh(posts)
                 tvNoteCount.text = "${posts.size} not"
+
+                updatePointsUI(totalPoints.toInt())
 
                 val empty = posts.isEmpty()
                 layoutEmptyNotes.visibility = if (empty) View.VISIBLE else View.GONE

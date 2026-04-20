@@ -117,14 +117,13 @@
 
         </LinearLayout>
 
-        <!-- DÜZENLE BUTONU -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnEdit"
             android:layout_width="0dp"
             android:layout_height="36dp"
             android:layout_marginTop="12dp"
             android:layout_marginEnd="8dp"
-            android:text="✏️ Düzenle"
+            android:text=" Düzenle"
             android:textSize="12sp"
             android:textColor="#FFFFFF"
             android:visibility="gone"
@@ -142,7 +141,7 @@
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:layout_marginTop="12dp"
-            android:text="🗑️ Sil"
+            android:text=" Sil"
             android:textSize="12sp"
             android:textColor="#AAB6D6"
             android:visibility="gone"

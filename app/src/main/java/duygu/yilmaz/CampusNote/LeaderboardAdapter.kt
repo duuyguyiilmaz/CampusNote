@@ -24,7 +24,6 @@ class LeaderboardAdapter(
             .inflate(R.layout.item_leaderboard, parent, false)
         return LBViewHolder(v)
     }
-
     override fun onBindViewHolder(holder: LBViewHolder, position: Int) {
         val entry = items[position]
         val rank = position + 1
@@ -36,7 +35,6 @@ class LeaderboardAdapter(
             else -> rank.toString()
         }
 
-        // Emoji kullanınca renk şart değil ama istersen:
         holder.tvRank.setTextColor(
             when (rank) {
                 1 -> android.graphics.Color.parseColor("#FFD700")
@@ -49,7 +47,7 @@ class LeaderboardAdapter(
         holder.tvTitle.text = entry.title
         holder.tvEmail.text = entry.uploaderEmail
         holder.tvDept.text = entry.department
-        holder.tvAvgRating.text = String.format(java.util.Locale.US, "%.1f", entry.avgRating)
+        holder.tvAvgRating.text = entry.ratingSum.toString()
         holder.tvRatingCount.text = "${entry.ratingCount} oy"
     }
 

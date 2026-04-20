@@ -5,8 +5,8 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -16,7 +16,6 @@ import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import android.widget.TextView
 
 
 class FeedFragment : Fragment() {
@@ -46,7 +45,17 @@ class FeedFragment : Fragment() {
         layoutLocked = view.findViewById(R.id.layoutLocked)
         btnUpload    = view.findViewById(R.id.btnUpload)
 
-        adapter = PostAdapter(mutableListOf())
+        adapter = PostAdapter(
+            mutableListOf(),
+            onItemClick = { post ->
+                val fragment = NoteDetailFragment.newInstance(post)
+
+                parentFragmentManager.beginTransaction()
+                    .replace(R.id.fragmentContainer, fragment)
+                    .addToBackStack(null)
+                    .commit()
+            }
+        )
         rvFeed.layoutManager = LinearLayoutManager(requireContext())
         rvFeed.adapter = adapter
 
@@ -148,7 +157,12 @@ class FeedFragment : Fragment() {
 
                                 val ratingCount = d.getLong("ratingCount")
                                     ?: (d.getDouble("ratingCount")?.toLong() ?: 0L)
-
+                                val ratingSum = d.getLong("ratingSum") ?: 0L
+                                val course = d.getString("course") ?: ""
+                                val tag = d.getString("tag") ?: ""
+                                val fileName = d.getString("fileName") ?: ""
+                                val fileType = d.getString("fileType") ?: ""
+                                val fileData = d.getString("fileData") ?: ""
                                 Post(
                                     id = d.id,
                                     title = title,
@@ -158,7 +172,14 @@ class FeedFragment : Fragment() {
                                     timeMills = time,
                                     uploaderUid = uploaderUid,
                                     avgRating = avgRating,
-                                    ratingCount = ratingCount
+                                    ratingCount = ratingCount,
+                                    ratingSum = ratingSum,
+                                    course = course,
+                                    tag = tag,
+                                    fileName = fileName,
+                                    fileType = fileType,
+                                    fileData = fileData
+
                                 )
                             }
                             .sortedByDescending { it.timeMills }

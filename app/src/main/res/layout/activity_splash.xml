@@ -13,7 +13,6 @@
         android:layout_height="wrap_content"
         android:text="Hoş Geldiniz"
         style="@style/AppText.Title"
-        android:textColor="@color/white"
         android:alpha="0"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"

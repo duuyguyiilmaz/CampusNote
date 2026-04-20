@@ -13,7 +13,6 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <!-- BAŞLIK -->
         <TextView
             android:id="@+id/tvUploadTitle"
             style="@style/AppText.Title"
@@ -22,7 +21,6 @@
             android:text="Not Paylaş"
             android:textColor="@color/soft_orange"/>
 
-        <!-- ALT BAŞLIK -->
         <TextView
             android:id="@+id/tvUploadSubtitle"
             style="@style/AppText.Subtitle"
@@ -237,7 +235,6 @@
                         android:fontFamily="@font/poppins_medium"/>
                 </LinearLayout>
 
-                <!-- FOTOĞRAF YÜKLE -->
                 <LinearLayout
                     android:id="@+id/btnSelectImage"
                     android:layout_width="0dp"
@@ -266,7 +263,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- SEÇİLEN DOSYA ÖNİZLEME -->
             <LinearLayout
                 android:id="@+id/layoutFilePreview"
                 android:layout_width="match_parent"
@@ -309,7 +305,6 @@
 
         </LinearLayout>
 
-        <!-- PROGRESS BAR -->
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
@@ -318,7 +313,6 @@
             android:visibility="gone"
             android:indeterminateTint="@color/soft_orange"/>
 
-        <!-- PAYLAŞ BUTONU -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUpload"
             style="@style/AppText.Button"

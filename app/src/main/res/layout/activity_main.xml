@@ -12,7 +12,6 @@
         android:layout_height="match_parent"
         tools:layout="@layout/fragment_feed" />
 
-    <!-- BOTTOM NAV - üste biner -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"

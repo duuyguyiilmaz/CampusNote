@@ -6,5 +6,6 @@ data class LeaderboardEntry(
     val uploaderEmail: String,
     val department: String,
     val avgRating: Double,
-    val ratingCount: Long
+    val ratingCount: Long,
+    val ratingSum: Long = 0L
 )

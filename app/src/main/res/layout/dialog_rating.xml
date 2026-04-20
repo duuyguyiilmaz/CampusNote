@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/glass_card_bg"
+    android:padding="24dp"
+    android:gravity="center">
+
+    <!-- BAŞLIK -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Puan Ver"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/soft_orange"
+        android:fontFamily="@font/poppins_semibold"
+        android:layout_marginBottom="8dp"/>
+
+    <!-- ALT BAŞLIK -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bu not için puanını seç"
+        android:textSize="14sp"
+        android:textColor="#AAB6D6"
+        android:fontFamily="@font/poppins_regular"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- YILDIZLAR -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="24dp">
+
+        <ImageView
+            android:id="@+id/star1"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_star_outline"
+            android:padding="4dp"
+            app:tint="#AAB6D6"/>
+
+        <ImageView
+            android:id="@+id/star2"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_star_outline"
+            android:padding="4dp"
+            app:tint="#AAB6D6"/>
+
+        <ImageView
+            android:id="@+id/star3"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_star_outline"
+            android:padding="4dp"
+            app:tint="#AAB6D6"/>
+
+        <ImageView
+            android:id="@+id/star4"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_star_outline"
+            android:padding="4dp"
+            app:tint="#AAB6D6"/>
+
+        <ImageView
+            android:id="@+id/star5"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_star_outline"
+            android:padding="4dp"
+            app:tint="#AAB6D6"/>
+    </LinearLayout>
+
+    <!-- BUTONLAR -->
+    <!-- BUTONLAR -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancel"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="İptal"
+            android:textSize="13sp"
+            android:textColor="#AAB6D6"
+            app:strokeColor="#AAB6D6"
+            app:strokeWidth="1dp"
+            app:cornerRadius="24dp"
+            android:layout_marginEnd="6dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSubmit"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Onayla"
+            android:textSize="13sp"
+            android:textColor="@color/white"
+            app:backgroundTint="@color/soft_orange"
+            app:cornerRadius="24dp"
+            android:layout_marginStart="6dp"/>
+    </LinearLayout>
+
+</LinearLayout>

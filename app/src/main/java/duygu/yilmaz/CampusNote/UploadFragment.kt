@@ -21,7 +21,6 @@ import android.util.Base64
 
 class UploadFragment : Fragment() {
 
-    // Views
     private lateinit var tilCourse: TextInputLayout
     private lateinit var tilTitle: TextInputLayout
     private lateinit var tilDesc: TextInputLayout
@@ -45,7 +44,6 @@ class UploadFragment : Fragment() {
     private var selectedFileName: String = ""
     private var selectedFileType: String = ""
 
-    // Etiketler
     private val tags = listOf(
         "Etiket seçiniz",
         "Ders Notu",
@@ -234,7 +232,6 @@ class UploadFragment : Fragment() {
         val desc = etDesc.text?.toString()?.trim().orEmpty()
         val tagIndex = spTag.selectedItemPosition
 
-        // Validation
         if (!validateInput(course, title, desc)) return
 
         val user = auth.currentUser ?: run {
@@ -286,7 +283,6 @@ class UploadFragment : Fragment() {
                 db.collection("notes")
                     .add(noteMap)
                     .addOnSuccessListener {
-                        // Feed kilidini aç
                         db.collection("users").document(user.uid)
                             .update("hasUploadedNote", true)
 

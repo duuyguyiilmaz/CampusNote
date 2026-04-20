@@ -12,17 +12,12 @@ class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
-
         val tvWelcome   = findViewById<TextView>(R.id.tvWelcome)
         val ivLogo      = findViewById<ImageView>(R.id.ivLogo)
         val progressBar = findViewById<ProgressBar>(R.id.progressBar)
         val btnNext     = findViewById<MaterialButton>(R.id.btnNext)
         val tvSlogan    = findViewById<TextView>(R.id.tvSlogan)
-
-
-
         ivLogo.setImageResource(R.drawable.campusnote__11)
-
         tvWelcome.animate()
             .alpha(1f)
             .translationYBy(-20f)
@@ -64,7 +59,7 @@ class SplashActivity : AppCompatActivity() {
             .start()
 
         btnNext.setOnClickListener {
-            val intent = Intent(this, OnboardingActivity::class.java)
+           val intent = Intent(this, OnboardingActivity::class.java);
             startActivity(intent)
             finish()
         }

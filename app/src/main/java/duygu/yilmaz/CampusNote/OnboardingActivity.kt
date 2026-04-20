@@ -68,7 +68,7 @@ class OnboardingActivity : AppCompatActivity() {
     }
 
     private fun animateCards(cards: List<View>) {
-        // Başlık animasyonu
+
         findViewById<TextView>(R.id.tvTitle).apply {
             alpha = 0f
             translationY = -30f
@@ -104,7 +104,6 @@ class OnboardingActivity : AppCompatActivity() {
 
     private fun navigateToLogin() {
         startActivity(Intent(this, LoginActivity::class.java))
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         finish()
     }
 }

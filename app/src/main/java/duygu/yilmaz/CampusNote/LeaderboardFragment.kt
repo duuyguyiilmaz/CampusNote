@@ -59,7 +59,6 @@ class LeaderboardFragment : Fragment() {
         val tvSubtitle = view.findViewById<TextView>(R.id.tvLeaderboardSubtitle)
         val layoutBadges = view.findViewById<LinearLayout>(R.id.layoutBadges)
 
-        // Başlık animasyonu
         tvTitle.alpha = 0f
         tvTitle.translationY = -20f
         tvTitle.animate()
@@ -68,7 +67,6 @@ class LeaderboardFragment : Fragment() {
             .setDuration(500)
             .start()
 
-        // Alt başlık
         tvSubtitle.alpha = 0f
         tvSubtitle.translationY = -15f
         tvSubtitle.animate()
@@ -78,7 +76,6 @@ class LeaderboardFragment : Fragment() {
             .setDuration(400)
             .start()
 
-        // Badge'ler
         layoutBadges.alpha = 0f
         layoutBadges.translationY = -10f
         layoutBadges.animate()
@@ -88,7 +85,6 @@ class LeaderboardFragment : Fragment() {
             .setDuration(400)
             .start()
 
-        // RecyclerView
         rvLeaderboard.alpha = 0f
         rvLeaderboard.animate()
             .alpha(1f)
@@ -113,6 +109,7 @@ class LeaderboardFragment : Fragment() {
                     val dept = d.getString("department") ?: ""
                     val avg = d.getDouble("avgRating") ?: 0.0
                     val count = d.getLong("ratingCount") ?: 0L
+                    val sum = d.getLong("ratingSum") ?: 0L  // ✅ Ekle
 
                     LeaderboardEntry(
                         docId = d.id,
@@ -120,15 +117,12 @@ class LeaderboardFragment : Fragment() {
                         uploaderEmail = email,
                         department = dept,
                         avgRating = avg,
-                        ratingCount = count
+                        ratingCount = count,
+                        ratingSum = sum  // ✅ Ekle
                     )
                 }
-                    .sortedWith(
-                        compareByDescending<LeaderboardEntry> { it.avgRating }
-                            .thenByDescending { it.ratingCount }
-                    )
+                    .sortedByDescending { it.ratingSum }
 
-                // Empty state kontrolü
                 if (entries.isEmpty()) {
                     rvLeaderboard.visibility = View.GONE
                     layoutEmpty.visibility = View.VISIBLE

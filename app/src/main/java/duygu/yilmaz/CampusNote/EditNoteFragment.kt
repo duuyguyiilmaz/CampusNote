@@ -25,7 +25,6 @@ class EditNoteFragment : Fragment() {
             }
         }
 
-        // Eski çağrılarla uyumluluk için
         fun newInstance(docId: String, title: String, desc: String): EditNoteFragment {
             return newInstance(docId)
         }
@@ -112,14 +111,12 @@ class EditNoteFragment : Fragment() {
                 etTitle.setText(snap.getString("title") ?: "")
                 etDesc.setText(snap.getString("description") ?: "")
 
-                // Etiket seç
                 val tag = snap.getString("tag") ?: ""
                 val tagIndex = tags.indexOf(tag)
                 if (tagIndex > 0) {
                     spTag.setSelection(tagIndex)
                 }
 
-                // Dosya bilgisi göster
                 val fileName = snap.getString("fileName") ?: ""
                 val fileType = snap.getString("fileType") ?: ""
                 if (fileName.isNotEmpty()) {

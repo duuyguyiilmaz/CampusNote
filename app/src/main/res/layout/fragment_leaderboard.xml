@@ -136,13 +136,13 @@
         android:visibility="gone"
         android:padding="32dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🏆"
-            android:textSize="64sp"
+        <ImageView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@drawable/ic_trophy"
+            android:contentDescription="@null"
+            app:tint="#FFFFFF"
             android:layout_marginBottom="16dp"/>
-
         <TextView
             style="@style/AppText.Title"
             android:layout_width="wrap_content"
