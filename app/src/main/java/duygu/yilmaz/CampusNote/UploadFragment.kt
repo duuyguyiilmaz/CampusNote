@@ -226,7 +226,7 @@ class UploadFragment : Fragment() {
         return name
     }
 
-    private fun uploadNote() {9
+    private fun uploadNote() {
         val course = etCourse.text?.toString()?.trim().orEmpty()
         val title = etTitle.text?.toString()?.trim().orEmpty()
         val desc = etDesc.text?.toString()?.trim().orEmpty()
