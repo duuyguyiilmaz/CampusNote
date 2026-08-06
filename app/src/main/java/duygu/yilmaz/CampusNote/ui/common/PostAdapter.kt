@@ -1,4 +1,4 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.ui.common
 
 import android.app.AlertDialog
 import android.view.LayoutInflater
@@ -7,6 +7,8 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.data.model.Post
 
 class PostAdapter(
     private val items: MutableList<Post>,

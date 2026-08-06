@@ -1,4 +1,4 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.ui.notedetail
 
 import android.app.AlertDialog
 import android.content.Intent
@@ -16,6 +16,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
+import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.data.model.Post
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore

@@ -1,4 +1,4 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.data.model
 
 data class Post(
     val id: String,
@@ -16,7 +16,4 @@ data class Post(
     val fileName: String = "",
     val fileType: String = "",
     val fileData: String = ""
-
-
-
 )

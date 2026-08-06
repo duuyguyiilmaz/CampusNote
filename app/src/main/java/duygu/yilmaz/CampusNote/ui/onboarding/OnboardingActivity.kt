@@ -1,13 +1,19 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.ui.onboarding
 
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.button.MaterialButton
+import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.data.local.OnboardingPreferences
+import duygu.yilmaz.CampusNote.ui.auth.LoginActivity
 
 class OnboardingActivity : AppCompatActivity() {
+
+    private lateinit var viewModel: OnboardingViewModel
 
     private data class OnboardingStep(
         val number: String,
@@ -36,8 +42,12 @@ class OnboardingActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val prefs = getSharedPreferences("CampusNote", MODE_PRIVATE)
-        if (prefs.getBoolean("onboarding_completed", false)) {
+        val viewModelFactory = OnboardingViewModelFactory(
+            OnboardingPreferences(applicationContext)
+        )
+        viewModel = ViewModelProvider(this, viewModelFactory)[OnboardingViewModel::class.java]
+
+        if (viewModel.isCompleted()) {
             navigateToLogin()
             return
         }
@@ -54,7 +64,7 @@ class OnboardingActivity : AppCompatActivity() {
         animateCards(cards)
 
         findViewById<MaterialButton>(R.id.btnStart).setOnClickListener {
-            prefs.edit().putBoolean("onboarding_completed", true).apply()
+            viewModel.completeOnboarding()
             navigateToLogin()
         }
     }

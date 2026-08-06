@@ -1,4 +1,4 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.data.model
 
 data class LeaderboardEntry(
     val docId: String,
