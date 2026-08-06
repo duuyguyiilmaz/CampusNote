@@ -1,4 +1,4 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.ui.upload
 
 import android.app.Activity
 import android.content.Intent
@@ -18,6 +18,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import android.util.Base64
+import duygu.yilmaz.CampusNote.R
 
 class UploadFragment : Fragment() {
 

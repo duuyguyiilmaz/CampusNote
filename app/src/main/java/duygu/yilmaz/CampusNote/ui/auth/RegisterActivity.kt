@@ -1,4 +1,4 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.ui.auth
 
 import android.content.Intent
 import android.os.Bundle
@@ -8,17 +8,17 @@ import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.ui.main.MainActivity
 
 class RegisterActivity : AppCompatActivity() {
 
-    private lateinit var auth: FirebaseAuth
-    private lateinit var firestore: FirebaseFirestore
+    private val viewModel: RegisterViewModel by viewModels()
 
     // Views
     private lateinit var tvAppName: TextView
@@ -185,11 +185,9 @@ class RegisterActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_register)
 
-        auth = FirebaseAuth.getInstance()
-        firestore = FirebaseFirestore.getInstance()
-
         initViews()
         setupSpinner()
+        observeAuthState()
         setupClickListeners()
         animateViews()
     }
@@ -226,17 +224,11 @@ class RegisterActivity : AppCompatActivity() {
 
             if (!validateInput(email, password, departmentIndex)) return@setOnClickListener
 
-            showLoading(true)
-
-            auth.createUserWithEmailAndPassword(email, password)
-                .addOnSuccessListener { result ->
-                    val userId = result.user?.uid ?: ""
-                    saveUserToFirestore(userId, email, departments[departmentIndex])
-                }
-                .addOnFailureListener { e ->
-                    showLoading(false)
-                    showFirebaseError(e)
-                }
+            viewModel.register(
+                email = email,
+                password = password,
+                department = departments[departmentIndex]
+            )
         }
 
         btnBack.setOnClickListener {
@@ -244,29 +236,32 @@ class RegisterActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveUserToFirestore(userId: String, email: String, department: String) {
-        val user = hashMapOf(
-            "id" to userId,
-            "email" to email,
-            "department" to department,
-            "points" to 0,
-            "createdAt" to System.currentTimeMillis(),
-            "hasUploadedNote" to false
-
-        )
-
-        firestore.collection("users")
-            .document(userId)
-            .set(user)
-            .addOnSuccessListener {
-                showLoading(false)
-                Toast.makeText(this, "Kayıt başarılı! Hoş geldin!", Toast.LENGTH_SHORT).show()
-                goToMainActivity()
+    private fun observeAuthState() {
+        viewModel.uiState.observe(this) { state ->
+            when (state) {
+                AuthUiState.Idle -> showLoading(false)
+                AuthUiState.Loading -> showLoading(true)
+                AuthUiState.Success -> {
+                    viewModel.resetState()
+                    showLoading(false)
+                    Toast.makeText(this, "Kayıt başarılı! Hoş geldin!", Toast.LENGTH_SHORT).show()
+                    goToMainActivity()
+                }
+                is AuthUiState.Error -> {
+                    viewModel.resetState()
+                    showLoading(false)
+                    if (state.stage == AuthFailureStage.USER_PROFILE) {
+                        Toast.makeText(
+                            this,
+                            "Kullanıcı kaydedilemedi: ${state.exception.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        showFirebaseError(state.exception)
+                    }
+                }
             }
-            .addOnFailureListener { e ->
-                showLoading(false)
-                Toast.makeText(this, "Kullanıcı kaydedilemedi: ${e.message}", Toast.LENGTH_LONG).show()
-            }
+        }
     }
 
     private fun animateViews() {

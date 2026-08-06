@@ -1,4 +1,4 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.ui.splash
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.content.Intent
@@ -6,6 +6,8 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import com.google.android.material.button.MaterialButton
+import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.ui.onboarding.OnboardingActivity
 
 class SplashActivity : AppCompatActivity() {
 

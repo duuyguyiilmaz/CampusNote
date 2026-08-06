@@ -1,10 +1,12 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.ui.leaderboard
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.data.model.LeaderboardEntry
 
 class LeaderboardAdapter(
     private val items: MutableList<LeaderboardEntry>

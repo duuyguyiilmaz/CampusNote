@@ -1,4 +1,4 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.ui.feed
 
 import android.os.Bundle
 import android.util.Log
@@ -11,6 +11,10 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.data.model.Post
+import duygu.yilmaz.CampusNote.ui.common.PostAdapter
+import duygu.yilmaz.CampusNote.ui.notedetail.NoteDetailFragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth

@@ -1,4 +1,4 @@
-package duygu.yilmaz.CampusNote
+package duygu.yilmaz.CampusNote.ui.auth
 
 import android.content.Intent
 import android.os.Bundle
@@ -7,15 +7,17 @@ import android.widget.CheckBox
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import com.google.firebase.auth.FirebaseAuth
+import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.ui.main.MainActivity
 
 class LoginActivity : AppCompatActivity() {
 
-    private lateinit var auth: FirebaseAuth
+    private val viewModel: LoginViewModel by viewModels()
 
     private lateinit var tvAppName: TextView
     private lateinit var tvSubtitle: TextView
@@ -33,16 +35,16 @@ class LoginActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 
-        auth = FirebaseAuth.getInstance()
         val prefs = getSharedPreferences("campusnote_prefs", MODE_PRIVATE)
 
         val rememberMe = prefs.getBoolean("remember_me", false)
-        if (rememberMe && auth.currentUser != null) {
+        if (rememberMe && viewModel.hasAuthenticatedUser()) {
             goToMainActivity()
             return
         }
 
         initViews()
+        observeAuthState(prefs)
         setupClickListeners(prefs)
         animateViews()
     }
@@ -68,23 +70,35 @@ class LoginActivity : AppCompatActivity() {
 
             if (!validateInput(email, password)) return@setOnClickListener
 
-            showLoading(true)
+            viewModel.signIn(
+                email = email,
+                password = password
+            )
+        }
 
-            auth.signInWithEmailAndPassword(email, password)
-                .addOnSuccessListener {
+        btnRegister.setOnClickListener {
+            startActivity(Intent(this, RegisterActivity::class.java))
+        }
+    }
+
+    private fun observeAuthState(prefs: android.content.SharedPreferences) {
+        viewModel.uiState.observe(this) { state ->
+            when (state) {
+                AuthUiState.Idle -> showLoading(false)
+                AuthUiState.Loading -> showLoading(true)
+                AuthUiState.Success -> {
+                    viewModel.resetState()
                     prefs.edit().putBoolean("remember_me", cbRememberMe.isChecked).apply()
                     showLoading(false)
                     Toast.makeText(this, "Hoş geldin!", Toast.LENGTH_SHORT).show()
                     goToMainActivity()
                 }
-                .addOnFailureListener { e ->
+                is AuthUiState.Error -> {
+                    viewModel.resetState()
                     showLoading(false)
-                    showFirebaseError(e)
+                    showFirebaseError(state.exception)
                 }
-        }
-
-        btnRegister.setOnClickListener {
-            startActivity(Intent(this, RegisterActivity::class.java))
+            }
         }
     }
 
