@@ -4,14 +4,19 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
+import android.widget.ArrayAdapter
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.Spinner
+import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.data.model.NoteUpdate
 
 class EditNoteFragment : Fragment() {
 
@@ -24,10 +29,6 @@ class EditNoteFragment : Fragment() {
                     putString(ARG_DOC_ID, docId)
                 }
             }
-        }
-
-        fun newInstance(docId: String, title: String, desc: String): EditNoteFragment {
-            return newInstance(docId)
         }
     }
 
@@ -44,8 +45,12 @@ class EditNoteFragment : Fragment() {
     private lateinit var btnSave: MaterialButton
     private lateinit var btnCancel: MaterialButton
 
-    private val db   by lazy { FirebaseFirestore.getInstance() }
-    private val auth by lazy { FirebaseAuth.getInstance() }
+    private val viewModel: EditNoteViewModel by lazy {
+        ViewModelProvider(this)[EditNoteViewModel::class.java]
+    }
+
+    private val noteId: String
+        get() = arguments?.getString(ARG_DOC_ID).orEmpty()
 
     private val tags = listOf(
         "Etiket seçiniz",
@@ -59,20 +64,23 @@ class EditNoteFragment : Fragment() {
     )
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View? = inflater.inflate(R.layout.fragment_edit_note, container, false)
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        return inflater.inflate(R.layout.fragment_edit_note, container, false)
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         initViews(view)
         setupSpinner()
-        loadNoteData()
+        setupClickListeners()
 
-        btnSave.setOnClickListener { saveChanges() }
-        btnCancel.setOnClickListener {
-            parentFragmentManager.popBackStack()
-        }
+        viewModel.uiState.observe(viewLifecycleOwner, ::renderUiState)
+        viewModel.actionState.observe(viewLifecycleOwner, ::renderActionState)
+        viewModel.loadNote(noteId)
     }
 
     private fun initViews(view: View) {
@@ -88,6 +96,7 @@ class EditNoteFragment : Fragment() {
         tvCurrentFileName = view.findViewById(R.id.tvCurrentFileName)
         btnSave = view.findViewById(R.id.btnSave)
         btnCancel = view.findViewById(R.id.btnCancel)
+        btnSave.isEnabled = false
     }
 
     private fun setupSpinner() {
@@ -100,104 +109,142 @@ class EditNoteFragment : Fragment() {
         spTag.adapter = adapter
     }
 
-    private fun loadNoteData() {
-        val docId = arguments?.getString(ARG_DOC_ID) ?: return
-
-        db.collection("notes").document(docId)
-            .get()
-            .addOnSuccessListener { snap ->
-                if (!isAdded) return@addOnSuccessListener
-
-                etCourse.setText(snap.getString("course") ?: "")
-                etTitle.setText(snap.getString("title") ?: "")
-                etDesc.setText(snap.getString("description") ?: "")
-
-                val tag = snap.getString("tag") ?: ""
-                val tagIndex = tags.indexOf(tag)
-                if (tagIndex > 0) {
-                    spTag.setSelection(tagIndex)
-                }
-
-                val fileName = snap.getString("fileName") ?: ""
-                val fileType = snap.getString("fileType") ?: ""
-                if (fileName.isNotEmpty()) {
-                    layoutCurrentFile.visibility = View.VISIBLE
-                    tvCurrentFileName.text = fileName
-                    if (fileType == "pdf") {
-                        ivCurrentFileIcon.setImageResource(R.drawable.ic_pdf)
-                    } else {
-                        ivCurrentFileIcon.setImageResource(R.drawable.ic_image)
-                    }
-                } else {
-                    layoutCurrentFile.visibility = View.GONE
-                }
-            }
-            .addOnFailureListener { e ->
-                if (isAdded) {
-                    Toast.makeText(requireContext(), "Not yüklenemedi: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
+    private fun setupClickListeners() {
+        btnSave.setOnClickListener { saveChanges() }
+        btnCancel.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
     }
 
     private fun saveChanges() {
-        val docId = arguments?.getString(ARG_DOC_ID) ?: return
-        val newCourse = etCourse.text.toString().trim()
-        val newTitle = etTitle.text.toString().trim()
-        val newDesc = etDesc.text.toString().trim()
+        val course = etCourse.text?.toString()?.trim().orEmpty()
+        val title = etTitle.text?.toString()?.trim().orEmpty()
+        val description = etDesc.text?.toString()?.trim().orEmpty()
         val tagIndex = spTag.selectedItemPosition
 
-        // Validation
+        if (!validateInput(course, title, description)) return
+
+        viewModel.saveNote(
+            noteId = noteId,
+            update = NoteUpdate(
+                course = course,
+                title = title,
+                description = description,
+                tag = if (tagIndex > 0) tags[tagIndex] else ""
+            )
+        )
+    }
+
+    private fun validateInput(course: String, title: String, description: String): Boolean {
         tilCourse.error = null
         tilTitle.error = null
         tilDesc.error = null
 
-        if (newCourse.isEmpty()) {
-            tilCourse.error = "Ders adı boş olamaz"
-            return
-        }
-        if (newTitle.isEmpty()) {
-            tilTitle.error = "Başlık boş olamaz"
-            return
-        }
-        if (newDesc.isEmpty()) {
-            tilDesc.error = "Açıklama boş olamaz"
-            return
-        }
-
-        val uid = auth.currentUser?.uid ?: return
-        btnSave.isEnabled = false
-
-        db.collection("notes").document(docId)
-            .get()
-            .addOnSuccessListener { snap ->
-                if (snap.getString("uploaderUid") != uid) {
-                    Toast.makeText(requireContext(), "Bu notu düzenleme yetkin yok!", Toast.LENGTH_SHORT).show()
-                    btnSave.isEnabled = true
-                    return@addOnSuccessListener
-                }
-
-                val updates = mapOf(
-                    "course"      to newCourse,
-                    "title"       to newTitle,
-                    "description" to newDesc,
-                    "tag"         to if (tagIndex > 0) tags[tagIndex] else "",
-                    "updatedAt"   to com.google.firebase.firestore.FieldValue.serverTimestamp()
-                )
-
-                db.collection("notes").document(docId)
-                    .update(updates)
-                    .addOnSuccessListener {
-                        Toast.makeText(requireContext(), "Not güncellendi!", Toast.LENGTH_SHORT).show()
-                        parentFragmentManager.popBackStack()
-                    }
-                    .addOnFailureListener { e ->
-                        Toast.makeText(requireContext(), "Hata: ${e.message}", Toast.LENGTH_LONG).show()
-                        btnSave.isEnabled = true
-                    }
+        return when {
+            course.isEmpty() -> {
+                tilCourse.error = "Ders adı boş olamaz"
+                false
             }
-            .addOnFailureListener { e ->
-                Toast.makeText(requireContext(), "Doküman okunamadı: ${e.message}", Toast.LENGTH_LONG).show()
+
+            title.isEmpty() -> {
+                tilTitle.error = "Başlık boş olamaz"
+                false
+            }
+
+            description.isEmpty() -> {
+                tilDesc.error = "Açıklama boş olamaz"
+                false
+            }
+
+            else -> true
+        }
+    }
+
+    private fun renderUiState(state: EditNoteUiState) {
+        when (state) {
+            EditNoteUiState.Idle,
+            EditNoteUiState.Loading -> btnSave.isEnabled = false
+
+            EditNoteUiState.MissingSession -> {
+                btnSave.isEnabled = false
+                Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
+            }
+
+            EditNoteUiState.MissingNote -> {
+                btnSave.isEnabled = false
+                Toast.makeText(requireContext(), "Not bulunamadı.", Toast.LENGTH_LONG).show()
+            }
+
+            is EditNoteUiState.Content -> {
+                showNote(state)
                 btnSave.isEnabled = true
             }
+
+            is EditNoteUiState.Error -> {
+                btnSave.isEnabled = false
+                Toast.makeText(
+                    requireContext(),
+                    "Not yüklenemedi: ${state.exception.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun showNote(state: EditNoteUiState.Content) {
+        val note = state.note
+        etCourse.setText(note.course)
+        etTitle.setText(note.title)
+        etDesc.setText(note.desc)
+
+        val tagIndex = tags.indexOf(note.tag)
+        spTag.setSelection(if (tagIndex > 0) tagIndex else 0)
+
+        if (note.fileName.isNotEmpty()) {
+            layoutCurrentFile.visibility = View.VISIBLE
+            tvCurrentFileName.text = note.fileName
+            val icon = if (note.fileType == "pdf") R.drawable.ic_pdf else R.drawable.ic_image
+            ivCurrentFileIcon.setImageResource(icon)
+        } else {
+            layoutCurrentFile.visibility = View.GONE
+        }
+    }
+
+    private fun renderActionState(state: EditNoteActionState) {
+        when (state) {
+            EditNoteActionState.Idle -> {
+                btnSave.isEnabled = viewModel.uiState.value is EditNoteUiState.Content
+            }
+
+            EditNoteActionState.Saving -> btnSave.isEnabled = false
+
+            EditNoteActionState.Success -> {
+                Toast.makeText(requireContext(), "Not güncellendi!", Toast.LENGTH_SHORT).show()
+                parentFragmentManager.popBackStack()
+            }
+
+            EditNoteActionState.MissingSession -> {
+                Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
+                viewModel.resetActionState()
+            }
+
+            EditNoteActionState.NotOwner -> {
+                Toast.makeText(
+                    requireContext(),
+                    "Bu notu düzenleme yetkin yok!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                viewModel.resetActionState()
+            }
+
+            is EditNoteActionState.Error -> {
+                Toast.makeText(
+                    requireContext(),
+                    "Hata: ${state.exception.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+                viewModel.resetActionState()
+            }
+        }
     }
 }

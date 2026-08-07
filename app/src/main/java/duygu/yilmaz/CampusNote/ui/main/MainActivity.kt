@@ -2,9 +2,9 @@ package duygu.yilmaz.CampusNote.ui.main
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.firebase.auth.FirebaseAuth
 import duygu.yilmaz.CampusNote.R
 import duygu.yilmaz.CampusNote.ui.auth.LoginActivity
 import duygu.yilmaz.CampusNote.ui.feed.FeedFragment
@@ -14,11 +14,12 @@ import duygu.yilmaz.CampusNote.ui.upload.UploadFragment
 
 class MainActivity : AppCompatActivity() {
 
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val currentUser = FirebaseAuth.getInstance().currentUser
-        if (currentUser == null) {
+        if (!viewModel.hasAuthenticatedUser()) {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
             return
