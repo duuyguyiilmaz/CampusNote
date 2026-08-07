@@ -8,12 +8,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import duygu.yilmaz.CampusNote.R
-import duygu.yilmaz.CampusNote.data.model.LeaderboardEntry
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 
 class LeaderboardFragment : Fragment() {
 
@@ -21,14 +19,15 @@ class LeaderboardFragment : Fragment() {
     private lateinit var layoutEmpty: LinearLayout
     private lateinit var adapter: LeaderboardAdapter
 
-    private val db by lazy { FirebaseFirestore.getInstance() }
-    private var listener: ListenerRegistration? = null
+    private val viewModel: LeaderboardViewModel by lazy {
+        ViewModelProvider(this)[LeaderboardViewModel::class.java]
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         return inflater.inflate(R.layout.fragment_leaderboard, container, false)
     }
 
@@ -42,18 +41,19 @@ class LeaderboardFragment : Fragment() {
         rvLeaderboard.layoutManager = LinearLayoutManager(requireContext())
         rvLeaderboard.adapter = adapter
 
+        viewModel.uiState.observe(viewLifecycleOwner, ::renderState)
+
         animateViews(view)
     }
 
     override fun onStart() {
         super.onStart()
-        startListening()
+        viewModel.startLeaderboard()
     }
 
     override fun onStop() {
+        viewModel.stopLeaderboard()
         super.onStop()
-        listener?.remove()
-        listener = null
     }
 
     private fun animateViews(view: View) {
@@ -95,44 +95,29 @@ class LeaderboardFragment : Fragment() {
             .start()
     }
 
-    private fun startListening() {
-        listener?.remove()
-        listener = db.collection("notes")
-            .addSnapshotListener { snap, e ->
-                if (e != null) {
-                    Toast.makeText(requireContext(), "Hata: ${e.message}", Toast.LENGTH_LONG).show()
-                    return@addSnapshotListener
-                }
-                if (snap == null) return@addSnapshotListener
+    private fun renderState(state: LeaderboardUiState) {
+        when (state) {
+            LeaderboardUiState.Idle -> Unit
 
-                val entries = snap.documents.mapNotNull { d ->
-                    val title = d.getString("title") ?: return@mapNotNull null
-                    val email = d.getString("uploaderEmail") ?: ""
-                    val dept = d.getString("department") ?: ""
-                    val avg = d.getDouble("avgRating") ?: 0.0
-                    val count = d.getLong("ratingCount") ?: 0L
-                    val sum = d.getLong("ratingSum") ?: 0L  // ✅ Ekle
-
-                    LeaderboardEntry(
-                        docId = d.id,
-                        title = title,
-                        uploaderEmail = email,
-                        department = dept,
-                        avgRating = avg,
-                        ratingCount = count,
-                        ratingSum = sum  // ✅ Ekle
-                    )
-                }
-                    .sortedByDescending { it.ratingSum }
-
-                if (entries.isEmpty()) {
-                    rvLeaderboard.visibility = View.GONE
-                    layoutEmpty.visibility = View.VISIBLE
-                } else {
-                    rvLeaderboard.visibility = View.VISIBLE
-                    layoutEmpty.visibility = View.GONE
-                    adapter.refresh(entries)
-                }
+            LeaderboardUiState.Empty -> {
+                adapter.refresh(emptyList())
+                rvLeaderboard.visibility = View.GONE
+                layoutEmpty.visibility = View.VISIBLE
             }
+
+            is LeaderboardUiState.Content -> {
+                adapter.refresh(state.entries)
+                rvLeaderboard.visibility = View.VISIBLE
+                layoutEmpty.visibility = View.GONE
+            }
+
+            is LeaderboardUiState.Error -> {
+                Toast.makeText(
+                    requireContext(),
+                    "Hata: ${state.exception.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 }

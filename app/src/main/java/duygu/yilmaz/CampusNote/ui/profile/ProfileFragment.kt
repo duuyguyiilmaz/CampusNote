@@ -11,22 +11,20 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import duygu.yilmaz.CampusNote.R
-import duygu.yilmaz.CampusNote.data.model.Post
 import duygu.yilmaz.CampusNote.ui.auth.LoginActivity
 import duygu.yilmaz.CampusNote.ui.common.PostAdapter
 import duygu.yilmaz.CampusNote.ui.editnote.EditNoteFragment
 import com.google.android.material.button.MaterialButton
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 
 class ProfileFragment : Fragment() {
 
-    private val auth by lazy { FirebaseAuth.getInstance() }
-    private val db by lazy { FirebaseFirestore.getInstance() }
+    private val viewModel: ProfileViewModel by lazy {
+        ViewModelProvider(this)[ProfileViewModel::class.java]
+    }
 
     // Views
     private lateinit var tvProfileTitle: TextView
@@ -48,7 +46,6 @@ class ProfileFragment : Fragment() {
     private lateinit var cardDiscounts: LinearLayout
 
     private lateinit var myNotesAdapter: PostAdapter
-    private var myNotesListener: ListenerRegistration? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -64,6 +61,8 @@ class ProfileFragment : Fragment() {
         initViews(view)
         setupAdapter()
         setupLogout()
+        viewModel.uiState.observe(viewLifecycleOwner, ::renderUiState)
+        viewModel.actionState.observe(viewLifecycleOwner, ::renderActionState)
         animateViews(view)
     }
 
@@ -91,21 +90,14 @@ class ProfileFragment : Fragment() {
         myNotesAdapter = PostAdapter(
             mutableListOf(),
             onEditClick = { post ->
-                val editFrag = EditNoteFragment.newInstance(post.id, post.title, post.desc)
+                val editFrag = EditNoteFragment.newInstance(post.id)
                 parentFragmentManager.beginTransaction()
                     .replace(R.id.fragmentContainer, editFrag)
                     .addToBackStack(null)
                     .commit()
             },
             onDeleteClick = { post ->
-                db.collection("notes").document(post.id)
-                    .delete()
-                    .addOnSuccessListener {
-                        Toast.makeText(requireContext(), "Not silindi!", Toast.LENGTH_SHORT).show()
-                    }
-                    .addOnFailureListener { e ->
-                        Toast.makeText(requireContext(), "Silinemedi: ${e.message}", Toast.LENGTH_LONG).show()
-                    }
+                viewModel.deleteNote(post.id)
             }
         )
 
@@ -115,7 +107,7 @@ class ProfileFragment : Fragment() {
 
     private fun setupLogout() {
         btnLogout.setOnClickListener {
-            auth.signOut()
+            viewModel.signOut()
             startActivity(Intent(requireContext(), LoginActivity::class.java))
             requireActivity().finish()
         }
@@ -171,106 +163,83 @@ class ProfileFragment : Fragment() {
 
     override fun onStart() {
         super.onStart()
-        myNotesListener?.remove()
-        myNotesListener = null
-
-        loadProfileAndMyNotes()
+        viewModel.startProfile()
     }
 
     override fun onStop() {
+        viewModel.stopProfile()
         super.onStop()
-        myNotesListener?.remove()
-        myNotesListener = null
-
     }
 
-    private fun loadProfileAndMyNotes() {
-        val user = auth.currentUser
-        if (user == null) {
-            Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun renderUiState(state: ProfileUiState) {
+        when (state) {
+            ProfileUiState.Idle,
+            ProfileUiState.Loading -> Unit
 
-        val emailText = user.email ?: "—"
-        tvEmail.text = emailText
-        tvAvatar.text = emailText.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-
-        db.collection("users").document(user.uid)
-            .get()
-            .addOnSuccessListener { snap ->
-                if (isAdded) {
-                    tvDepartment.text = snap.getString("department") ?: "—"
-                }
+            ProfileUiState.MissingSession -> {
+                Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
             }
 
-        myNotesListener?.remove()
-        myNotesListener = db.collection("notes")
-            .whereEqualTo("uploaderUid", user.uid)
-            .addSnapshotListener { snap, e ->
-                if (e != null) {
-                    Toast.makeText(requireContext(), "Notlarım okunamadı: ${e.message}", Toast.LENGTH_LONG).show()
-                    return@addSnapshotListener
-                }
-                if (snap == null || !isAdded) return@addSnapshotListener
+            is ProfileUiState.Content -> {
+                tvEmail.text = state.email
+                tvDepartment.text = state.department
+                tvAvatar.text = state.email.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
 
-                var totalPoints = 0L
+                myNotesAdapter.refresh(state.posts)
+                tvNoteCount.text = "${state.posts.size} not"
+                updatePointsUI(state.totalPoints)
 
-                val posts = snap.documents.mapNotNull { d ->
-                    val title = d.getString("title") ?: return@mapNotNull null
-                    val desc = d.getString("description") ?: ""
-                    val email = d.getString("uploaderEmail") ?: (user.email ?: "")
-                    val dept = d.getString("department") ?: ""
-                    val uploaderUid = d.getString("uploaderUid") ?: ""
+                val isEmpty = state.posts.isEmpty()
+                layoutEmptyNotes.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                rvMyNotes.visibility = if (isEmpty) View.GONE else View.VISIBLE
+            }
 
-                    val time: Long = try {
-                        d.getTimestamp("createdAt")?.toDate()?.time
-                            ?: d.getLong("createdAt")
-                            ?: 0L
-                    } catch (_: Exception) {
-                        d.getLong("createdAt") ?: 0L
+            is ProfileUiState.Error -> {
+                val message = when (state.stage) {
+                    ProfileFailureStage.USER_PROFILE -> {
+                        "Kullanıcı bilgisi okunamadı: ${state.exception.message}"
                     }
 
-                    val avgRating = d.getDouble("avgRating") ?: 0.0
-                    val ratingCount = d.getLong("ratingCount") ?: 0L
-                    val ratingSum = d.getLong("ratingSum") ?: 0L
-
-                    totalPoints += ratingSum
-
-                    Post(
-                        id = d.id,
-                        title = title,
-                        desc = desc,
-                        authorEmail = email,
-                        department = dept,
-                        timeMills = time,
-                        uploaderUid = uploaderUid,
-                        avgRating = avgRating,
-                        ratingCount = ratingCount,
-                        ratingSum = ratingSum
-                    )
-                }.sortedByDescending { it.timeMills }
-
-                myNotesAdapter.refresh(posts)
-                tvNoteCount.text = "${posts.size} not"
-
-                updatePointsUI(totalPoints.toInt())
-
-                val empty = posts.isEmpty()
-                layoutEmptyNotes.visibility = if (empty) View.VISIBLE else View.GONE
-                rvMyNotes.visibility = if (empty) View.GONE else View.VISIBLE
+                    ProfileFailureStage.NOTES -> {
+                        "Notlarım okunamadı: ${state.exception.message}"
+                    }
+                }
+                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
             }
+        }
     }
 
-    private fun updatePointsUI(points: Int) {
-        tvPoints.text = points.toString()
-        progressPoints.progress = points.coerceAtMost(100)
+    private fun renderActionState(state: ProfileActionState) {
+        when (state) {
+            ProfileActionState.Idle,
+            ProfileActionState.DeletingNote -> Unit
 
-        if (points >= 100) {
+            ProfileActionState.NoteDeleted -> {
+                Toast.makeText(requireContext(), "Not silindi!", Toast.LENGTH_SHORT).show()
+                viewModel.resetActionState()
+            }
+
+            is ProfileActionState.DeleteError -> {
+                Toast.makeText(
+                    requireContext(),
+                    "Silinemedi: ${state.exception.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+                viewModel.resetActionState()
+            }
+        }
+    }
+
+    private fun updatePointsUI(points: Long) {
+        tvPoints.text = points.toString()
+        progressPoints.progress = points.coerceIn(0L, 100L).toInt()
+
+        if (points >= 100L) {
             tvPointsRemaining.text = "Tebrikler! İndirimler açıldı!"
             layoutDiscountsLocked.visibility = View.GONE
             layoutDiscountsUnlocked.visibility = View.VISIBLE
         } else {
-            val remaining = 100 - points
+            val remaining = 100L - points
             tvPointsRemaining.text = "$remaining puan daha kazan, indirimleri aç!"
             layoutDiscountsLocked.visibility = View.VISIBLE
             layoutDiscountsUnlocked.visibility = View.GONE

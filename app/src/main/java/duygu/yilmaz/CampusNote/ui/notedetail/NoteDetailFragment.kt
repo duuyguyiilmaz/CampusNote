@@ -16,11 +16,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import duygu.yilmaz.CampusNote.R
 import duygu.yilmaz.CampusNote.data.model.Post
 import com.google.android.material.button.MaterialButton
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import java.io.File
 import java.io.FileOutputStream
 
@@ -41,9 +40,9 @@ class NoteDetailFragment : Fragment() {
     private lateinit var tvRatingCount: TextView
     private lateinit var btnRate: MaterialButton
 
-
-    private val auth by lazy { FirebaseAuth.getInstance() }
-    private val db by lazy { FirebaseFirestore.getInstance() }
+    private val viewModel: NoteDetailViewModel by lazy {
+        ViewModelProvider(this)[NoteDetailViewModel::class.java]
+    }
 
     private var postId: String = ""
     private var postTitle: String = ""
@@ -79,6 +78,8 @@ class NoteDetailFragment : Fragment() {
         setupFileSection()
 
         setupClickListeners()
+
+        viewModel.ratingState.observe(viewLifecycleOwner, ::renderRatingState)
     }
 
     private fun readArguments() {
@@ -206,11 +207,22 @@ class NoteDetailFragment : Fragment() {
     }
 
     private fun showRatingDialog() {
-        val uid = auth.currentUser?.uid ?: return
+        when (viewModel.ratingAvailability(postUploaderUid)) {
+            RatingAvailability.MISSING_SESSION -> {
+                Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
+                return
+            }
 
-        if (postUploaderUid == uid) {
-            Toast.makeText(requireContext(), "Kendi notuna puan veremezsin!", Toast.LENGTH_SHORT).show()
-            return
+            RatingAvailability.OWN_NOTE -> {
+                Toast.makeText(
+                    requireContext(),
+                    "Kendi notuna puan veremezsin!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return
+            }
+
+            RatingAvailability.ALLOWED -> Unit
         }
 
         val dialogView = LayoutInflater.from(requireContext())
@@ -245,7 +257,7 @@ class NoteDetailFragment : Fragment() {
 
         dialogView.findViewById<MaterialButton>(R.id.btnSubmit).setOnClickListener {
             if (selectedRating > 0) {
-                submitRating(selectedRating.toFloat())
+                viewModel.submitRating(postId, selectedRating)
                 dialog.dismiss()
             } else {
                 Toast.makeText(requireContext(), "Lütfen bir puan seç", Toast.LENGTH_SHORT).show()
@@ -273,81 +285,59 @@ class NoteDetailFragment : Fragment() {
         }
     }
 
-    private fun submitRating(newRating: Float) {
-        val uid = auth.currentUser?.uid ?: return
-        val docRef = db.collection("notes").document(postId)
-        val ratingRef = db.collection("ratings").document("${uid}_$postId")
+    private fun renderRatingState(state: RatingUiState) {
+        when (state) {
+            RatingUiState.Idle -> btnRate.isEnabled = true
+            RatingUiState.Submitting -> btnRate.isEnabled = false
 
-        ratingRef.get().addOnSuccessListener { ratingSnap ->
-            if (ratingSnap.exists()) {
-                val oldRating = ratingSnap.getLong("rating")?.toFloat() ?: 0f
-                val diff = newRating - oldRating
+            is RatingUiState.Success -> {
+                btnRate.isEnabled = true
+                postAvgRating = state.result.average
+                postRatingCount = state.result.count
+                postRatingSum = state.result.sum
+                tvAvgRating.text = String.format("%.1f", state.result.average)
+                tvRatingCount.text = "(${state.result.count} oy)"
 
-                docRef.get().addOnSuccessListener { noteSnap ->
-                    val oldSum = noteSnap.getLong("ratingSum") ?: 0L
-                    val oldCount = noteSnap.getLong("ratingCount") ?: 1L
-                    val newSum = (oldSum + diff).toLong()
-                    val newAvg = newSum.toDouble() / oldCount
-
-                    docRef.update(mapOf(
-                        "ratingSum" to newSum,
-                        "avgRating" to newAvg
-                    )).addOnSuccessListener {
-                        postAvgRating = newAvg
-                        postRatingSum = newSum
-                        tvAvgRating.text = String.format("%.1f", newAvg)
-                    }
-
-                    ratingRef.update("rating", newRating.toLong())
-
-                    val diffInt = diff.toInt()
-                    if (diffInt != 0) {
-                        addPointsToNoteOwner(postUploaderUid, diffInt)
-                    }
-
-                    Toast.makeText(requireContext(), "Puanın güncellendi!", Toast.LENGTH_SHORT).show()
+                val message = if (state.result.updatedExistingRating) {
+                    "Puanın güncellendi!"
+                } else {
+                    "Puan verildi!"
                 }
-            } else {
-                docRef.get().addOnSuccessListener { noteSnap ->
-                    val oldSum = noteSnap.getLong("ratingSum") ?: 0L
-                    val oldCount = noteSnap.getLong("ratingCount") ?: 0L
-                    val newSum = (oldSum + newRating).toLong()
-                    val newCount = oldCount + 1
-                    val newAvg = newSum.toDouble() / newCount
-
-                    docRef.update(mapOf(
-                        "ratingSum" to newSum,
-                        "ratingCount" to newCount,
-                        "avgRating" to newAvg
-                    )).addOnSuccessListener {
-                        postAvgRating = newAvg
-                        postRatingCount = newCount
-                        postRatingSum = newSum
-                        tvAvgRating.text = String.format("%.1f", newAvg)
-                        tvRatingCount.text = "($newCount oy)"
-                    }
-
-                    ratingRef.set(mapOf(
-                        "uid" to uid,
-                        "noteId" to postId,
-                        "rating" to newRating.toLong()
-                    ))
-
-                    addPointsToNoteOwner(postUploaderUid, newRating.toInt())
-
-                    Toast.makeText(requireContext(), "Puan verildi!", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                viewModel.resetRatingState()
             }
-        }
-    }
 
-    private fun addPointsToNoteOwner(ownerUid: String, pointsToAdd: Int) {
-        if (ownerUid.isEmpty()) return
-        val userRef = db.collection("users").document(ownerUid)
-        userRef.get().addOnSuccessListener { snap ->
-            val currentPoints = snap.getLong("points")?.toInt() ?: 0
-            val newPoints = (currentPoints + pointsToAdd).coerceAtLeast(0)
-            userRef.update("points", newPoints)
+            RatingUiState.MissingSession -> {
+                btnRate.isEnabled = true
+                Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
+                viewModel.resetRatingState()
+            }
+
+            RatingUiState.OwnNote -> {
+                btnRate.isEnabled = true
+                Toast.makeText(
+                    requireContext(),
+                    "Kendi notuna puan veremezsin!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                viewModel.resetRatingState()
+            }
+
+            RatingUiState.MissingNote -> {
+                btnRate.isEnabled = true
+                Toast.makeText(requireContext(), "Not bulunamadı.", Toast.LENGTH_LONG).show()
+                viewModel.resetRatingState()
+            }
+
+            is RatingUiState.Error -> {
+                btnRate.isEnabled = true
+                Toast.makeText(
+                    requireContext(),
+                    "Puan kaydedilemedi: ${state.exception.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+                viewModel.resetRatingState()
+            }
         }
     }
 

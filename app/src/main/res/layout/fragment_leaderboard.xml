@@ -30,7 +30,7 @@
             style="@style/AppText.Subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="En çok oylanan notlar burada!"
+            android:text="En çok puan toplayan notlar burada!"
             android:textColor="#AAB6D6"/>
     </LinearLayout>
 

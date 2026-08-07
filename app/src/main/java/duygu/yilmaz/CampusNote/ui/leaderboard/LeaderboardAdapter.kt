@@ -17,7 +17,7 @@ class LeaderboardAdapter(
         val tvTitle       : TextView = itemView.findViewById(R.id.tvTitle)
         val tvEmail       : TextView = itemView.findViewById(R.id.tvEmail)
         val tvDept        : TextView = itemView.findViewById(R.id.tvDept)
-        val tvAvgRating   : TextView = itemView.findViewById(R.id.tvAvgRating)
+        val tvScore       : TextView = itemView.findViewById(R.id.tvScore)
         val tvRatingCount : TextView = itemView.findViewById(R.id.tvRatingCount)
     }
 
@@ -49,7 +49,7 @@ class LeaderboardAdapter(
         holder.tvTitle.text = entry.title
         holder.tvEmail.text = entry.uploaderEmail
         holder.tvDept.text = entry.department
-        holder.tvAvgRating.text = entry.ratingSum.toString()
+        holder.tvScore.text = entry.ratingSum.toString()
         holder.tvRatingCount.text = "${entry.ratingCount} oy"
     }
 

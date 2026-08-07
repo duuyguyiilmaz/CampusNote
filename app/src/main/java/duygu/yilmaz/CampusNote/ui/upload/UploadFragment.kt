@@ -11,14 +11,13 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
 import android.util.Base64
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.data.model.NoteDraft
 
 class UploadFragment : Fragment() {
 
@@ -37,9 +36,10 @@ class UploadFragment : Fragment() {
     private lateinit var btnRemoveFile: ImageView
     private lateinit var btnUpload: MaterialButton
     private lateinit var progressBar: ProgressBar
-    private val auth by lazy { FirebaseAuth.getInstance() }
-    private val db by lazy { FirebaseFirestore.getInstance() }
 
+    private val viewModel: UploadViewModel by lazy {
+        ViewModelProvider(this)[UploadViewModel::class.java]
+    }
 
     private var selectedFileUri: Uri? = null
     private var selectedFileName: String = ""
@@ -98,6 +98,7 @@ class UploadFragment : Fragment() {
         initViews(view)
         setupSpinner()
         setupClickListeners()
+        viewModel.uiState.observe(viewLifecycleOwner, ::renderState)
         animateViews(view)
     }
 
@@ -235,71 +236,75 @@ class UploadFragment : Fragment() {
 
         if (!validateInput(course, title, desc)) return
 
-        val user = auth.currentUser ?: run {
-            Toast.makeText(requireContext(), "Giriş bulunamadı!", Toast.LENGTH_LONG).show()
+        val fileData = try {
+            readSelectedFileAsBase64()
+        } catch (exception: Exception) {
+            Toast.makeText(
+                requireContext(),
+                "Dosya okunamadı: ${exception.message}",
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
-        showLoading(true)
+        viewModel.uploadNote(
+            NoteDraft(
+                course = course,
+                title = title,
+                description = desc,
+                tag = if (tagIndex > 0) tags[tagIndex] else "",
+                fileName = selectedFileName,
+                fileType = selectedFileType,
+                fileData = fileData
+            )
+        )
+    }
 
-        var fileBase64 = ""
-        if (selectedFileUri != null) {
-            try {
-                val inputStream = requireContext().contentResolver.openInputStream(selectedFileUri!!)
-                val bytes = inputStream?.readBytes()
-                inputStream?.close()
-                if (bytes != null) {
-                    fileBase64 = Base64.encodeToString(bytes, Base64.DEFAULT)
+    private fun readSelectedFileAsBase64(): String {
+        val uri = selectedFileUri ?: return ""
+        val inputStream = requireContext().contentResolver.openInputStream(uri)
+            ?: throw IllegalStateException("Dosya açılamadı")
+
+        return inputStream.use { stream ->
+            Base64.encodeToString(stream.readBytes(), Base64.NO_WRAP)
+        }
+    }
+
+    private fun renderState(state: UploadUiState) {
+        when (state) {
+            UploadUiState.Idle -> showLoading(false)
+            UploadUiState.Loading -> showLoading(true)
+
+            UploadUiState.Success -> {
+                showLoading(false)
+                clearForm()
+                Toast.makeText(
+                    requireContext(),
+                    "✅ Not başarıyla paylaşıldı!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                viewModel.resetState()
+            }
+
+            UploadUiState.MissingSession -> {
+                showLoading(false)
+                Toast.makeText(requireContext(), "Giriş bulunamadı!", Toast.LENGTH_LONG).show()
+                viewModel.resetState()
+            }
+
+            is UploadUiState.Error -> {
+                showLoading(false)
+                val message = when (state.stage) {
+                    UploadFailureStage.USER_PROFILE -> {
+                        "Kullanıcı bilgisi okunamadı: ${state.exception.message}"
+                    }
+
+                    UploadFailureStage.NOTE -> "Hata: ${state.exception.message}"
                 }
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Dosya okunamadı: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                viewModel.resetState()
             }
         }
-
-        val finalFileBase64 = fileBase64
-
-        db.collection("users").document(user.uid)
-            .get()
-            .addOnSuccessListener { snap ->
-                val department = snap.getString("department") ?: "Bilinmiyor"
-                val email = user.email ?: snap.getString("email") ?: ""
-
-                val noteMap = hashMapOf(
-                    "course" to course,
-                    "title" to title,
-                    "description" to desc,
-                    "tag" to if (tagIndex > 0) tags[tagIndex] else "",
-                    "department" to department,
-                    "uploaderUid" to user.uid,
-                    "uploaderEmail" to email,
-                    "createdAt" to FieldValue.serverTimestamp(),
-                    "ratingSum" to 0L,
-                    "ratingCount" to 0L,
-                    "avgRating" to 0.0,
-                    "fileName" to selectedFileName,
-                    "fileType" to selectedFileType,
-                    "fileData" to finalFileBase64
-                )
-
-                db.collection("notes")
-                    .add(noteMap)
-                    .addOnSuccessListener {
-                        db.collection("users").document(user.uid)
-                            .update("hasUploadedNote", true)
-
-                        clearForm()
-                        showLoading(false)
-                        Toast.makeText(requireContext(), "✅ Not başarıyla paylaşıldı!", Toast.LENGTH_SHORT).show()
-                    }
-                    .addOnFailureListener { e ->
-                        showLoading(false)
-                        Toast.makeText(requireContext(), "Hata: ${e.message}", Toast.LENGTH_LONG).show()
-                    }
-            }
-            .addOnFailureListener { e ->
-                showLoading(false)
-                Toast.makeText(requireContext(), "Kullanıcı bilgisi okunamadı: ${e.message}", Toast.LENGTH_LONG).show()
-            }
     }
 
     private fun validateInput(course: String, title: String, desc: String): Boolean {
