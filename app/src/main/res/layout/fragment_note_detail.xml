@@ -114,7 +114,8 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@drawable/ic_email"
+                android:src="@drawable/ic_profile"
+                android:importantForAccessibility="no"
                 app:tint="#F0945F"/>
 
             <TextView
@@ -125,7 +126,7 @@
                 android:layout_marginStart="8dp"
                 android:textColor="@android:color/white"
                 android:textSize="14sp"
-                tools:text="burcu@ogr.akdeniz.edu.tr"/>
+                tools:text="burcu"/>
         </LinearLayout>
 
         <!-- Açıklama kartı -->

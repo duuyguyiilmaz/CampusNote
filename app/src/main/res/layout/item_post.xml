@@ -48,7 +48,7 @@
             app:layout_constraintStart_toEndOf="@id/tvDept"
             app:layout_constraintEnd_toStartOf="@id/scoreCard"/>
 
-        <!-- EMAIL -->
+        <!-- YÜKLEYEN -->
         <TextView
             android:id="@+id/tvUploader"
             android:layout_width="0dp"
