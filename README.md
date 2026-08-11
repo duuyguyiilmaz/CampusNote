@@ -19,9 +19,16 @@ into a portfolio piece.
 |:---:|:---:|:---:|
 | ![Splash](docs/screenshots/01-splash.png) | ![Onboarding](docs/screenshots/02-onboarding.png) | ![Login](docs/screenshots/03-login.png) |
 
-| Input validation | Department picker | Locked feed | Upload |
-|:---:|:---:|:---:|:---:|
-| ![Validation](docs/screenshots/04-validation.png) | ![Departments](docs/screenshots/05-department-picker.png) | ![Locked feed](docs/screenshots/06-feed-locked.png) | ![Upload](docs/screenshots/07-upload.png) |
+| Input validation | Department picker | Locked feed |
+|:---:|:---:|:---:|
+| ![Validation](docs/screenshots/04-validation.png) | ![Departments](docs/screenshots/05-department-picker.png) | ![Locked feed](docs/screenshots/06-feed-locked.png) |
+
+| Upload | Leaderboard |
+|:---:|:---:|
+| ![Upload](docs/screenshots/07-upload.png) | ![Leaderboard](docs/screenshots/08-leaderboard.png) |
+
+The leaderboard screenshot shows live Cloud Firestore data — notes ranked by total
+score, read through a real-time snapshot listener. The accounts in it are test data.
 
 ---
 
@@ -169,6 +176,13 @@ client, so the security rules have to permit one user to modify another user's p
 Values are constrained by type and range, but a malicious client could still award
 itself points. The correct fix is to move the calculation into a Cloud Function so the
 client only writes its vote — which again needs the Blaze plan.
+
+**Email addresses are never verified.** Registration only checks that the address ends
+in `@ogr.akdeniz.edu.tr`; no confirmation mail is sent, so anyone can register with a
+made-up address on that domain. The "university students only" rule is therefore a
+convention, not a guarantee. Calling `sendEmailVerification()` after sign-up and gating
+the feed on `FirebaseUser.isEmailVerified` would close this, at the cost of a
+confirmation step during registration.
 
 **No pagination.** The feed and leaderboard read every matching note and sort in
 memory. Fine at course-project scale, wrong at department scale.
