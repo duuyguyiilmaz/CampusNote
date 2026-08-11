@@ -48,9 +48,9 @@
             app:layout_constraintStart_toEndOf="@id/tvDept"
             app:layout_constraintEnd_toStartOf="@id/scoreCard"/>
 
-        <!-- EMAIL -->
+        <!-- YÜKLEYEN -->
         <TextView
-            android:id="@+id/tvEmail"
+            android:id="@+id/tvUploader"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
@@ -74,7 +74,7 @@
             android:textColor="#AAB6D6"
             android:maxLines="1"
             android:ellipsize="end"
-            app:layout_constraintTop_toBottomOf="@id/tvEmail"
+            app:layout_constraintTop_toBottomOf="@id/tvUploader"
             app:layout_constraintStart_toEndOf="@id/tvDept"
             app:layout_constraintEnd_toStartOf="@id/scoreCard"/>
 

@@ -58,7 +58,7 @@
                 android:textStyle="bold"/>
 
             <TextView
-                android:id="@+id/tvEmail"
+                android:id="@+id/tvUploader"
                 style="@style/AppText.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

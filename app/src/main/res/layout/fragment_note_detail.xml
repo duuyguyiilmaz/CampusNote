@@ -30,6 +30,25 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"/>
 
+        <!-- Not yüklenirken görünür -->
+        <ProgressBar
+            android:id="@+id/progressBarDetail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="120dp"
+            android:indeterminateTint="#F0945F"
+            app:layout_constraintTop_toBottomOf="@id/btnBack"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+        <!-- Not yüklenene kadar gizlenen alanlar -->
+        <androidx.constraintlayout.widget.Group
+            android:id="@+id/groupNoteContent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:constraint_referenced_ids="tvNoteTitle,layoutTagCourse,layoutUploaderInfo,layoutDescription,layoutRatingInfo,btnRate"/>
+
         <!-- Başlık -->
         <TextView
             android:id="@+id/tvNoteTitle"
@@ -95,18 +114,19 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@drawable/ic_email"
+                android:src="@drawable/ic_profile"
+                android:importantForAccessibility="no"
                 app:tint="#F0945F"/>
 
             <TextView
-                android:id="@+id/tvUploaderEmail"
+                android:id="@+id/tvUploader"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:textColor="@android:color/white"
                 android:textSize="14sp"
-                tools:text="burcu@ogr.akdeniz.edu.tr"/>
+                tools:text="burcu"/>
         </LinearLayout>
 
         <!-- Açıklama kartı -->
@@ -199,7 +219,7 @@
                 android:id="@+id/btnOpenPdf"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:text="Dosyayı Aç"
+                android:text="Dosya yükleniyor..."
                 android:textColor="@android:color/white"
                 android:textStyle="bold"
                 android:layout_marginTop="12dp"
@@ -221,12 +241,22 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
+            <ProgressBar
+                android:id="@+id/progressBarImage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="130dp"
+                android:layout_marginBottom="130dp"
+                android:indeterminateTint="#F0945F"/>
+
             <ImageView
                 android:id="@+id/ivNoteImage"
                 android:layout_width="match_parent"
                 android:layout_height="300dp"
                 android:scaleType="centerCrop"
-                android:background="#20FFFFFF"/>
+                android:background="#20FFFFFF"
+                android:visibility="gone"/>
         </LinearLayout>
 
         <!-- Puan durumu -->

@@ -1,0 +1,117 @@
+rules_version = '2';
+
+// CampusNote Firestore güvenlik kuralları.
+//
+// Kurallar bilinçli olarak repoda tutuluyor: Firebase Console'daki kurallar
+// gözden geçirilemez ve sürüm geçmişi tutulmaz. Yayına almak için:
+//
+//     firebase deploy --only firestore:rules
+//
+// ÖNEMLİ — bilinen zayıflık: puanlama işlemi tamamen istemcide yapılıyor.
+// RatingRepository bir oy verirken not sahibinin `points` alanını ve notun
+// `ratingSum`/`ratingCount`/`avgRating` alanlarını doğrudan güncelliyor.
+// Bu yüzden aşağıdaki kurallar, oturum açmış bir kullanıcının başka bir
+// kullanıcının puanını ve bir notun ortalamasını değiştirmesine izin vermek
+// zorunda. Değerler tür ve aralık olarak sınırlandırıldı ama kötü niyetli bir
+// istemci hâlâ kendine puan yazabilir.
+//
+// Bunun doğru çözümü puanlamayı bir Cloud Function'a taşımaktır (istemci
+// yalnızca oyunu yazar, toplamları sunucu hesaplar). Cloud Functions
+// faturalandırmalı Blaze planı gerektirdiği için proje ücretsiz planda
+// kaldığı sürece bu risk kabul edilmiş durumda.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Bu yazma işleminde gerçekten değişen alanlar.
+    function changedFields() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    match /users/{userId} {
+      // Liderlik tablosu ve profil ekranı diğer kullanıcıları da okuyabilmeli.
+      allow read: if isSignedIn();
+
+      // Kayıt sırasında kullanıcı yalnızca kendi dokümanını oluşturabilir.
+      allow create: if isOwner(userId)
+                    && request.resource.data.id == userId;
+
+      allow update: if isOwner(userId)
+                    // Puanlamanın not sahibinin puanını artırması için gereken izin.
+                    // Yalnızca `points` alanı değişebilir ve negatif olamaz.
+                    || (
+                      changedFields().hasOnly(['points'])
+                      && request.resource.data.points is int
+                      && request.resource.data.points >= 0
+                    );
+
+      // Hesap silme uygulamada yok; kaza ile veri kaybını engelle.
+      allow delete: if false;
+    }
+
+    match /notes/{noteId} {
+      allow read: if isSignedIn();
+
+      // Not oluşturan kişi kendini başkası olarak gösteremez.
+      allow create: if isSignedIn()
+                    && request.resource.data.uploaderUid == request.auth.uid;
+
+      allow update: if isSignedIn() && (
+                      // Sahibi metadata'yı düzenleyebilir.
+                      resource.data.uploaderUid == request.auth.uid
+                      // Oy veren yalnızca puan alanlarını değiştirebilir.
+                      || (
+                        changedFields().hasOnly(['ratingSum', 'ratingCount', 'avgRating'])
+                        && request.resource.data.ratingSum >= 0
+                        && request.resource.data.ratingCount >= 0
+                      )
+                    );
+
+      // Uygulama kodu silme öncesi sahiplik kontrolü YAPMIYOR; tek gerçek
+      // engel bu kural. (NoteRepository.deleteNote doğrudan siliyor, arayüz
+      // sadece kendi notlarında silme düğmesini gösteriyor.)
+      allow delete: if isSignedIn()
+                    && resource.data.uploaderUid == request.auth.uid;
+
+      // Dosya içeriği ayrı dokümanda: feed sorguları base64 veriyi indirmesin.
+      match /content/{contentId} {
+        allow read: if isSignedIn();
+
+        // Not ile içerik aynı batch'te yazılıyor. Batch içindeki her yazma
+        // ayrı değerlendirilir ve get() henüz commit edilmemiş üst dokümanı
+        // göremez — bu yüzden create'te sahiplik doğrulanamaz.
+        allow create: if isSignedIn();
+
+        allow update, delete: if isSignedIn()
+          && get(/databases/$(database)/documents/notes/$(noteId))
+               .data.uploaderUid == request.auth.uid;
+      }
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if isSignedIn();
+
+      // Doküman kimliği "<oyVerenUid>_<notId>" biçiminde; bu kalıbı zorunlu
+      // kılmak bir kullanıcının başkasının oyunu yazmasını engelliyor.
+      allow create, update: if isSignedIn()
+                            && request.resource.data.uid == request.auth.uid
+                            && ratingId == request.auth.uid + '_' + request.resource.data.noteId
+                            && request.resource.data.rating is int
+                            && request.resource.data.rating >= 1
+                            && request.resource.data.rating <= 5;
+
+      allow delete: if false;
+    }
+
+    // Yukarıda eşleşmeyen her yol reddedilir. README'de geçen `reports`
+    // koleksiyonu henüz uygulanmadı, o yüzden kasten kural tanımlanmadı.
+  }
+}
