@@ -3,10 +3,9 @@ package duygu.yilmaz.campusnote.ui.onboarding
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.viewModels
 import androidx.annotation.StringRes
-import androidx.lifecycle.ViewModelProvider
 import duygu.yilmaz.campusnote.R
-import duygu.yilmaz.campusnote.data.local.OnboardingPreferences
 import duygu.yilmaz.campusnote.databinding.ActivityOnboardingBinding
 import duygu.yilmaz.campusnote.databinding.ItemOnboardingCardBinding
 import duygu.yilmaz.campusnote.ui.auth.LoginActivity
@@ -14,7 +13,7 @@ import duygu.yilmaz.campusnote.ui.auth.LoginActivity
 class OnboardingActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOnboardingBinding
-    private lateinit var viewModel: OnboardingViewModel
+    private val viewModel: OnboardingViewModel by viewModels()
 
     private data class OnboardingStep(
         @StringRes val titleId: Int,
@@ -39,11 +38,6 @@ class OnboardingActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        val viewModelFactory = OnboardingViewModelFactory(
-            OnboardingPreferences(applicationContext)
-        )
-        viewModel = ViewModelProvider(this, viewModelFactory)[OnboardingViewModel::class.java]
 
         if (viewModel.isCompleted()) {
             navigateToLogin()
