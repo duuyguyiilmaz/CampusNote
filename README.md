@@ -29,6 +29,8 @@ into a portfolio piece.
 
 The leaderboard screenshot shows live Cloud Firestore data — notes ranked by total
 score, read through a real-time snapshot listener. The accounts in it are test data.
+Uploaders are shown by the local part of their address rather than the full email;
+see [`UploaderName.kt`](app/src/main/java/duygu/yilmaz/campusnote/data/model/UploaderName.kt).
 
 ---
 

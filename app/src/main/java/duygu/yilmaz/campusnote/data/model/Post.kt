@@ -21,4 +21,7 @@ data class Post(
     val fileName: String = "",
     val fileType: String = "",
     val fileSize: Long = 0L
-)
+) {
+    /** Notu yükleyen kişinin gösterilecek adı; tam e-posta arayüze çıkmaz. */
+    val uploaderName: String get() = authorEmail.uploaderName()
+}

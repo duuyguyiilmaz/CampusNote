@@ -47,7 +47,7 @@ class LeaderboardAdapter(
             tvRank.setTextColor(ContextCompat.getColor(context, rankColor))
 
             tvTitle.text = entry.title
-            tvEmail.text = entry.uploaderEmail
+            tvUploader.text = entry.uploaderName
             tvDept.text = entry.department
             tvScore.text = entry.ratingSum.toString()
             tvRatingCount.text = context.getString(R.string.vote_count, entry.ratingCount)

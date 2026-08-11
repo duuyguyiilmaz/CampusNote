@@ -33,7 +33,7 @@ class PostAdapter(
         with(holder.binding) {
             tvTitle.text = post.title
             tvDesc.text = post.desc
-            tvEmail.text = post.authorEmail.substringBefore("@")
+            tvUploader.text = post.uploaderName
             tvDept.text = post.department.take(3).uppercase()
             tvRating.text = String.format("%.1f", post.avgRating)
             tvRatingCount.text = root.context.getString(R.string.vote_count, post.ratingCount)

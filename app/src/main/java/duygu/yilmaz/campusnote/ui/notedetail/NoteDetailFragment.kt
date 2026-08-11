@@ -110,7 +110,7 @@ class NoteDetailFragment : Fragment() {
     private fun fillViews(post: Post) = with(binding) {
         tvNoteTitle.text = post.title
         tvCourse.text = post.course
-        tvUploaderEmail.text = post.authorEmail
+        tvUploader.text = post.uploaderName
         tvDescription.text = post.desc
 
         if (post.tag.isEmpty()) {

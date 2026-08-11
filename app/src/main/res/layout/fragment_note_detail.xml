@@ -118,7 +118,7 @@
                 app:tint="#F0945F"/>
 
             <TextView
-                android:id="@+id/tvUploaderEmail"
+                android:id="@+id/tvUploader"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
