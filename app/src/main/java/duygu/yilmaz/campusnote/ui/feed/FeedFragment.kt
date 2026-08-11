@@ -57,6 +57,14 @@ class FeedFragment : Fragment() {
         binding.btnUpload.setOnClickListener {
             (activity as? MainActivity)?.selectUploadTab()
         }
+
+        // Feed canlı bir Firestore dinleyicisiyle beslendiği için veri normalde hep
+        // güncel. Yine de aşağı çekme bir işe yarıyor: dinleyici hata aldığında
+        // (ör. bağlantı koptuğunda) yeniden denemenin tek yolu bu.
+        binding.swipeRefresh.setOnRefreshListener {
+            viewModel.startFeed()
+        }
+
         animateViews()
     }
 
@@ -96,13 +104,18 @@ class FeedFragment : Fragment() {
     }
 
     private fun renderState(state: FeedUiState) {
+        // Yükleme sürerken çark dönmeye devam etmeli; kalan durumların hepsi bitiş.
+        if (state != FeedUiState.Idle && state != FeedUiState.Loading) {
+            binding.swipeRefresh.isRefreshing = false
+        }
+
         when (state) {
             FeedUiState.Idle,
             FeedUiState.Loading -> Unit
 
             FeedUiState.Locked -> {
                 adapter.refresh(emptyList())
-                showLocked(false)
+                showFeed(false)
             }
 
             FeedUiState.MissingSession -> {
@@ -112,7 +125,7 @@ class FeedFragment : Fragment() {
 
             is FeedUiState.Content -> {
                 adapter.refresh(state.posts)
-                showLocked(true)
+                showFeed(true)
             }
 
             is FeedUiState.Error -> when (state.stage) {
@@ -134,9 +147,15 @@ class FeedFragment : Fragment() {
         }
     }
 
-    private fun showLocked(hasUploaded: Boolean) {
-        binding.rvFeed.visibility = if (hasUploaded) View.VISIBLE else View.GONE
-        binding.layoutLocked.visibility = if (hasUploaded) View.GONE else View.VISIBLE
+    /**
+     * @param unlocked kullanıcı not paylaştıysa feed, paylaşmadıysa kilit ekranı görünür.
+     *
+     * Görünürlük [RecyclerView] değil `swipeRefresh` üzerinden değiştiriliyor: kilit
+     * ekranındayken yenilenecek bir liste olmadığı için aşağı çekme jesti de kapanmalı.
+     */
+    private fun showFeed(unlocked: Boolean) {
+        binding.swipeRefresh.visibility = if (unlocked) View.VISIBLE else View.GONE
+        binding.layoutLocked.visibility = if (unlocked) View.GONE else View.VISIBLE
     }
 
     private companion object {

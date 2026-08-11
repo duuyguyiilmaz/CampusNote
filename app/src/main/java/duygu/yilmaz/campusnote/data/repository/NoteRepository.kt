@@ -29,7 +29,6 @@ class NoteRepository(
         department: String
     ) {
         val noteReference = firestore.collection(NOTES_COLLECTION).document()
-        val userReference = firestore.collection(USERS_COLLECTION).document(uploaderUid)
         val noteData = hashMapOf(
             "course" to draft.course,
             "title" to draft.title,
@@ -56,8 +55,6 @@ class NoteRepository(
                     mapOf(FILE_DATA_FIELD to draft.fileData)
                 )
             }
-
-            batch.update(userReference, HAS_UPLOADED_NOTE_FIELD, true)
         }.await()
     }
 
@@ -123,6 +120,25 @@ class NoteRepository(
             batch.delete(noteReference)
         }.await()
     }
+
+    /**
+     * Kullanıcının en az bir notu var mı — feed'in katkı kapısı bunu kullanır.
+     *
+     * Bu bilgi eskiden `users/{uid}.hasUploadedNote` alanında tutuluyordu, ama alan
+     * yükleme sırasında `true` yapılıp not silinince geri alınmıyordu. Bir kez not
+     * yükleyip silen kullanıcı feed'e kalıcı erişim kazanıyordu. Doğrudan notlara
+     * bakmak tek bir doğruluk kaynağı bırakıyor, o yüzden tutarsızlık oluşamaz.
+     *
+     * `limit(1)` sayesinde sorgu kullanıcının kaç notu olduğundan bağımsız olarak sabit
+     * maliyetli: Firestore yalnızca tek doküman okur.
+     */
+    suspend fun hasUploadedNote(uploaderUid: String): Boolean =
+        !firestore.collection(NOTES_COLLECTION)
+            .whereEqualTo(UPLOADER_UID_FIELD, uploaderUid)
+            .limit(1)
+            .get()
+            .await()
+            .isEmpty
 
     suspend fun getNote(noteId: String): Post? {
         val document = firestore.collection(NOTES_COLLECTION)
@@ -238,12 +254,10 @@ class NoteRepository(
 
     private companion object {
         const val NOTES_COLLECTION = "notes"
-        const val USERS_COLLECTION = "users"
         const val CONTENT_COLLECTION = "content"
         const val FILE_DOCUMENT = "file"
         const val FILE_DATA_FIELD = "fileData"
         const val DEPARTMENT_FIELD = "department"
         const val UPLOADER_UID_FIELD = "uploaderUid"
-        const val HAS_UPLOADED_NOTE_FIELD = "hasUploadedNote"
     }
 }

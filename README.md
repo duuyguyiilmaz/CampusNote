@@ -87,8 +87,13 @@ flowchart TD
 - **Firestore listeners become `Flow`s.** `callbackFlow` + `awaitClose` removes the
   listener when collection stops, so there is no separate "stop listening" call to
   forget.
-- **Multi-document writes are atomic.** Creating a note writes the metadata document,
-  the file content document and the user's `hasUploadedNote` flag in one `runBatch`.
+- **Multi-document writes are atomic.** Creating a note writes the metadata document
+  and the file content document in one `runBatch`, so a note can never exist without
+  its content or vice versa.
+- **The contribution gate is derived, not stored.** Whether the feed unlocks is decided
+  by a `limit(1)` query for the user's own notes rather than a `hasUploadedNote` flag on
+  the profile. A stored flag drifted: it was set on upload and never cleared on delete,
+  so uploading once and deleting granted permanent access.
 - **Rating uses a transaction.** `runTransaction` re-reads the note inside the
   transaction, so two people rating the same note at once cannot lose one of the votes.
 - **File content lives in a subcollection.** `notes/{id}/content/file` is separate from
@@ -124,8 +129,10 @@ Cloud Firestore, four collections:
 | `email` | string | |
 | `department` | string | |
 | `points` | number | earned from ratings on your notes |
-| `hasUploadedNote` | boolean | drives the feed contribution gate |
 | `createdAt` | number | |
+
+Older user documents may still carry a `hasUploadedNote` boolean. It is no longer read
+or written — the contribution gate is derived from the user's notes instead.
 
 **`notes/{noteId}`**
 
@@ -192,11 +199,9 @@ memory. Fine at course-project scale, wrong at department scale.
 **`notifyDataSetChanged()` instead of `DiffUtil`.** The adapters rebuild the whole list
 on every update, losing item animations.
 
-**Pull-to-refresh on the feed is not wired up.** `fragment_feed.xml` contains a
-`SwipeRefreshLayout`, but no code ever sets an `OnRefreshListener`, so the gesture does
-nothing. It is harmless in practice — the feed is backed by a live Firestore listener, so
-the data is already current — but the affordance is misleading and should either be
-implemented or removed.
+**Feed listener errors are logged, not shown.** If the Firestore snapshot listener fails,
+`FeedFragment` writes it to logcat and the screen simply stays as it was. Pull-to-refresh
+gives the user a way to retry, but no message explains what went wrong.
 
 **The report mechanism is unimplemented.** It is part of the original project brief but
 there is no code for it, so the security rules deliberately deny the `reports` collection.

@@ -33,10 +33,15 @@ class FeedViewModel(
 
         _uiState.value = FeedUiState.Loading
         feedJob = viewModelScope.launch {
+            // Kapı, kullanıcının gerçekten notu olup olmadığına bakılarak belirlenir;
+            // profildeki bir bayrağa değil. Not silindiğinde erişim de geri alınır.
             val department = try {
-                userRepository.getUser(user.uid)?.let { profile ->
-                    if (profile.hasUploadedNote) profile.department else ""
-                }.orEmpty()
+                val profile = userRepository.getUser(user.uid)
+                if (profile != null && noteRepository.hasUploadedNote(user.uid)) {
+                    profile.department
+                } else {
+                    ""
+                }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (exception: Exception) {

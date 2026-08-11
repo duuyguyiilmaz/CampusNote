@@ -27,8 +27,7 @@ class UserRepository(
             email = document.getString("email") ?: "",
             department = document.getString("department") ?: "",
             points = document.getLong("points") ?: 0L,
-            createdAt = document.getLong("createdAt") ?: 0L,
-            hasUploadedNote = document.getBoolean("hasUploadedNote") ?: false
+            createdAt = document.getLong("createdAt") ?: 0L
         )
     }
 
