@@ -4,8 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.databinding.ActivityMainBinding
 import duygu.yilmaz.CampusNote.ui.auth.LoginActivity
 import duygu.yilmaz.CampusNote.ui.feed.FeedFragment
 import duygu.yilmaz.CampusNote.ui.leaderboard.LeaderboardFragment
@@ -15,6 +15,7 @@ import duygu.yilmaz.CampusNote.ui.upload.UploadFragment
 class MainActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,9 +26,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        setContentView(R.layout.activity_main)
-
-        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNav)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
@@ -35,7 +35,7 @@ class MainActivity : AppCompatActivity() {
                 .commit()
         }
 
-        bottomNav.setOnItemSelectedListener { item ->
+        binding.bottomNav.setOnItemSelectedListener { item ->
             val selectedFragment = when (item.itemId) {
                 R.id.nav_feed -> FeedFragment()
                 R.id.nav_upload -> UploadFragment()
@@ -50,5 +50,10 @@ class MainActivity : AppCompatActivity() {
 
             true
         }
+    }
+
+    /** Feed'deki "not yükle" kısayolunun alt menüyü değiştirebilmesi için. */
+    fun selectUploadTab() {
+        binding.bottomNav.selectedItemId = R.id.nav_upload
     }
 }

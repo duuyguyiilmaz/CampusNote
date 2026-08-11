@@ -3,7 +3,10 @@ package duygu.yilmaz.CampusNote.ui.auth
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.CampusNote.data.repository.AuthRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 class LoginViewModel(
     private val authRepository: AuthRepository = AuthRepository()
@@ -17,19 +20,19 @@ class LoginViewModel(
         if (_uiState.value == AuthUiState.Loading) return
 
         _uiState.value = AuthUiState.Loading
-        authRepository.signIn(
-            email = email,
-            password = password,
-            onSuccess = {
-                _uiState.value = AuthUiState.Success
-            },
-            onFailure = { exception ->
-                _uiState.value = AuthUiState.Error(
+        viewModelScope.launch {
+            _uiState.value = try {
+                authRepository.signIn(email, password)
+                AuthUiState.Success
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (exception: Exception) {
+                AuthUiState.Error(
                     exception = exception,
                     stage = AuthFailureStage.AUTHENTICATION
                 )
             }
-        )
+        }
     }
 
     fun resetState() {

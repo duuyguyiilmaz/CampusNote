@@ -4,19 +4,18 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.databinding.FragmentLeaderboardBinding
 
 class LeaderboardFragment : Fragment() {
 
-    private lateinit var rvLeaderboard: RecyclerView
-    private lateinit var layoutEmpty: LinearLayout
+    private var _binding: FragmentLeaderboardBinding? = null
+    private val binding get() = _binding!!
+
     private lateinit var adapter: LeaderboardAdapter
 
     private val viewModel: LeaderboardViewModel by lazy {
@@ -28,22 +27,26 @@ class LeaderboardFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        return inflater.inflate(R.layout.fragment_leaderboard, container, false)
+        _binding = FragmentLeaderboardBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        rvLeaderboard = view.findViewById(R.id.rvLeaderboard)
-        layoutEmpty = view.findViewById(R.id.layoutEmpty)
-
         adapter = LeaderboardAdapter(mutableListOf())
-        rvLeaderboard.layoutManager = LinearLayoutManager(requireContext())
-        rvLeaderboard.adapter = adapter
+        binding.rvLeaderboard.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvLeaderboard.adapter = adapter
 
         viewModel.uiState.observe(viewLifecycleOwner, ::renderState)
 
-        animateViews(view)
+        animateViews()
+    }
+
+    override fun onDestroyView() {
+        binding.rvLeaderboard.adapter = null
+        _binding = null
+        super.onDestroyView()
     }
 
     override fun onStart() {
@@ -56,39 +59,35 @@ class LeaderboardFragment : Fragment() {
         super.onStop()
     }
 
-    private fun animateViews(view: View) {
-        val tvTitle = view.findViewById<TextView>(R.id.tvLeaderboardTitle)
-        val tvSubtitle = view.findViewById<TextView>(R.id.tvLeaderboardSubtitle)
-        val layoutBadges = view.findViewById<LinearLayout>(R.id.layoutBadges)
-
-        tvTitle.alpha = 0f
-        tvTitle.translationY = -20f
-        tvTitle.animate()
+    private fun animateViews() {
+        binding.tvLeaderboardTitle.alpha = 0f
+        binding.tvLeaderboardTitle.translationY = -20f
+        binding.tvLeaderboardTitle.animate()
             .alpha(1f)
             .translationY(0f)
             .setDuration(500)
             .start()
 
-        tvSubtitle.alpha = 0f
-        tvSubtitle.translationY = -15f
-        tvSubtitle.animate()
+        binding.tvLeaderboardSubtitle.alpha = 0f
+        binding.tvLeaderboardSubtitle.translationY = -15f
+        binding.tvLeaderboardSubtitle.animate()
             .alpha(1f)
             .translationY(0f)
             .setStartDelay(200)
             .setDuration(400)
             .start()
 
-        layoutBadges.alpha = 0f
-        layoutBadges.translationY = -10f
-        layoutBadges.animate()
+        binding.layoutBadges.alpha = 0f
+        binding.layoutBadges.translationY = -10f
+        binding.layoutBadges.animate()
             .alpha(1f)
             .translationY(0f)
             .setStartDelay(400)
             .setDuration(400)
             .start()
 
-        rvLeaderboard.alpha = 0f
-        rvLeaderboard.animate()
+        binding.rvLeaderboard.alpha = 0f
+        binding.rvLeaderboard.animate()
             .alpha(1f)
             .setStartDelay(600)
             .setDuration(400)
@@ -101,20 +100,20 @@ class LeaderboardFragment : Fragment() {
 
             LeaderboardUiState.Empty -> {
                 adapter.refresh(emptyList())
-                rvLeaderboard.visibility = View.GONE
-                layoutEmpty.visibility = View.VISIBLE
+                binding.rvLeaderboard.visibility = View.GONE
+                binding.layoutEmpty.visibility = View.VISIBLE
             }
 
             is LeaderboardUiState.Content -> {
                 adapter.refresh(state.entries)
-                rvLeaderboard.visibility = View.VISIBLE
-                layoutEmpty.visibility = View.GONE
+                binding.rvLeaderboard.visibility = View.VISIBLE
+                binding.layoutEmpty.visibility = View.GONE
             }
 
             is LeaderboardUiState.Error -> {
                 Toast.makeText(
                     requireContext(),
-                    "Hata: ${state.exception.message}",
+                    getString(R.string.error_generic, state.exception.message.orEmpty()),
                     Toast.LENGTH_LONG
                 ).show()
             }

@@ -5,45 +5,24 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.TextView
 import android.widget.Toast
-import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.databinding.FragmentProfileBinding
 import duygu.yilmaz.CampusNote.ui.auth.LoginActivity
 import duygu.yilmaz.CampusNote.ui.common.PostAdapter
 import duygu.yilmaz.CampusNote.ui.editnote.EditNoteFragment
-import com.google.android.material.button.MaterialButton
 
 class ProfileFragment : Fragment() {
+
+    private var _binding: FragmentProfileBinding? = null
+    private val binding get() = _binding!!
 
     private val viewModel: ProfileViewModel by lazy {
         ViewModelProvider(this)[ProfileViewModel::class.java]
     }
-
-    // Views
-    private lateinit var tvProfileTitle: TextView
-    private lateinit var tvEmail: TextView
-    private lateinit var tvDepartment: TextView
-    private lateinit var tvAvatar: TextView
-    private lateinit var tvNoteCount: TextView
-    private lateinit var tvPoints: TextView
-    private lateinit var tvPointsRemaining: TextView
-    private lateinit var progressPoints: ProgressBar
-    private lateinit var layoutDiscountsLocked: LinearLayout
-    private lateinit var layoutDiscountsUnlocked: LinearLayout
-    private lateinit var rvMyNotes: RecyclerView
-    private lateinit var btnLogout: MaterialButton
-    private lateinit var layoutEmptyNotes: LinearLayout
-    private lateinit var cardAvatar: CardView
-    private lateinit var layoutUserInfo: LinearLayout
-    private lateinit var cardPoints: LinearLayout
-    private lateinit var cardDiscounts: LinearLayout
 
     private lateinit var myNotesAdapter: PostAdapter
 
@@ -52,38 +31,24 @@ class ProfileFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        return inflater.inflate(R.layout.fragment_profile, container, false)
+        _binding = FragmentProfileBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        initViews(view)
         setupAdapter()
         setupLogout()
         viewModel.uiState.observe(viewLifecycleOwner, ::renderUiState)
         viewModel.actionState.observe(viewLifecycleOwner, ::renderActionState)
-        animateViews(view)
+        animateViews()
     }
 
-    private fun initViews(view: View) {
-        tvProfileTitle = view.findViewById(R.id.tvProfileTitle)
-        tvEmail = view.findViewById(R.id.tvEmail)
-        tvDepartment = view.findViewById(R.id.tvDepartment)
-        tvAvatar = view.findViewById(R.id.tvAvatar)
-        tvNoteCount = view.findViewById(R.id.tvNoteCount)
-        tvPoints = view.findViewById(R.id.tvPoints)
-        tvPointsRemaining = view.findViewById(R.id.tvPointsRemaining)
-        progressPoints = view.findViewById(R.id.progressPoints)
-        layoutDiscountsLocked = view.findViewById(R.id.layoutDiscountsLocked)
-        layoutDiscountsUnlocked = view.findViewById(R.id.layoutDiscountsUnlocked)
-        rvMyNotes = view.findViewById(R.id.rvMyNotes)
-        btnLogout = view.findViewById(R.id.btnLogout)
-        layoutEmptyNotes = view.findViewById(R.id.layoutEmptyNotes)
-        cardAvatar = view.findViewById(R.id.cardAvatar)
-        layoutUserInfo = view.findViewById(R.id.layoutUserInfo)
-        cardPoints = view.findViewById(R.id.cardPoints)
-        cardDiscounts = view.findViewById(R.id.cardDiscounts)
+    override fun onDestroyView() {
+        binding.rvMyNotes.adapter = null
+        _binding = null
+        super.onDestroyView()
     }
 
     private fun setupAdapter() {
@@ -101,31 +66,31 @@ class ProfileFragment : Fragment() {
             }
         )
 
-        rvMyNotes.layoutManager = LinearLayoutManager(requireContext())
-        rvMyNotes.adapter = myNotesAdapter
+        binding.rvMyNotes.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvMyNotes.adapter = myNotesAdapter
     }
 
     private fun setupLogout() {
-        btnLogout.setOnClickListener {
+        binding.btnLogout.setOnClickListener {
             viewModel.signOut()
             startActivity(Intent(requireContext(), LoginActivity::class.java))
             requireActivity().finish()
         }
     }
 
-    private fun animateViews(view: View) {
-        tvProfileTitle.alpha = 0f
-        tvProfileTitle.translationY = -20f
-        tvProfileTitle.animate()
+    private fun animateViews() {
+        binding.tvProfileTitle.alpha = 0f
+        binding.tvProfileTitle.translationY = -20f
+        binding.tvProfileTitle.animate()
             .alpha(1f)
             .translationY(0f)
             .setDuration(500)
             .start()
 
-        cardAvatar.alpha = 0f
-        cardAvatar.scaleX = 0.8f
-        cardAvatar.scaleY = 0.8f
-        cardAvatar.animate()
+        binding.cardAvatar.alpha = 0f
+        binding.cardAvatar.scaleX = 0.8f
+        binding.cardAvatar.scaleY = 0.8f
+        binding.cardAvatar.animate()
             .alpha(1f)
             .scaleX(1f)
             .scaleY(1f)
@@ -133,27 +98,27 @@ class ProfileFragment : Fragment() {
             .setDuration(500)
             .start()
 
-        layoutUserInfo.alpha = 0f
-        layoutUserInfo.translationY = 20f
-        layoutUserInfo.animate()
+        binding.layoutUserInfo.alpha = 0f
+        binding.layoutUserInfo.translationY = 20f
+        binding.layoutUserInfo.animate()
             .alpha(1f)
             .translationY(0f)
             .setStartDelay(400)
             .setDuration(400)
             .start()
 
-        cardPoints.alpha = 0f
-        cardPoints.translationX = -50f
-        cardPoints.animate()
+        binding.cardPoints.alpha = 0f
+        binding.cardPoints.translationX = -50f
+        binding.cardPoints.animate()
             .alpha(1f)
             .translationX(0f)
             .setStartDelay(600)
             .setDuration(400)
             .start()
 
-        cardDiscounts.alpha = 0f
-        cardDiscounts.translationX = 50f
-        cardDiscounts.animate()
+        binding.cardDiscounts.alpha = 0f
+        binding.cardDiscounts.translationX = 50f
+        binding.cardDiscounts.animate()
             .alpha(1f)
             .translationX(0f)
             .setStartDelay(800)
@@ -177,32 +142,33 @@ class ProfileFragment : Fragment() {
             ProfileUiState.Loading -> Unit
 
             ProfileUiState.MissingSession -> {
-                Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.error_missing_session, Toast.LENGTH_SHORT)
+                    .show()
             }
 
             is ProfileUiState.Content -> {
-                tvEmail.text = state.email
-                tvDepartment.text = state.department
-                tvAvatar.text = state.email.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                binding.tvEmail.text = state.email
+                binding.tvDepartment.text = state.department
+                binding.tvAvatar.text = state.email.firstOrNull()?.uppercaseChar()?.toString()
+                    ?: getString(R.string.avatar_placeholder)
 
                 myNotesAdapter.refresh(state.posts)
-                tvNoteCount.text = "${state.posts.size} not"
+                binding.tvNoteCount.text = getString(R.string.note_count, state.posts.size)
                 updatePointsUI(state.totalPoints)
 
                 val isEmpty = state.posts.isEmpty()
-                layoutEmptyNotes.visibility = if (isEmpty) View.VISIBLE else View.GONE
-                rvMyNotes.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                binding.layoutEmptyNotes.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                binding.rvMyNotes.visibility = if (isEmpty) View.GONE else View.VISIBLE
             }
 
             is ProfileUiState.Error -> {
+                val reason = state.exception.message.orEmpty()
                 val message = when (state.stage) {
-                    ProfileFailureStage.USER_PROFILE -> {
-                        "Kullanıcı bilgisi okunamadı: ${state.exception.message}"
-                    }
+                    ProfileFailureStage.USER_PROFILE ->
+                        getString(R.string.error_user_profile_read, reason)
 
-                    ProfileFailureStage.NOTES -> {
-                        "Notlarım okunamadı: ${state.exception.message}"
-                    }
+                    ProfileFailureStage.NOTES ->
+                        getString(R.string.error_my_notes_read, reason)
                 }
                 Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
             }
@@ -215,14 +181,14 @@ class ProfileFragment : Fragment() {
             ProfileActionState.DeletingNote -> Unit
 
             ProfileActionState.NoteDeleted -> {
-                Toast.makeText(requireContext(), "Not silindi!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.note_deleted, Toast.LENGTH_SHORT).show()
                 viewModel.resetActionState()
             }
 
             is ProfileActionState.DeleteError -> {
                 Toast.makeText(
                     requireContext(),
-                    "Silinemedi: ${state.exception.message}",
+                    getString(R.string.error_note_delete, state.exception.message.orEmpty()),
                     Toast.LENGTH_LONG
                 ).show()
                 viewModel.resetActionState()
@@ -231,18 +197,23 @@ class ProfileFragment : Fragment() {
     }
 
     private fun updatePointsUI(points: Long) {
-        tvPoints.text = points.toString()
-        progressPoints.progress = points.coerceIn(0L, 100L).toInt()
+        binding.tvPoints.text = points.toString()
+        binding.progressPoints.progress = points.coerceIn(0L, DISCOUNT_THRESHOLD).toInt()
 
-        if (points >= 100L) {
-            tvPointsRemaining.text = "Tebrikler! İndirimler açıldı!"
-            layoutDiscountsLocked.visibility = View.GONE
-            layoutDiscountsUnlocked.visibility = View.VISIBLE
+        val unlocked = points >= DISCOUNT_THRESHOLD
+
+        binding.tvPointsRemaining.text = if (unlocked) {
+            getString(R.string.points_unlocked)
         } else {
-            val remaining = 100L - points
-            tvPointsRemaining.text = "$remaining puan daha kazan, indirimleri aç!"
-            layoutDiscountsLocked.visibility = View.VISIBLE
-            layoutDiscountsUnlocked.visibility = View.GONE
+            getString(R.string.points_remaining, DISCOUNT_THRESHOLD - points)
         }
+
+        binding.layoutDiscountsLocked.visibility = if (unlocked) View.GONE else View.VISIBLE
+        binding.layoutDiscountsUnlocked.visibility = if (unlocked) View.VISIBLE else View.GONE
+    }
+
+    private companion object {
+        /** İndirimlerin açıldığı puan eşiği; ilerleme çubuğunun üst sınırı da budur. */
+        const val DISCOUNT_THRESHOLD = 100L
     }
 }

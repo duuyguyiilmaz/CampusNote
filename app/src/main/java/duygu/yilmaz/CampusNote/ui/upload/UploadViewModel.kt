@@ -3,10 +3,14 @@ package duygu.yilmaz.CampusNote.ui.upload
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.CampusNote.data.model.NoteDraft
+import duygu.yilmaz.CampusNote.data.model.UserProfile
 import duygu.yilmaz.CampusNote.data.repository.AuthRepository
 import duygu.yilmaz.CampusNote.data.repository.NoteRepository
 import duygu.yilmaz.CampusNote.data.repository.UserRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 class UploadViewModel(
     private val authRepository: AuthRepository = AuthRepository(),
@@ -26,40 +30,38 @@ class UploadViewModel(
         }
 
         _uiState.value = UploadUiState.Loading
-        userRepository.getUser(
-            userId = user.uid,
-            onSuccess = { profile ->
-                if (profile == null) {
-                    _uiState.value = UploadUiState.Error(
-                        exception = IllegalStateException("User profile is missing"),
-                        stage = UploadFailureStage.USER_PROFILE
-                    )
-                    return@getUser
-                }
-
-                noteRepository.createNote(
-                    draft = draft,
-                    uploaderUid = user.uid,
-                    uploaderEmail = user.email.ifBlank { profile.email },
-                    department = profile.department.ifBlank { "Bilinmiyor" },
-                    onSuccess = {
-                        _uiState.value = UploadUiState.Success
-                    },
-                    onFailure = { exception ->
-                        _uiState.value = UploadUiState.Error(
-                            exception = exception,
-                            stage = UploadFailureStage.NOTE
-                        )
-                    }
-                )
-            },
-            onFailure = { exception ->
+        viewModelScope.launch {
+            val profile = try {
+                userRepository.getUser(user.uid)
+                    ?: throw IllegalStateException("User profile is missing")
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (exception: Exception) {
                 _uiState.value = UploadUiState.Error(
                     exception = exception,
                     stage = UploadFailureStage.USER_PROFILE
                 )
+                return@launch
             }
-        )
+
+            _uiState.value = try {
+                noteRepository.createNote(
+                    draft = draft,
+                    uploaderUid = user.uid,
+                    uploaderEmail = user.email.ifBlank { profile.email },
+                    department = profile.department
+                        .ifBlank { UserProfile.UNKNOWN_DEPARTMENT }
+                )
+                UploadUiState.Success
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (exception: Exception) {
+                UploadUiState.Error(
+                    exception = exception,
+                    stage = UploadFailureStage.NOTE
+                )
+            }
+        }
     }
 
     fun resetState() {

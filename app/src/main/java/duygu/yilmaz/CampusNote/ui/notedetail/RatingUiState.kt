@@ -5,6 +5,7 @@ import duygu.yilmaz.CampusNote.data.model.RatingResult
 enum class RatingAvailability {
     ALLOWED,
     MISSING_SESSION,
+    MISSING_NOTE,
     OWN_NOTE
 }
 

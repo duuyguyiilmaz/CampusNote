@@ -1,35 +1,33 @@
 package duygu.yilmaz.CampusNote.ui.splash
+
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.content.Intent
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
-import com.google.android.material.button.MaterialButton
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.databinding.ActivitySplashBinding
 import duygu.yilmaz.CampusNote.ui.onboarding.OnboardingActivity
 
 class SplashActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivitySplashBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_splash)
-        val tvWelcome   = findViewById<TextView>(R.id.tvWelcome)
-        val ivLogo      = findViewById<ImageView>(R.id.ivLogo)
-        val progressBar = findViewById<ProgressBar>(R.id.progressBar)
-        val btnNext     = findViewById<MaterialButton>(R.id.btnNext)
-        val tvSlogan    = findViewById<TextView>(R.id.tvSlogan)
-        ivLogo.setImageResource(R.drawable.campusnote__11)
-        tvWelcome.animate()
+        binding = ActivitySplashBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.ivLogo.setImageResource(R.drawable.campusnote__11)
+
+        binding.tvWelcome.animate()
             .alpha(1f)
             .translationYBy(-20f)
             .setStartDelay(300)
             .setDuration(600)
             .start()
 
-        ivLogo.scaleX = 0.5f
-        ivLogo.scaleY = 0.5f
-        ivLogo.animate()
+        binding.ivLogo.scaleX = 0.5f
+        binding.ivLogo.scaleY = 0.5f
+        binding.ivLogo.animate()
             .alpha(1f)
             .scaleX(1f)
             .scaleY(1f)
@@ -37,32 +35,31 @@ class SplashActivity : AppCompatActivity() {
             .setDuration(800)
             .start()
 
-        tvSlogan.animate()
+        binding.tvSlogan.animate()
             .alpha(1f)
             .translationYBy(-20f)
             .setStartDelay(1600)
             .setDuration(600)
             .start()
 
-        progressBar.animate()
+        binding.progressBar.animate()
             .alpha(1f)
             .setStartDelay(2000)
             .setDuration(400)
             .start()
 
-        btnNext.animate()
+        binding.btnNext.animate()
             .alpha(1f)
             .translationYBy(-20f)
             .setStartDelay(2500)
             .setDuration(600)
             .withEndAction {
-                progressBar.animate().alpha(0f).setDuration(300).start()
+                binding.progressBar.animate().alpha(0f).setDuration(300).start()
             }
             .start()
 
-        btnNext.setOnClickListener {
-           val intent = Intent(this, OnboardingActivity::class.java);
-            startActivity(intent)
+        binding.btnNext.setOnClickListener {
+            startActivity(Intent(this, OnboardingActivity::class.java))
             finish()
         }
     }

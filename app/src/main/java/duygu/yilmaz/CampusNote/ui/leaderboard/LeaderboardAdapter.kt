@@ -1,56 +1,57 @@
 package duygu.yilmaz.CampusNote.ui.leaderboard
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import duygu.yilmaz.CampusNote.R
 import duygu.yilmaz.CampusNote.data.model.LeaderboardEntry
+import duygu.yilmaz.CampusNote.databinding.ItemLeaderboardBinding
 
 class LeaderboardAdapter(
     private val items: MutableList<LeaderboardEntry>
 ) : RecyclerView.Adapter<LeaderboardAdapter.LBViewHolder>() {
 
-    class LBViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvRank        : TextView = itemView.findViewById(R.id.tvRank)
-        val tvTitle       : TextView = itemView.findViewById(R.id.tvTitle)
-        val tvEmail       : TextView = itemView.findViewById(R.id.tvEmail)
-        val tvDept        : TextView = itemView.findViewById(R.id.tvDept)
-        val tvScore       : TextView = itemView.findViewById(R.id.tvScore)
-        val tvRatingCount : TextView = itemView.findViewById(R.id.tvRatingCount)
-    }
+    class LBViewHolder(val binding: ItemLeaderboardBinding) :
+        RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): LBViewHolder {
-        val v = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_leaderboard, parent, false)
-        return LBViewHolder(v)
+        val binding = ItemLeaderboardBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return LBViewHolder(binding)
     }
+
     override fun onBindViewHolder(holder: LBViewHolder, position: Int) {
         val entry = items[position]
         val rank = position + 1
 
-        holder.tvRank.text = when (rank) {
-            1 -> "🥇"
-            2 -> "🥈"
-            3 -> "🥉"
-            else -> rank.toString()
-        }
+        with(holder.binding) {
+            val context = root.context
 
-        holder.tvRank.setTextColor(
-            when (rank) {
-                1 -> android.graphics.Color.parseColor("#FFD700")
-                2 -> android.graphics.Color.parseColor("#C0C0C0")
-                3 -> android.graphics.Color.parseColor("#CD7F32")
-                else -> android.graphics.Color.WHITE
+            tvRank.text = when (rank) {
+                FIRST_PLACE -> context.getString(R.string.rank_first)
+                SECOND_PLACE -> context.getString(R.string.rank_second)
+                THIRD_PLACE -> context.getString(R.string.rank_third)
+                else -> rank.toString()
             }
-        )
 
-        holder.tvTitle.text = entry.title
-        holder.tvEmail.text = entry.uploaderEmail
-        holder.tvDept.text = entry.department
-        holder.tvScore.text = entry.ratingSum.toString()
-        holder.tvRatingCount.text = "${entry.ratingCount} oy"
+            val rankColor = when (rank) {
+                FIRST_PLACE -> R.color.rank_gold
+                SECOND_PLACE -> R.color.rank_silver
+                THIRD_PLACE -> R.color.rank_bronze
+                else -> R.color.white
+            }
+            tvRank.setTextColor(ContextCompat.getColor(context, rankColor))
+
+            tvTitle.text = entry.title
+            tvEmail.text = entry.uploaderEmail
+            tvDept.text = entry.department
+            tvScore.text = entry.ratingSum.toString()
+            tvRatingCount.text = context.getString(R.string.vote_count, entry.ratingCount)
+        }
     }
 
     override fun getItemCount(): Int = items.size
@@ -59,5 +60,11 @@ class LeaderboardAdapter(
         items.clear()
         items.addAll(newItems)
         notifyDataSetChanged()
+    }
+
+    private companion object {
+        const val FIRST_PLACE = 1
+        const val SECOND_PLACE = 2
+        const val THIRD_PLACE = 3
     }
 }

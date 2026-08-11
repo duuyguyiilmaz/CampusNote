@@ -1,5 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <string name="app_name">CampusNote</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <!-- Birden fazla ekranda paylaşılan metinler -->
+    <string name="error_missing_session">Giriş bulunamadı.</string>
+    <string name="error_note_not_found">Not bulunamadı.</string>
+    <string name="error_user_profile_read">Kullanıcı bilgisi okunamadı: %1$s</string>
+    <string name="error_generic">Hata: %1$s</string>
+    <string name="error_network">İnternet bağlantınızı kontrol edin</string>
+    <string name="error_invalid_email_format">Geçersiz email formatı</string>
+    <string name="vote_count">%1$d oy</string>
+    <string name="action_cancel">İptal</string>
+
+    <!-- Giriş / kayıt doğrulama -->
+    <string name="university_email_domain" translatable="false">@ogr.akdeniz.edu.tr</string>
+    <string name="error_email_empty">Email boş olamaz</string>
+    <string name="error_email_domain">Sadece %1$s uzantılı mailler</string>
+    <string name="error_password_empty">Şifre boş olamaz</string>
+    <string name="error_password_too_short">En az %1$d karakter olmalı</string>
+
+    <!-- Giriş ekranı -->
+    <string name="login_welcome">Hoş geldin!</string>
+    <string name="login_error_user_not_found">Bu email ile kayıtlı kullanıcı bulunamadı</string>
+    <string name="login_error_wrong_password">Şifre hatalı</string>
+    <string name="login_error_generic">Giriş başarısız. Tekrar deneyin.</string>
+
+    <!-- Kayıt ekranı -->
+    <string name="register_success">Kayıt başarılı! Hoş geldin!</string>
+    <string name="register_error_email_in_use">Bu email zaten kayıtlı</string>
+    <string name="register_error_weak_password">Şifre çok zayıf</string>
+    <string name="register_error_generic">Kayıt başarısız. Tekrar deneyin.</string>
+    <string name="register_error_profile_save">Kullanıcı kaydedilemedi: %1$s</string>
+    <string name="department_prompt">Bölüm seçiniz</string>
+    <string name="error_department_not_selected">Lütfen bölüm seçiniz</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_step_one_title">Not paylaşarak puan kazan</string>
+    <string name="onboarding_step_one_body">Ders notlarını paylaştıkça puanın artar, sıralamalarda yükselirsin.</string>
+    <string name="onboarding_step_two_title">100 puana ulaşınca ödül kazan</string>
+    <string name="onboarding_step_two_body" formatted="false">100 puana ulaştığında seçili restoranlarda %15 indirim kazanırsın.</string>
+    <string name="onboarding_step_three_title">Kampüs avantajlarına eriş</string>
+    <string name="onboarding_step_three_body">Anlaşmalı kafe ve restoranlarda özel indirimlerden yararlan.</string>
+
+    <!-- Not yükleme -->
+    <string name="tag_prompt">Etiket seçiniz</string>
+    <string name="upload_action">Notu Paylaş</string>
+    <string name="upload_action_in_progress">Yükleniyor...</string>
+    <string name="upload_success">✅ Not başarıyla paylaşıldı!</string>
+    <string name="error_course_empty">Ders adı boş olamaz</string>
+    <string name="error_note_title_empty">Not başlığı boş olamaz</string>
+    <string name="error_description_empty">Açıklama boş olamaz</string>
+    <string name="error_file_too_large">Dosya çok büyük (%1$d KB). En fazla %2$d KB yükleyebilirsin.</string>
+    <string name="error_file_read">Dosya okunamadı: %1$s</string>
+    <string name="default_file_name">dosya</string>
+
+    <!-- Not detayı -->
+    <string name="error_note_load">Not yüklenemedi: %1$s</string>
+    <string name="file_loading">Dosya yükleniyor...</string>
+    <string name="file_open">Dosyayı Aç</string>
+    <string name="file_unavailable">Dosya yok</string>
+    <string name="error_file_not_found">Dosya bulunamadı</string>
+    <string name="error_file_load">Dosya yüklenemedi: %1$s</string>
+    <string name="error_image_load">Fotoğraf yüklenemedi</string>
+    <string name="error_pdf_data_missing">PDF verisi bulunamadı</string>
+    <string name="error_pdf_open">PDF açılamadı</string>
+    <string name="error_pdf_open_reason">PDF açılamadı: %1$s</string>
+    <string name="pdf_chooser_title">PDF\'i aç</string>
+    <string name="file_size_label">%1$s · %2$d KB</string>
+    <string name="rating_count">(%1$d oy)</string>
+
+    <!-- Puanlama -->
+    <string name="rating_saved">Puan verildi!</string>
+    <string name="rating_updated">Puanın güncellendi!</string>
+    <string name="error_rating_own_note">Kendi notuna puan veremezsin!</string>
+    <string name="error_rating_not_selected">Lütfen bir puan seç</string>
+    <string name="error_rating_save">Puan kaydedilemedi: %1$s</string>
+
+    <!-- Profil -->
+    <string name="note_count">%1$d not</string>
+    <string name="avatar_placeholder" translatable="false">?</string>
+    <string name="error_my_notes_read">Notlarım okunamadı: %1$s</string>
+    <string name="points_unlocked">Tebrikler! İndirimler açıldı!</string>
+    <string name="points_remaining">%1$d puan daha kazan, indirimleri aç!</string>
+
+    <!-- Not düzenleme -->
+    <string name="error_title_empty">Başlık boş olamaz</string>
+    <string name="note_updated">Not güncellendi!</string>
+    <string name="error_note_not_owner">Bu notu düzenleme yetkin yok!</string>
+
+    <!-- Not silme -->
+    <string name="delete_note_title">Notu Sil</string>
+    <string name="delete_note_message">\"%1$s\" notunu silmek istediğine emin misin?</string>
+    <string name="delete_note_confirm">Evet, Sil</string>
+    <string name="note_deleted">Not silindi!</string>
+    <string name="error_note_delete">Silinemedi: %1$s</string>
+
+    <!-- Liderlik tablosu sıralama rozetleri -->
+    <string name="rank_first" translatable="false">🥇</string>
+    <string name="rank_second" translatable="false">🥈</string>
+    <string name="rank_third" translatable="false">🥉</string>
+
 </resources>

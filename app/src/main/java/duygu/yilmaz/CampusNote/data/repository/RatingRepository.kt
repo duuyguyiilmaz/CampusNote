@@ -2,32 +2,28 @@ package duygu.yilmaz.CampusNote.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
 import duygu.yilmaz.CampusNote.data.model.RatingResult
+import kotlinx.coroutines.tasks.await
 
 class RatingRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
-    fun submitRating(
+    suspend fun submitRating(
         noteId: String,
         raterUid: String,
-        newRating: Int,
-        onSuccess: (RatingResult) -> Unit,
-        onFailure: (Exception) -> Unit
-    ) {
-        if (noteId.isBlank() || raterUid.isBlank()) {
-            onFailure(IllegalArgumentException("Note and user identifiers are required"))
-            return
+        newRating: Int
+    ): RatingResult {
+        require(noteId.isNotBlank() && raterUid.isNotBlank()) {
+            "Note and user identifiers are required"
         }
-
-        if (newRating !in MIN_RATING..MAX_RATING) {
-            onFailure(IllegalArgumentException("Rating must be between 1 and 5"))
-            return
+        require(newRating in MIN_RATING..MAX_RATING) {
+            "Rating must be between 1 and 5"
         }
 
         val noteReference = firestore.collection(NOTES_COLLECTION).document(noteId)
         val ratingReference = firestore.collection(RATINGS_COLLECTION)
             .document("${raterUid}_$noteId")
 
-        firestore.runTransaction { transaction ->
+        return firestore.runTransaction { transaction ->
             val noteSnapshot = transaction.get(noteReference)
             if (!noteSnapshot.exists()) throw NoteNotFoundException()
 
@@ -88,9 +84,7 @@ class RatingRepository(
                 sum = newSum,
                 updatedExistingRating = updatedExistingRating
             )
-        }
-            .addOnSuccessListener { result -> onSuccess(result) }
-            .addOnFailureListener { exception -> onFailure(exception) }
+        }.await()
     }
 
     private companion object {
@@ -113,3 +107,5 @@ class RatingRepository(
 class NoteNotFoundException : IllegalStateException("Note is missing")
 
 class OwnNoteRatingException : IllegalStateException("Users cannot rate their own notes")
+
+class NoteNotOwnedException : IllegalStateException("Only the uploader can change this note")

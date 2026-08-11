@@ -3,46 +3,24 @@ package duygu.yilmaz.CampusNote.data.repository
 import duygu.yilmaz.CampusNote.data.model.AuthenticatedUser
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import kotlinx.coroutines.tasks.await
 
 class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
+    /** Yerel oturumu okur; ağa çıkmaz, o yüzden suspend değil. */
     fun currentUser(): AuthenticatedUser? = auth.currentUser?.toAuthenticatedUser()
 
-    fun signIn(
-        email: String,
-        password: String,
-        onSuccess: (AuthenticatedUser) -> Unit,
-        onFailure: (Exception) -> Unit
-    ) {
-        auth.signInWithEmailAndPassword(email, password)
-            .addOnSuccessListener { result ->
-                val user = result.user
-                if (user == null) {
-                    onFailure(IllegalStateException("Authenticated user is missing"))
-                } else {
-                    onSuccess(user.toAuthenticatedUser())
-                }
-            }
-            .addOnFailureListener { exception -> onFailure(exception) }
+    suspend fun signIn(email: String, password: String): AuthenticatedUser {
+        val result = auth.signInWithEmailAndPassword(email, password).await()
+        return result.user?.toAuthenticatedUser()
+            ?: throw IllegalStateException("Authenticated user is missing")
     }
 
-    fun register(
-        email: String,
-        password: String,
-        onSuccess: (AuthenticatedUser) -> Unit,
-        onFailure: (Exception) -> Unit
-    ) {
-        auth.createUserWithEmailAndPassword(email, password)
-            .addOnSuccessListener { result ->
-                val user = result.user
-                if (user == null) {
-                    onFailure(IllegalStateException("Registered user is missing"))
-                } else {
-                    onSuccess(user.toAuthenticatedUser())
-                }
-            }
-            .addOnFailureListener { exception -> onFailure(exception) }
+    suspend fun register(email: String, password: String): AuthenticatedUser {
+        val result = auth.createUserWithEmailAndPassword(email, password).await()
+        return result.user?.toAuthenticatedUser()
+            ?: throw IllegalStateException("Registered user is missing")
     }
 
     fun signOut() {

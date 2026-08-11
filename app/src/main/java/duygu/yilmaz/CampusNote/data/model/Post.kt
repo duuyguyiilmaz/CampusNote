@@ -1,5 +1,10 @@
 package duygu.yilmaz.CampusNote.data.model
 
+/**
+ * Notun metadata'sı. Dosya içeriği bilinçli olarak burada yok:
+ * feed ve leaderboard bu modeli listelerken dosya verisini indirmemeli.
+ * İçerik ayrı bir dokümanda tutulur, [NoteRepository.getNoteFile] ile okunur.
+ */
 data class Post(
     val id: String,
     val title: String,
@@ -15,5 +20,5 @@ data class Post(
     val tag: String = "",
     val fileName: String = "",
     val fileType: String = "",
-    val fileData: String = ""
+    val fileSize: Long = 0L
 )

@@ -3,9 +3,12 @@ package duygu.yilmaz.CampusNote.ui.auth
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.CampusNote.data.model.UserProfile
 import duygu.yilmaz.CampusNote.data.repository.AuthRepository
 import duygu.yilmaz.CampusNote.data.repository.UserRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 class RegisterViewModel(
     private val authRepository: AuthRepository = AuthRepository(),
@@ -18,37 +21,38 @@ class RegisterViewModel(
         if (_uiState.value == AuthUiState.Loading) return
 
         _uiState.value = AuthUiState.Loading
-        authRepository.register(
-            email = email,
-            password = password,
-            onSuccess = { authenticatedUser ->
-                val userProfile = UserProfile(
-                    id = authenticatedUser.uid,
-                    email = email,
-                    department = department,
-                    createdAt = System.currentTimeMillis()
-                )
-
-                userRepository.saveUser(
-                    user = userProfile,
-                    onSuccess = {
-                        _uiState.value = AuthUiState.Success
-                    },
-                    onFailure = { exception ->
-                        _uiState.value = AuthUiState.Error(
-                            exception = exception,
-                            stage = AuthFailureStage.USER_PROFILE
-                        )
-                    }
-                )
-            },
-            onFailure = { exception ->
+        viewModelScope.launch {
+            val authenticatedUser = try {
+                authRepository.register(email, password)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (exception: Exception) {
                 _uiState.value = AuthUiState.Error(
                     exception = exception,
                     stage = AuthFailureStage.AUTHENTICATION
                 )
+                return@launch
             }
-        )
+
+            _uiState.value = try {
+                userRepository.saveUser(
+                    UserProfile(
+                        id = authenticatedUser.uid,
+                        email = email,
+                        department = department,
+                        createdAt = System.currentTimeMillis()
+                    )
+                )
+                AuthUiState.Success
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (exception: Exception) {
+                AuthUiState.Error(
+                    exception = exception,
+                    stage = AuthFailureStage.USER_PROFILE
+                )
+            }
+        }
     }
 
     fun resetState() {

@@ -2,40 +2,38 @@ package duygu.yilmaz.CampusNote.ui.onboarding
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModelProvider
-import com.google.android.material.button.MaterialButton
 import duygu.yilmaz.CampusNote.R
 import duygu.yilmaz.CampusNote.data.local.OnboardingPreferences
+import duygu.yilmaz.CampusNote.databinding.ActivityOnboardingBinding
+import duygu.yilmaz.CampusNote.databinding.ItemOnboardingCardBinding
 import duygu.yilmaz.CampusNote.ui.auth.LoginActivity
 
 class OnboardingActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityOnboardingBinding
     private lateinit var viewModel: OnboardingViewModel
 
     private data class OnboardingStep(
-        val number: String,
-        val title: String,
-        val description: String
+        @StringRes val titleId: Int,
+        @StringRes val descriptionId: Int
     )
 
+    /** Kart sırası ekrandaki sırayı belirler; adım numarası indeksten türetilir. */
     private val steps = listOf(
         OnboardingStep(
-            "1",
-            "Not paylaşarak puan kazan",
-            "Ders notlarını paylaştıkça puanın artar, sıralamalarda yükselirsin."
+            R.string.onboarding_step_one_title,
+            R.string.onboarding_step_one_body
         ),
         OnboardingStep(
-            "2",
-            "100 puana ulaşınca ödül kazan",
-            "100 puana ulaştığında seçili restoranlarda %15 indirim kazanırsın."
+            R.string.onboarding_step_two_title,
+            R.string.onboarding_step_two_body
         ),
         OnboardingStep(
-            "3",
-            "Kampüs avantajlarına eriş",
-            "Anlaşmalı kafe ve restoranlarda özel indirimlerden yararlan."
+            R.string.onboarding_step_three_title,
+            R.string.onboarding_step_three_body
         )
     )
 
@@ -52,34 +50,33 @@ class OnboardingActivity : AppCompatActivity() {
             return
         }
 
-        setContentView(R.layout.activity_onboarding)
+        binding = ActivityOnboardingBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        val cards = listOf(
-            findViewById<View>(R.id.cardOne),
-            findViewById<View>(R.id.cardTwo),
-            findViewById<View>(R.id.cardThree)
-        )
+        // <include> etiketleri id'li olduğu için ViewBinding her kartı tipli bir alt binding
+        // olarak üretiyor; kart içindeki view'lara doğrudan erişebiliyoruz.
+        val cards = listOf(binding.cardOne, binding.cardTwo, binding.cardThree)
 
         setupCards(cards)
         animateCards(cards)
 
-        findViewById<MaterialButton>(R.id.btnStart).setOnClickListener {
+        binding.btnStart.setOnClickListener {
             viewModel.completeOnboarding()
             navigateToLogin()
         }
     }
 
-    private fun setupCards(cards: List<View>) {
+    private fun setupCards(cards: List<ItemOnboardingCardBinding>) {
         cards.forEachIndexed { index, card ->
-            card.findViewById<TextView>(R.id.tvStepNumber).text = steps[index].number
-            card.findViewById<TextView>(R.id.tvCardTitle).text = steps[index].title
-            card.findViewById<TextView>(R.id.tvCardBody).text = steps[index].description
+            val step = steps[index]
+            card.tvStepNumber.text = (index + 1).toString()
+            card.tvCardTitle.setText(step.titleId)
+            card.tvCardBody.setText(step.descriptionId)
         }
     }
 
-    private fun animateCards(cards: List<View>) {
-
-        findViewById<TextView>(R.id.tvTitle).apply {
+    private fun animateCards(cards: List<ItemOnboardingCardBinding>) {
+        binding.tvTitle.apply {
             alpha = 0f
             translationY = -30f
             animate()
@@ -90,9 +87,9 @@ class OnboardingActivity : AppCompatActivity() {
         }
 
         cards.forEachIndexed { index, card ->
-            card.alpha = 0f
-            card.translationX = -100f
-            card.animate()
+            card.root.alpha = 0f
+            card.root.translationX = -100f
+            card.root.animate()
                 .alpha(1f)
                 .translationX(0f)
                 .setStartDelay((300 + index * 150).toLong())
@@ -100,7 +97,7 @@ class OnboardingActivity : AppCompatActivity() {
                 .start()
         }
 
-        findViewById<MaterialButton>(R.id.btnStart).apply {
+        binding.btnStart.apply {
             alpha = 0f
             translationY = 30f
             animate()

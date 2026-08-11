@@ -27,4 +27,13 @@
     <color name="orange">#FF8C00</color>
     <color name="text_white_80">#CCFFFFFF</color>
 
+    <!-- Puanlama yıldızları: dolu yıldız marka turuncusunu kullanır. -->
+    <color name="star_filled">@color/soft_orange</color>
+    <color name="star_empty">#AAB6D6</color>
+
+    <!-- Liderlik tablosu ilk üç sıra -->
+    <color name="rank_gold">@color/gold</color>
+    <color name="rank_silver">#C0C0C0</color>
+    <color name="rank_bronze">#CD7F32</color>
+
 </resources>

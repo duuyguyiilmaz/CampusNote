@@ -8,34 +8,28 @@ import android.provider.OpenableColumns
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
+import android.widget.ArrayAdapter
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
-import android.util.Base64
+import androidx.lifecycle.lifecycleScope
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.data.local.EncodedFile
+import duygu.yilmaz.CampusNote.data.local.MAX_NOTE_FILE_KB
+import duygu.yilmaz.CampusNote.data.local.NoteFileEncoder
 import duygu.yilmaz.CampusNote.data.model.NoteDraft
+import duygu.yilmaz.CampusNote.data.model.NoteFileType
+import duygu.yilmaz.CampusNote.databinding.FragmentUploadBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class UploadFragment : Fragment() {
 
-    private lateinit var tilCourse: TextInputLayout
-    private lateinit var tilTitle: TextInputLayout
-    private lateinit var tilDesc: TextInputLayout
-    private lateinit var etCourse: TextInputEditText
-    private lateinit var etTitle: TextInputEditText
-    private lateinit var etDesc: TextInputEditText
-    private lateinit var spTag: Spinner
-    private lateinit var btnSelectPdf: LinearLayout
-    private lateinit var btnSelectImage: LinearLayout
-    private lateinit var layoutFilePreview: LinearLayout
-    private lateinit var ivFileIcon: ImageView
-    private lateinit var tvFileName: TextView
-    private lateinit var btnRemoveFile: ImageView
-    private lateinit var btnUpload: MaterialButton
-    private lateinit var progressBar: ProgressBar
+    private var _binding: FragmentUploadBinding? = null
+    private val binding get() = _binding!!
 
     private val viewModel: UploadViewModel by lazy {
         ViewModelProvider(this)[UploadViewModel::class.java]
@@ -45,17 +39,10 @@ class UploadFragment : Fragment() {
     private var selectedFileName: String = ""
     private var selectedFileType: String = ""
 
-    private val tags = listOf(
-        "Etiket seçiniz",
-        "Ders Notu",
-        "Vize",
-        "Final",
-        "Özet",
-        "Slayt",
-        "Ödev",
-        "Diğer"
-    )
-
+    /** 0. sıra seçim uyarısıdır; etiket seçilmediyse boş string kaydedilir. */
+    private val tags: List<String> by lazy {
+        listOf(getString(R.string.tag_prompt)) + resources.getStringArray(R.array.note_tags)
+    }
 
     private val pdfPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -64,12 +51,11 @@ class UploadFragment : Fragment() {
             result.data?.data?.let { uri ->
                 selectedFileUri = uri
                 selectedFileName = getFileName(uri)
-                selectedFileType = "pdf"
+                selectedFileType = NoteFileType.PDF
                 showFilePreview()
             }
         }
     }
-
 
     private val imagePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -78,7 +64,7 @@ class UploadFragment : Fragment() {
             result.data?.data?.let { uri ->
                 selectedFileUri = uri
                 selectedFileName = getFileName(uri)
-                selectedFileType = "image"
+                selectedFileType = NoteFileType.IMAGE
                 showFilePreview()
             }
         }
@@ -89,35 +75,22 @@ class UploadFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        return inflater.inflate(R.layout.fragment_upload, container, false)
+        _binding = FragmentUploadBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        initViews(view)
         setupSpinner()
         setupClickListeners()
         viewModel.uiState.observe(viewLifecycleOwner, ::renderState)
-        animateViews(view)
+        animateViews()
     }
 
-    private fun initViews(view: View) {
-        tilCourse = view.findViewById(R.id.tilCourse)
-        tilTitle = view.findViewById(R.id.tilTitle)
-        tilDesc = view.findViewById(R.id.tilDesc)
-        etCourse = view.findViewById(R.id.etCourse)
-        etTitle = view.findViewById(R.id.etTitle)
-        etDesc = view.findViewById(R.id.etDesc)
-        spTag = view.findViewById(R.id.spTag)
-        btnSelectPdf = view.findViewById(R.id.btnSelectPdf)
-        btnSelectImage = view.findViewById(R.id.btnSelectImage)
-        layoutFilePreview = view.findViewById(R.id.layoutFilePreview)
-        ivFileIcon = view.findViewById(R.id.ivFileIcon)
-        tvFileName = view.findViewById(R.id.tvFileName)
-        btnRemoveFile = view.findViewById(R.id.btnRemoveFile)
-        btnUpload = view.findViewById(R.id.btnUpload)
-        progressBar = view.findViewById(R.id.progressBar)
+    override fun onDestroyView() {
+        _binding = null
+        super.onDestroyView()
     }
 
     private fun setupSpinner() {
@@ -127,61 +100,57 @@ class UploadFragment : Fragment() {
             tags
         )
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spTag.adapter = adapter
+        binding.spTag.adapter = adapter
     }
 
     private fun setupClickListeners() {
-        btnSelectPdf.setOnClickListener {
+        binding.btnSelectPdf.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                type = "application/pdf"
+                type = NoteFileType.PDF_MIME_TYPE
                 addCategory(Intent.CATEGORY_OPENABLE)
             }
             pdfPickerLauncher.launch(intent)
         }
 
-        btnSelectImage.setOnClickListener {
+        binding.btnSelectImage.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                type = "image/*"
+                type = NoteFileType.IMAGE_MIME_TYPE
                 addCategory(Intent.CATEGORY_OPENABLE)
             }
             imagePickerLauncher.launch(intent)
         }
 
-        btnRemoveFile.setOnClickListener {
+        binding.btnRemoveFile.setOnClickListener {
             removeSelectedFile()
         }
 
-        btnUpload.setOnClickListener {
+        binding.btnUpload.setOnClickListener {
             uploadNote()
         }
     }
 
-    private fun animateViews(view: View) {
-        val tvTitle = view.findViewById<TextView>(R.id.tvUploadTitle)
-        val tvSubtitle = view.findViewById<TextView>(R.id.tvUploadSubtitle)
-        val cardForm = view.findViewById<View>(R.id.cardUploadForm)
-
-        tvTitle.alpha = 0f
-        tvTitle.translationY = -20f
-        tvTitle.animate()
+    private fun animateViews() {
+        binding.tvUploadTitle.alpha = 0f
+        binding.tvUploadTitle.translationY = -20f
+        binding.tvUploadTitle.animate()
             .alpha(1f)
             .translationY(0f)
             .setDuration(500)
             .start()
 
-        tvSubtitle.alpha = 0f
-        tvSubtitle.translationY = -15f
-        tvSubtitle.animate()
+        binding.tvUploadSubtitle.alpha = 0f
+        binding.tvUploadSubtitle.translationY = -15f
+        binding.tvUploadSubtitle.animate()
             .alpha(1f)
             .translationY(0f)
             .setStartDelay(200)
             .setDuration(400)
             .start()
 
-        cardForm.alpha = 0f
-        cardForm.scaleX = 0.95f
-        cardForm.scaleY = 0.95f
-        cardForm.animate()
+        binding.cardUploadForm.alpha = 0f
+        binding.cardUploadForm.scaleX = 0.95f
+        binding.cardUploadForm.scaleY = 0.95f
+        binding.cardUploadForm.animate()
             .alpha(1f)
             .scaleX(1f)
             .scaleY(1f)
@@ -189,9 +158,9 @@ class UploadFragment : Fragment() {
             .setDuration(500)
             .start()
 
-        btnUpload.alpha = 0f
-        btnUpload.translationY = 20f
-        btnUpload.animate()
+        binding.btnUpload.alpha = 0f
+        binding.btnUpload.translationY = 20f
+        binding.btnUpload.animate()
             .alpha(1f)
             .translationY(0f)
             .setStartDelay(600)
@@ -200,25 +169,23 @@ class UploadFragment : Fragment() {
     }
 
     private fun showFilePreview() {
-        layoutFilePreview.visibility = View.VISIBLE
-        tvFileName.text = selectedFileName
+        binding.layoutFilePreview.visibility = View.VISIBLE
+        binding.tvFileName.text = selectedFileName
 
-        if (selectedFileType == "pdf") {
-            ivFileIcon.setImageResource(R.drawable.ic_pdf)
-        } else {
-            ivFileIcon.setImageResource(R.drawable.ic_image)
-        }
+        binding.ivFileIcon.setImageResource(
+            if (selectedFileType == NoteFileType.PDF) R.drawable.ic_pdf else R.drawable.ic_image
+        )
     }
 
     private fun removeSelectedFile() {
         selectedFileUri = null
         selectedFileName = ""
-        selectedFileType = ""
-        layoutFilePreview.visibility = View.GONE
+        selectedFileType = NoteFileType.NONE
+        binding.layoutFilePreview.visibility = View.GONE
     }
 
     private fun getFileName(uri: Uri): String {
-        var name = "dosya"
+        var name = getString(R.string.default_file_name)
         requireContext().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             if (cursor.moveToFirst() && nameIndex >= 0) {
@@ -229,45 +196,73 @@ class UploadFragment : Fragment() {
     }
 
     private fun uploadNote() {
-        val course = etCourse.text?.toString()?.trim().orEmpty()
-        val title = etTitle.text?.toString()?.trim().orEmpty()
-        val desc = etDesc.text?.toString()?.trim().orEmpty()
-        val tagIndex = spTag.selectedItemPosition
+        val course = binding.etCourse.text?.toString()?.trim().orEmpty()
+        val title = binding.etTitle.text?.toString()?.trim().orEmpty()
+        val desc = binding.etDesc.text?.toString()?.trim().orEmpty()
+        val tagIndex = binding.spTag.selectedItemPosition
 
         if (!validateInput(course, title, desc)) return
 
-        val fileData = try {
-            readSelectedFileAsBase64()
-        } catch (exception: Exception) {
-            Toast.makeText(
-                requireContext(),
-                "Dosya okunamadı: ${exception.message}",
-                Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
+        // Dosya okuma + görsel sıkıştırma ana thread'i kilitler; IO'ya alıyoruz.
+        viewLifecycleOwner.lifecycleScope.launch {
+            showLoading(true)
 
+            val encoder = NoteFileEncoder(requireContext().contentResolver)
+            val encoded = withContext(Dispatchers.IO) {
+                encoder.encode(selectedFileUri, selectedFileType)
+            }
+
+            when (encoded) {
+                is EncodedFile.TooLarge -> {
+                    showLoading(false)
+                    Toast.makeText(
+                        requireContext(),
+                        getString(
+                            R.string.error_file_too_large,
+                            encoded.byteSize / BYTES_PER_KB,
+                            MAX_NOTE_FILE_KB
+                        ),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+
+                is EncodedFile.Failure -> {
+                    showLoading(false)
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.error_file_read, encoded.exception.message.orEmpty()),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                EncodedFile.None -> submitDraft(course, title, desc, tagIndex, "", 0L)
+
+                is EncodedFile.Success ->
+                    submitDraft(course, title, desc, tagIndex, encoded.data, encoded.byteSize)
+            }
+        }
+    }
+
+    private fun submitDraft(
+        course: String,
+        title: String,
+        desc: String,
+        tagIndex: Int,
+        fileData: String,
+        fileSize: Long
+    ) {
         viewModel.uploadNote(
             NoteDraft(
                 course = course,
                 title = title,
                 description = desc,
-                tag = if (tagIndex > 0) tags[tagIndex] else "",
+                tag = if (tagIndex > TAG_PROMPT_INDEX) tags[tagIndex] else "",
                 fileName = selectedFileName,
                 fileType = selectedFileType,
-                fileData = fileData
+                fileData = fileData,
+                fileSize = fileSize
             )
         )
-    }
-
-    private fun readSelectedFileAsBase64(): String {
-        val uri = selectedFileUri ?: return ""
-        val inputStream = requireContext().contentResolver.openInputStream(uri)
-            ?: throw IllegalStateException("Dosya açılamadı")
-
-        return inputStream.use { stream ->
-            Base64.encodeToString(stream.readBytes(), Base64.NO_WRAP)
-        }
     }
 
     private fun renderState(state: UploadUiState) {
@@ -280,7 +275,7 @@ class UploadFragment : Fragment() {
                 clearForm()
                 Toast.makeText(
                     requireContext(),
-                    "✅ Not başarıyla paylaşıldı!",
+                    R.string.upload_success,
                     Toast.LENGTH_SHORT
                 ).show()
                 viewModel.resetState()
@@ -288,18 +283,19 @@ class UploadFragment : Fragment() {
 
             UploadUiState.MissingSession -> {
                 showLoading(false)
-                Toast.makeText(requireContext(), "Giriş bulunamadı!", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), R.string.error_missing_session, Toast.LENGTH_LONG)
+                    .show()
                 viewModel.resetState()
             }
 
             is UploadUiState.Error -> {
                 showLoading(false)
+                val reason = state.exception.message.orEmpty()
                 val message = when (state.stage) {
-                    UploadFailureStage.USER_PROFILE -> {
-                        "Kullanıcı bilgisi okunamadı: ${state.exception.message}"
-                    }
+                    UploadFailureStage.USER_PROFILE ->
+                        getString(R.string.error_user_profile_read, reason)
 
-                    UploadFailureStage.NOTE -> "Hata: ${state.exception.message}"
+                    UploadFailureStage.NOTE -> getString(R.string.error_generic, reason)
                 }
                 Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
                 viewModel.resetState()
@@ -308,21 +304,21 @@ class UploadFragment : Fragment() {
     }
 
     private fun validateInput(course: String, title: String, desc: String): Boolean {
-        tilCourse.error = null
-        tilTitle.error = null
-        tilDesc.error = null
+        binding.tilCourse.error = null
+        binding.tilTitle.error = null
+        binding.tilDesc.error = null
 
         return when {
             course.isEmpty() -> {
-                tilCourse.error = "Ders adı boş olamaz"
+                binding.tilCourse.error = getString(R.string.error_course_empty)
                 false
             }
             title.isEmpty() -> {
-                tilTitle.error = "Not başlığı boş olamaz"
+                binding.tilTitle.error = getString(R.string.error_note_title_empty)
                 false
             }
             desc.isEmpty() -> {
-                tilDesc.error = "Açıklama boş olamaz"
+                binding.tilDesc.error = getString(R.string.error_description_empty)
                 false
             }
             else -> true
@@ -330,23 +326,24 @@ class UploadFragment : Fragment() {
     }
 
     private fun showLoading(show: Boolean) {
-        progressBar.visibility = if (show) View.VISIBLE else View.GONE
-        btnUpload.isEnabled = !show
-
-        if (show) {
-            btnUpload.text = "Yükleniyor..."
-            btnUpload.setTextColor(resources.getColor(R.color.white, null))
-        } else {
-            btnUpload.text = "Notu Paylaş"
-            btnUpload.setTextColor(resources.getColor(R.color.white, null))
-        }
+        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.btnUpload.isEnabled = !show
+        binding.btnUpload.setText(
+            if (show) R.string.upload_action_in_progress else R.string.upload_action
+        )
+        binding.btnUpload.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
     }
 
     private fun clearForm() {
-        etCourse.text?.clear()
-        etTitle.text?.clear()
-        etDesc.text?.clear()
-        spTag.setSelection(0)
+        binding.etCourse.text?.clear()
+        binding.etTitle.text?.clear()
+        binding.etDesc.text?.clear()
+        binding.spTag.setSelection(TAG_PROMPT_INDEX)
         removeSelectedFile()
+    }
+
+    private companion object {
+        const val BYTES_PER_KB = 1024
+        const val TAG_PROMPT_INDEX = 0
     }
 }

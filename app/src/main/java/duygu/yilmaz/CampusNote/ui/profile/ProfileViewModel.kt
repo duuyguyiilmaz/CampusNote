@@ -3,9 +3,14 @@ package duygu.yilmaz.CampusNote.ui.profile
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.CampusNote.data.repository.AuthRepository
 import duygu.yilmaz.CampusNote.data.repository.NoteRepository
 import duygu.yilmaz.CampusNote.data.repository.UserRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.launch
 
 class ProfileViewModel(
     private val authRepository: AuthRepository = AuthRepository(),
@@ -18,12 +23,10 @@ class ProfileViewModel(
     private val _actionState = MutableLiveData<ProfileActionState>(ProfileActionState.Idle)
     val actionState: LiveData<ProfileActionState> = _actionState
 
-    private var stopObservingNotes: (() -> Unit)? = null
-    private var requestId = 0
+    private var profileJob: Job? = null
 
     fun startProfile() {
-        val currentRequestId = ++requestId
-        removeNotesListener()
+        profileJob?.cancel()
 
         val user = authRepository.currentUser()
         if (user == null) {
@@ -32,63 +35,59 @@ class ProfileViewModel(
         }
 
         _uiState.value = ProfileUiState.Loading
-        userRepository.getUser(
-            userId = user.uid,
-            onSuccess = { profile ->
-                if (currentRequestId != requestId) return@getUser
-
-                stopObservingNotes = noteRepository.observeNotesByUploader(
-                    uploaderUid = user.uid,
-                    defaultUploaderEmail = user.email,
-                    onNotesChanged = { posts ->
-                        if (currentRequestId == requestId) {
-                            _uiState.value = ProfileUiState.Content(
-                                email = user.email.ifBlank { "—" },
-                                department = profile?.department?.ifBlank { "—" } ?: "—",
-                                posts = posts,
-                                totalPoints = posts.sumOf { it.ratingSum }
-                            )
-                        }
-                    },
-                    onFailure = { exception ->
-                        if (currentRequestId == requestId) {
-                            _uiState.value = ProfileUiState.Error(
-                                exception = exception,
-                                stage = ProfileFailureStage.NOTES
-                            )
-                        }
-                    }
+        profileJob = viewModelScope.launch {
+            val department = try {
+                userRepository.getUser(user.uid)?.department?.ifBlank { "—" } ?: "—"
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (exception: Exception) {
+                _uiState.value = ProfileUiState.Error(
+                    exception = exception,
+                    stage = ProfileFailureStage.USER_PROFILE
                 )
-            },
-            onFailure = { exception ->
-                if (currentRequestId == requestId) {
+                return@launch
+            }
+
+            noteRepository.observeNotesByUploader(
+                uploaderUid = user.uid,
+                defaultUploaderEmail = user.email
+            )
+                .catch { throwable ->
                     _uiState.value = ProfileUiState.Error(
-                        exception = exception,
-                        stage = ProfileFailureStage.USER_PROFILE
+                        exception = throwable as? Exception ?: Exception(throwable),
+                        stage = ProfileFailureStage.NOTES
                     )
                 }
-            }
-        )
+                .collect { posts ->
+                    _uiState.value = ProfileUiState.Content(
+                        email = user.email.ifBlank { "—" },
+                        department = department,
+                        posts = posts,
+                        totalPoints = posts.sumOf { it.ratingSum }
+                    )
+                }
+        }
     }
 
     fun stopProfile() {
-        requestId++
-        removeNotesListener()
+        profileJob?.cancel()
+        profileJob = null
     }
 
     fun deleteNote(noteId: String) {
         if (_actionState.value == ProfileActionState.DeletingNote) return
 
         _actionState.value = ProfileActionState.DeletingNote
-        noteRepository.deleteNote(
-            noteId = noteId,
-            onSuccess = {
-                _actionState.value = ProfileActionState.NoteDeleted
-            },
-            onFailure = { exception ->
-                _actionState.value = ProfileActionState.DeleteError(exception)
+        viewModelScope.launch {
+            _actionState.value = try {
+                noteRepository.deleteNote(noteId)
+                ProfileActionState.NoteDeleted
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (exception: Exception) {
+                ProfileActionState.DeleteError(exception)
             }
-        )
+        }
     }
 
     fun resetActionState() {
@@ -102,10 +101,5 @@ class ProfileViewModel(
     override fun onCleared() {
         stopProfile()
         super.onCleared()
-    }
-
-    private fun removeNotesListener() {
-        stopObservingNotes?.invoke()
-        stopObservingNotes = null
     }
 }

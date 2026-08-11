@@ -1,96 +1,65 @@
 package duygu.yilmaz.CampusNote.ui.auth
 
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
-import android.widget.CheckBox
-import android.widget.ProgressBar
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.databinding.ActivityLoginBinding
 import duygu.yilmaz.CampusNote.ui.main.MainActivity
 
 class LoginActivity : AppCompatActivity() {
 
     private val viewModel: LoginViewModel by viewModels()
-
-    private lateinit var tvAppName: TextView
-    private lateinit var tvSubtitle: TextView
-    private lateinit var cardForm: View
-    private lateinit var tilEmail: TextInputLayout
-    private lateinit var tilPassword: TextInputLayout
-    private lateinit var etEmail: TextInputEditText
-    private lateinit var etPassword: TextInputEditText
-    private lateinit var cbRememberMe: CheckBox
-    private lateinit var btnLogin: MaterialButton
-    private lateinit var btnRegister: MaterialButton
-    private lateinit var progressBar: ProgressBar
+    private lateinit var binding: ActivityLoginBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
 
-        val prefs = getSharedPreferences("campusnote_prefs", MODE_PRIVATE)
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
-        val rememberMe = prefs.getBoolean("remember_me", false)
+        val rememberMe = prefs.getBoolean(KEY_REMEMBER_ME, false)
         if (rememberMe && viewModel.hasAuthenticatedUser()) {
             goToMainActivity()
             return
         }
 
-        initViews()
+        binding = ActivityLoginBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
         observeAuthState(prefs)
-        setupClickListeners(prefs)
+        setupClickListeners()
         animateViews()
     }
 
-    private fun initViews() {
-        tvAppName = findViewById(R.id.tvAppName)
-        tvSubtitle = findViewById(R.id.tvSubtitle)
-        cardForm = findViewById(R.id.cardForm)
-        tilEmail = findViewById(R.id.tilEmail)
-        tilPassword = findViewById(R.id.tilPassword)
-        etEmail = findViewById(R.id.etEmail)
-        etPassword = findViewById(R.id.etPassword)
-        cbRememberMe = findViewById(R.id.cbRememberMe)
-        btnLogin = findViewById(R.id.btnLogin)
-        btnRegister = findViewById(R.id.btnRegister)
-        progressBar = findViewById(R.id.progressBar)
-    }
-
-    private fun setupClickListeners(prefs: android.content.SharedPreferences) {
-        btnLogin.setOnClickListener {
-            val email = etEmail.text?.toString()?.trim() ?: ""
-            val password = etPassword.text?.toString()?.trim() ?: ""
+    private fun setupClickListeners() {
+        binding.btnLogin.setOnClickListener {
+            val email = binding.etEmail.text?.toString()?.trim() ?: ""
+            val password = binding.etPassword.text?.toString()?.trim() ?: ""
 
             if (!validateInput(email, password)) return@setOnClickListener
 
-            viewModel.signIn(
-                email = email,
-                password = password
-            )
+            viewModel.signIn(email = email, password = password)
         }
 
-        btnRegister.setOnClickListener {
+        binding.btnRegister.setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
         }
     }
 
-    private fun observeAuthState(prefs: android.content.SharedPreferences) {
+    private fun observeAuthState(prefs: SharedPreferences) {
         viewModel.uiState.observe(this) { state ->
             when (state) {
                 AuthUiState.Idle -> showLoading(false)
                 AuthUiState.Loading -> showLoading(true)
                 AuthUiState.Success -> {
                     viewModel.resetState()
-                    prefs.edit().putBoolean("remember_me", cbRememberMe.isChecked).apply()
+                    prefs.edit().putBoolean(KEY_REMEMBER_ME, binding.cbRememberMe.isChecked).apply()
                     showLoading(false)
-                    Toast.makeText(this, "Hoş geldin!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, R.string.login_welcome, Toast.LENGTH_SHORT).show()
                     goToMainActivity()
                 }
                 is AuthUiState.Error -> {
@@ -103,27 +72,27 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun animateViews() {
-        tvAppName.alpha = 0f
-        tvAppName.translationY = -30f
-        tvAppName.animate()
+        binding.tvAppName.alpha = 0f
+        binding.tvAppName.translationY = -30f
+        binding.tvAppName.animate()
             .alpha(1f)
             .translationY(0f)
             .setDuration(500)
             .start()
 
-        tvSubtitle.alpha = 0f
-        tvSubtitle.translationY = -20f
-        tvSubtitle.animate()
+        binding.tvSubtitle.alpha = 0f
+        binding.tvSubtitle.translationY = -20f
+        binding.tvSubtitle.animate()
             .alpha(1f)
             .translationY(0f)
             .setStartDelay(200)
             .setDuration(400)
             .start()
 
-        cardForm.alpha = 0f
-        cardForm.scaleX = 0.9f
-        cardForm.scaleY = 0.9f
-        cardForm.animate()
+        binding.cardForm.alpha = 0f
+        binding.cardForm.scaleX = 0.9f
+        binding.cardForm.scaleY = 0.9f
+        binding.cardForm.animate()
             .alpha(1f)
             .scaleX(1f)
             .scaleY(1f)
@@ -131,18 +100,18 @@ class LoginActivity : AppCompatActivity() {
             .setDuration(500)
             .start()
 
-        btnLogin.alpha = 0f
-        btnLogin.translationY = 30f
-        btnLogin.animate()
+        binding.btnLogin.alpha = 0f
+        binding.btnLogin.translationY = 30f
+        binding.btnLogin.animate()
             .alpha(1f)
             .translationY(0f)
             .setStartDelay(700)
             .setDuration(400)
             .start()
 
-        btnRegister.alpha = 0f
-        btnRegister.translationY = 30f
-        btnRegister.animate()
+        binding.btnRegister.alpha = 0f
+        binding.btnRegister.translationY = 30f
+        binding.btnRegister.animate()
             .alpha(1f)
             .translationY(0f)
             .setStartDelay(850)
@@ -151,24 +120,27 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun validateInput(email: String, password: String): Boolean {
-        tilEmail.error = null
-        tilPassword.error = null
+        binding.tilEmail.error = null
+        binding.tilPassword.error = null
+
+        val emailDomain = getString(R.string.university_email_domain)
 
         return when {
             email.isEmpty() -> {
-                tilEmail.error = "Email boş olamaz"
+                binding.tilEmail.error = getString(R.string.error_email_empty)
                 false
             }
-            !email.endsWith("@ogr.akdeniz.edu.tr") -> {
-                tilEmail.error = "Sadece @ogr.akdeniz.edu.tr uzantılı mailler"
+            !email.endsWith(emailDomain) -> {
+                binding.tilEmail.error = getString(R.string.error_email_domain, emailDomain)
                 false
             }
             password.isEmpty() -> {
-                tilPassword.error = "Şifre boş olamaz"
+                binding.tilPassword.error = getString(R.string.error_password_empty)
                 false
             }
-            password.length < 6 -> {
-                tilPassword.error = "En az 6 karakter olmalı"
+            password.length < MIN_PASSWORD_LENGTH -> {
+                binding.tilPassword.error =
+                    getString(R.string.error_password_too_short, MIN_PASSWORD_LENGTH)
                 false
             }
             else -> true
@@ -176,28 +148,35 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showLoading(show: Boolean) {
-        progressBar.visibility = if (show) View.VISIBLE else View.GONE
-        btnLogin.isEnabled = !show
-        btnRegister.isEnabled = !show
+        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.btnLogin.isEnabled = !show
+        binding.btnRegister.isEnabled = !show
     }
 
+    /** Firebase hata metinleri yerelleştirilmemiş geliyor; kullanıcıya Türkçesini gösteriyoruz. */
     private fun showFirebaseError(e: Exception) {
-        val errorMessage = when {
+        val messageId = when {
             e.message?.contains("no user record") == true ->
-                "Bu email ile kayıtlı kullanıcı bulunamadı"
+                R.string.login_error_user_not_found
             e.message?.contains("password is invalid") == true ->
-                "Şifre hatalı"
+                R.string.login_error_wrong_password
             e.message?.contains("badly formatted") == true ->
-                "Geçersiz email formatı"
+                R.string.error_invalid_email_format
             e.message?.contains("network") == true ->
-                "İnternet bağlantınızı kontrol edin"
-            else -> "Giriş başarısız. Tekrar deneyin."
+                R.string.error_network
+            else -> R.string.login_error_generic
         }
-        Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+        Toast.makeText(this, messageId, Toast.LENGTH_LONG).show()
     }
 
     private fun goToMainActivity() {
         startActivity(Intent(this, MainActivity::class.java))
         finish()
+    }
+
+    private companion object {
+        const val PREFS_NAME = "campusnote_prefs"
+        const val KEY_REMEMBER_ME = "remember_me"
+        const val MIN_PASSWORD_LENGTH = 6
     }
 }

@@ -5,24 +5,21 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ScrollView
-import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.button.MaterialButton
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.databinding.FragmentFeedBinding
 import duygu.yilmaz.CampusNote.ui.common.PostAdapter
+import duygu.yilmaz.CampusNote.ui.main.MainActivity
 import duygu.yilmaz.CampusNote.ui.notedetail.NoteDetailFragment
 
 class FeedFragment : Fragment() {
 
-    private lateinit var rvFeed: RecyclerView
-    private lateinit var layoutLocked: ScrollView
-    private lateinit var btnUpload: MaterialButton
+    private var _binding: FragmentFeedBinding? = null
+    private val binding get() = _binding!!
+
     private lateinit var adapter: PostAdapter
 
     private val viewModel: FeedViewModel by lazy {
@@ -34,20 +31,17 @@ class FeedFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        return inflater.inflate(R.layout.fragment_feed, container, false)
+        _binding = FragmentFeedBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        rvFeed = view.findViewById(R.id.rvFeed)
-        layoutLocked = view.findViewById(R.id.layoutLocked)
-        btnUpload = view.findViewById(R.id.btnUpload)
-
         adapter = PostAdapter(
             mutableListOf(),
             onItemClick = { post ->
-                val fragment = NoteDetailFragment.newInstance(post)
+                val fragment = NoteDetailFragment.newInstance(post.id)
 
                 parentFragmentManager.beginTransaction()
                     .replace(R.id.fragmentContainer, fragment)
@@ -55,33 +49,35 @@ class FeedFragment : Fragment() {
                     .commit()
             }
         )
-        rvFeed.layoutManager = LinearLayoutManager(requireContext())
-        rvFeed.adapter = adapter
+        binding.rvFeed.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvFeed.adapter = adapter
 
         viewModel.uiState.observe(viewLifecycleOwner, ::renderState)
 
-        btnUpload.setOnClickListener {
-            activity?.findViewById<BottomNavigationView>(R.id.bottomNav)
-                ?.selectedItemId = R.id.nav_upload
+        binding.btnUpload.setOnClickListener {
+            (activity as? MainActivity)?.selectUploadTab()
         }
-        animateViews(view)
+        animateViews()
     }
 
-    private fun animateViews(view: View) {
-        val tvTitle = view.findViewById<TextView>(R.id.tvFeedTitle)
-        val tvSubtitle = view.findViewById<TextView>(R.id.tvFeedSubtitle)
+    override fun onDestroyView() {
+        binding.rvFeed.adapter = null
+        _binding = null
+        super.onDestroyView()
+    }
 
-        tvTitle.alpha = 0f
-        tvTitle.translationY = -20f
-        tvTitle.animate()
+    private fun animateViews() {
+        binding.tvFeedTitle.alpha = 0f
+        binding.tvFeedTitle.translationY = -20f
+        binding.tvFeedTitle.animate()
             .alpha(1f)
             .translationY(0f)
             .setDuration(500)
             .start()
 
-        tvSubtitle.alpha = 0f
-        tvSubtitle.translationY = -15f
-        tvSubtitle.animate()
+        binding.tvFeedSubtitle.alpha = 0f
+        binding.tvFeedSubtitle.translationY = -15f
+        binding.tvFeedSubtitle.animate()
             .alpha(1f)
             .translationY(0f)
             .setStartDelay(200)
@@ -110,7 +106,8 @@ class FeedFragment : Fragment() {
             }
 
             FeedUiState.MissingSession -> {
-                Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.error_missing_session, Toast.LENGTH_SHORT)
+                    .show()
             }
 
             is FeedUiState.Content -> {
@@ -122,20 +119,27 @@ class FeedFragment : Fragment() {
                 FeedFailureStage.USER_PROFILE -> {
                     Toast.makeText(
                         requireContext(),
-                        "Kullanıcı bilgisi okunamadı: ${state.exception.message}",
+                        getString(
+                            R.string.error_user_profile_read,
+                            state.exception.message.orEmpty()
+                        ),
                         Toast.LENGTH_LONG
                     ).show()
                 }
 
                 FeedFailureStage.NOTES -> {
-                    Log.e("FeedFragment", "Firestore listen error: ${state.exception.message}")
+                    Log.e(TAG, "Firestore listen error: ${state.exception.message}")
                 }
             }
         }
     }
 
     private fun showLocked(hasUploaded: Boolean) {
-        rvFeed.visibility = if (hasUploaded) View.VISIBLE else View.GONE
-        layoutLocked.visibility = if (hasUploaded) View.GONE else View.VISIBLE
+        binding.rvFeed.visibility = if (hasUploaded) View.VISIBLE else View.GONE
+        binding.layoutLocked.visibility = if (hasUploaded) View.GONE else View.VISIBLE
+    }
+
+    private companion object {
+        const val TAG = "FeedFragment"
     }
 }

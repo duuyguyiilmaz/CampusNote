@@ -7,5 +7,8 @@ data class NoteDraft(
     val tag: String,
     val fileName: String,
     val fileType: String,
-    val fileData: String
+    /** Base64'e çevrilmiş dosya içeriği. Dosya seçilmediyse boş. */
+    val fileData: String,
+    /** Sıkıştırma sonrası ham dosya boyutu (byte). Sadece kullanıcıya göstermek için. */
+    val fileSize: Long = 0L
 )

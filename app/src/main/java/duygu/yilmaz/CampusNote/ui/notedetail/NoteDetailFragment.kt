@@ -5,218 +5,328 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import duygu.yilmaz.CampusNote.R
+import duygu.yilmaz.CampusNote.data.model.NoteFileType
 import duygu.yilmaz.CampusNote.data.model.Post
-import com.google.android.material.button.MaterialButton
+import duygu.yilmaz.CampusNote.databinding.DialogRatingBinding
+import duygu.yilmaz.CampusNote.databinding.FragmentNoteDetailBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
 class NoteDetailFragment : Fragment() {
 
-    private lateinit var btnBack: ImageView
-    private lateinit var tvNoteTitle: TextView
-    private lateinit var tvTag: TextView
-    private lateinit var tvCourse: TextView
-    private lateinit var tvUploaderEmail: TextView
-    private lateinit var tvDescription: TextView
-    private lateinit var layoutPdfCard: LinearLayout
-    private lateinit var tvPdfFileName: TextView
-    private lateinit var btnOpenPdf: MaterialButton
-    private lateinit var layoutImageCard: LinearLayout
-    private lateinit var ivNoteImage: ImageView
-    private lateinit var tvAvgRating: TextView
-    private lateinit var tvRatingCount: TextView
-    private lateinit var btnRate: MaterialButton
+    private var _binding: FragmentNoteDetailBinding? = null
+    private val binding get() = _binding!!
 
     private val viewModel: NoteDetailViewModel by lazy {
         ViewModelProvider(this)[NoteDetailViewModel::class.java]
     }
 
-    private var postId: String = ""
-    private var postTitle: String = ""
-    private var postDesc: String = ""
-    private var postCourse: String = ""
-    private var postTag: String = ""
-    private var postUploaderEmail: String = ""
-    private var postUploaderUid: String = ""
-    private var postAvgRating: Double = 0.0
-    private var postRatingCount: Long = 0L
-    private var postRatingSum: Long = 0L
-    private var postFileName: String = ""
-    private var postFileType: String = ""
-    private var postFileData: String = ""
+    private var noteId: String = ""
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        return inflater.inflate(R.layout.fragment_note_detail, container, false)
+        _binding = FragmentNoteDetailBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        readArguments()
-
-        initViews(view)
-
-        fillViews()
-
-        setupFileSection()
+        noteId = arguments?.getString(ARG_NOTE_ID).orEmpty()
 
         setupClickListeners()
 
+        viewModel.noteState.observe(viewLifecycleOwner, ::renderNoteState)
+        viewModel.fileState.observe(viewLifecycleOwner, ::renderFileState)
         viewModel.ratingState.observe(viewLifecycleOwner, ::renderRatingState)
+
+        viewModel.loadNote(noteId)
     }
 
-    private fun readArguments() {
-        arguments?.let {
-            postId = it.getString("id", "")
-            postTitle = it.getString("title", "")
-            postDesc = it.getString("desc", "")
-            postCourse = it.getString("course", "")
-            postTag = it.getString("tag", "")
-            postUploaderEmail = it.getString("uploaderEmail", "")
-            postUploaderUid = it.getString("uploaderUid", "")
-            postAvgRating = it.getDouble("avgRating", 0.0)
-            postRatingCount = it.getLong("ratingCount", 0L)
-            postRatingSum = it.getLong("ratingSum", 0L)
-            postFileName = it.getString("fileName", "")
-            postFileType = it.getString("fileType", "")
-            postFileData = it.getString("fileData", "")
+    override fun onDestroyView() {
+        _binding = null
+        super.onDestroyView()
+    }
+
+    // ---- 1. aşama: metadata ----
+
+    private fun renderNoteState(state: NoteDetailUiState) {
+        when (state) {
+            NoteDetailUiState.Loading -> showLoading(true)
+
+            is NoteDetailUiState.Content -> {
+                showLoading(false)
+                binding.groupNoteContent.visibility = View.VISIBLE
+                fillViews(state.post)
+                showFileCard(state.post)
+            }
+
+            NoteDetailUiState.Missing -> {
+                showLoading(false)
+                Toast.makeText(requireContext(), R.string.error_note_not_found, Toast.LENGTH_LONG)
+                    .show()
+                parentFragmentManager.popBackStack()
+            }
+
+            is NoteDetailUiState.Error -> {
+                showLoading(false)
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.error_note_load, state.exception.message.orEmpty()),
+                    Toast.LENGTH_LONG
+                ).show()
+                parentFragmentManager.popBackStack()
+            }
         }
     }
 
-    private fun initViews(view: View) {
-        btnBack = view.findViewById(R.id.btnBack)
-        tvNoteTitle = view.findViewById(R.id.tvNoteTitle)
-        tvTag = view.findViewById(R.id.tvTag)
-        tvCourse = view.findViewById(R.id.tvCourse)
-        tvUploaderEmail = view.findViewById(R.id.tvUploaderEmail)
-        tvDescription = view.findViewById(R.id.tvDescription)
-        layoutPdfCard = view.findViewById(R.id.layoutPdfCard)
-        tvPdfFileName = view.findViewById(R.id.tvPdfFileName)
-        btnOpenPdf = view.findViewById(R.id.btnOpenPdf)
-        layoutImageCard = view.findViewById(R.id.layoutImageCard)
-        ivNoteImage = view.findViewById(R.id.ivNoteImage)
-        tvAvgRating = view.findViewById(R.id.tvAvgRating)
-        tvRatingCount = view.findViewById(R.id.tvRatingCount)
-        btnRate = view.findViewById(R.id.btnRate)
+    private fun showLoading(show: Boolean) {
+        binding.progressBarDetail.visibility = if (show) View.VISIBLE else View.GONE
+        if (show) {
+            binding.groupNoteContent.visibility = View.GONE
+            binding.layoutPdfCard.visibility = View.GONE
+            binding.layoutImageCard.visibility = View.GONE
+        }
     }
 
-    private fun fillViews() {
-        tvNoteTitle.text = postTitle
-        tvCourse.text = postCourse
-        tvUploaderEmail.text = postUploaderEmail
-        tvDescription.text = postDesc
+    private fun fillViews(post: Post) = with(binding) {
+        tvNoteTitle.text = post.title
+        tvCourse.text = post.course
+        tvUploaderEmail.text = post.authorEmail
+        tvDescription.text = post.desc
 
-        if (postTag.isEmpty()) {
+        if (post.tag.isEmpty()) {
             tvTag.visibility = View.GONE
         } else {
-            tvTag.text = postTag.uppercase()
+            tvTag.visibility = View.VISIBLE
+            tvTag.text = post.tag.uppercase()
         }
 
-        tvAvgRating.text = String.format("%.1f", postAvgRating)
-        tvRatingCount.text = "($postRatingCount oy)"
+        tvAvgRating.text = String.format("%.1f", post.avgRating)
+        tvRatingCount.text = getString(R.string.rating_count, post.ratingCount)
     }
 
-    private fun setupFileSection() {
-        when (postFileType) {
-            "pdf" -> {
-                layoutPdfCard.visibility = View.VISIBLE
-                layoutImageCard.visibility = View.GONE
-                tvPdfFileName.text = postFileName
+    /** Dosya kartı metadata ile hemen çizilir; içerik henüz yolda olabilir. */
+    private fun showFileCard(post: Post) {
+        when (post.fileType) {
+            NoteFileType.PDF -> {
+                binding.layoutPdfCard.visibility = View.VISIBLE
+                binding.layoutImageCard.visibility = View.GONE
+                binding.tvPdfFileName.text = buildFileLabel(post)
+                binding.btnOpenPdf.isEnabled = false
             }
-            "image" -> {
-                layoutPdfCard.visibility = View.GONE
-                layoutImageCard.visibility = View.VISIBLE
-                showImageFromBase64()
+
+            NoteFileType.IMAGE -> {
+                binding.layoutPdfCard.visibility = View.GONE
+                binding.layoutImageCard.visibility = View.VISIBLE
             }
+
             else -> {
-                layoutPdfCard.visibility = View.GONE
-                layoutImageCard.visibility = View.GONE
+                binding.layoutPdfCard.visibility = View.GONE
+                binding.layoutImageCard.visibility = View.GONE
             }
         }
     }
 
-    private fun showImageFromBase64() {
-        if (postFileData.isEmpty()) return
-        try {
-            val imageBytes = Base64.decode(postFileData, Base64.DEFAULT)
-            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-            ivNoteImage.setImageBitmap(bitmap)
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Fotoğraf yüklenemedi", Toast.LENGTH_SHORT).show()
+    private fun buildFileLabel(post: Post): String {
+        if (post.fileSize <= 0L) return post.fileName
+        return getString(R.string.file_size_label, post.fileName, post.fileSize / BYTES_PER_KB)
+    }
+
+    // ---- 2. aşama: dosya içeriği ----
+
+    private fun renderFileState(state: NoteFileUiState) {
+        when (state) {
+            NoteFileUiState.None -> Unit
+
+            NoteFileUiState.Loading -> {
+                binding.btnOpenPdf.isEnabled = false
+                binding.btnOpenPdf.setText(R.string.file_loading)
+                binding.progressBarImage.visibility = View.VISIBLE
+                binding.ivNoteImage.visibility = View.GONE
+            }
+
+            is NoteFileUiState.Content -> {
+                binding.btnOpenPdf.isEnabled = true
+                binding.btnOpenPdf.setText(R.string.file_open)
+                if (binding.layoutImageCard.visibility == View.VISIBLE) {
+                    showImageFromBase64(state.data)
+                }
+            }
+
+            NoteFileUiState.Missing ->
+                showFileUnavailable(getString(R.string.error_file_not_found))
+
+            is NoteFileUiState.Error -> showFileUnavailable(
+                getString(R.string.error_file_load, state.exception.message.orEmpty())
+            )
         }
     }
+
+    private fun showFileUnavailable(message: String) {
+        binding.btnOpenPdf.isEnabled = false
+        binding.btnOpenPdf.setText(R.string.file_unavailable)
+        binding.progressBarImage.visibility = View.GONE
+        binding.layoutImageCard.visibility = View.GONE
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+    }
+
+    /** Base64 çözme ve bitmap üretimi IO'da; ana thread sadece hazır bitmap'i basar. */
+    private fun showImageFromBase64(fileData: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val bitmap = withContext(Dispatchers.IO) {
+                runCatching {
+                    val imageBytes = Base64.decode(fileData, Base64.DEFAULT)
+
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, bounds)
+
+                    val options = BitmapFactory.Options().apply {
+                        inSampleSize = calculateSampleSize(bounds.outWidth, bounds.outHeight)
+                    }
+                    BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, options)
+                }.getOrNull()
+            }
+
+            binding.progressBarImage.visibility = View.GONE
+
+            if (bitmap == null) {
+                binding.layoutImageCard.visibility = View.GONE
+                Toast.makeText(requireContext(), R.string.error_image_load, Toast.LENGTH_SHORT)
+                    .show()
+            } else {
+                binding.ivNoteImage.visibility = View.VISIBLE
+                binding.ivNoteImage.setImageBitmap(bitmap)
+            }
+        }
+    }
+
+    private fun calculateSampleSize(width: Int, height: Int): Int {
+        if (width <= 0 || height <= 0) return 1
+
+        var sampleSize = 1
+        while (width / (sampleSize * 2) >= MAX_IMAGE_SIZE_PX ||
+            height / (sampleSize * 2) >= MAX_IMAGE_SIZE_PX
+        ) {
+            sampleSize *= 2
+        }
+        return sampleSize
+    }
+
+    // ---- etkileşim ----
 
     private fun setupClickListeners() {
-        btnBack.setOnClickListener {
+        binding.btnBack.setOnClickListener {
             parentFragmentManager.popBackStack()
         }
 
-        btnOpenPdf.setOnClickListener {
+        binding.btnOpenPdf.setOnClickListener {
             openPdfFile()
         }
 
-        btnRate.setOnClickListener {
+        binding.btnRate.setOnClickListener {
             showRatingDialog()
         }
     }
 
     private fun openPdfFile() {
-        if (postFileData.isEmpty()) {
-            Toast.makeText(requireContext(), "PDF verisi bulunamadı", Toast.LENGTH_SHORT).show()
+        val post = currentPost()
+        val fileData = (viewModel.fileState.value as? NoteFileUiState.Content)?.data
+
+        if (post == null || fileData.isNullOrEmpty()) {
+            Toast.makeText(requireContext(), R.string.error_pdf_data_missing, Toast.LENGTH_SHORT)
+                .show()
             return
         }
 
-        try {
-            val pdfBytes = Base64.decode(postFileData, Base64.DEFAULT)
-            val cacheDir = requireContext().cacheDir
-            val pdfFile = File(cacheDir, postFileName.ifEmpty { "note.pdf" })
-            FileOutputStream(pdfFile).use { it.write(pdfBytes) }
-
-            val uri: Uri = FileProvider.getUriForFile(
-                requireContext(),
-                "${requireContext().packageName}.fileprovider",
-                pdfFile
-            )
-
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/pdf")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        binding.btnOpenPdf.isEnabled = false
+        viewLifecycleOwner.lifecycleScope.launch {
+            val pdfFile = withContext(Dispatchers.IO) {
+                runCatching {
+                    val pdfBytes = Base64.decode(fileData, Base64.DEFAULT)
+                    val file = File(requireContext().cacheDir, safePdfName(post.fileName))
+                    FileOutputStream(file).use { it.write(pdfBytes) }
+                    file
+                }.getOrNull()
             }
 
-            startActivity(Intent.createChooser(intent, "PDF'i aç"))
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "PDF açılamadı: ${e.message}", Toast.LENGTH_LONG).show()
+            binding.btnOpenPdf.isEnabled = true
+
+            if (pdfFile == null) {
+                Toast.makeText(requireContext(), R.string.error_pdf_open, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+
+            try {
+                val uri: Uri = FileProvider.getUriForFile(
+                    requireContext(),
+                    "${requireContext().packageName}$FILE_PROVIDER_SUFFIX",
+                    pdfFile
+                )
+
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, NoteFileType.PDF_MIME_TYPE)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+
+                startActivity(
+                    Intent.createChooser(intent, getString(R.string.pdf_chooser_title))
+                )
+            } catch (e: Exception) {
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.error_pdf_open_reason, e.message.orEmpty()),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
 
+    /** Dosya adı Firestore'dan geliyor; cache klasörünün dışına yazmayı engelle. */
+    private fun safePdfName(fileName: String): String {
+        val name = File(fileName).name.filter { it.isLetterOrDigit() || it in "-_. " }.trim()
+        return name.ifEmpty { FALLBACK_PDF_NAME }
+    }
+
+    private fun currentPost(): Post? =
+        (viewModel.noteState.value as? NoteDetailUiState.Content)?.post
+
     private fun showRatingDialog() {
-        when (viewModel.ratingAvailability(postUploaderUid)) {
+        when (viewModel.ratingAvailability()) {
             RatingAvailability.MISSING_SESSION -> {
-                Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.error_missing_session, Toast.LENGTH_SHORT)
+                    .show()
+                return
+            }
+
+            RatingAvailability.MISSING_NOTE -> {
+                Toast.makeText(requireContext(), R.string.error_note_not_found, Toast.LENGTH_SHORT)
+                    .show()
                 return
             }
 
             RatingAvailability.OWN_NOTE -> {
                 Toast.makeText(
                     requireContext(),
-                    "Kendi notuna puan veremezsin!",
+                    R.string.error_rating_own_note,
                     Toast.LENGTH_SHORT
                 ).show()
                 return
@@ -225,21 +335,20 @@ class NoteDetailFragment : Fragment() {
             RatingAvailability.ALLOWED -> Unit
         }
 
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_rating, null)
+        val dialogBinding = DialogRatingBinding.inflate(layoutInflater)
 
         val dialog = AlertDialog.Builder(requireContext(), R.style.TransparentDialog)
-            .setView(dialogView)
+            .setView(dialogBinding.root)
             .create()
 
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         val stars = listOf(
-            dialogView.findViewById<ImageView>(R.id.star1),
-            dialogView.findViewById<ImageView>(R.id.star2),
-            dialogView.findViewById<ImageView>(R.id.star3),
-            dialogView.findViewById<ImageView>(R.id.star4),
-            dialogView.findViewById<ImageView>(R.id.star5)
+            dialogBinding.star1,
+            dialogBinding.star2,
+            dialogBinding.star3,
+            dialogBinding.star4,
+            dialogBinding.star5
         )
 
         var selectedRating = 0
@@ -251,16 +360,20 @@ class NoteDetailFragment : Fragment() {
             }
         }
 
-        dialogView.findViewById<MaterialButton>(R.id.btnCancel).setOnClickListener {
+        dialogBinding.btnCancel.setOnClickListener {
             dialog.dismiss()
         }
 
-        dialogView.findViewById<MaterialButton>(R.id.btnSubmit).setOnClickListener {
+        dialogBinding.btnSubmit.setOnClickListener {
             if (selectedRating > 0) {
-                viewModel.submitRating(postId, selectedRating)
+                viewModel.submitRating(selectedRating)
                 dialog.dismiss()
             } else {
-                Toast.makeText(requireContext(), "Lütfen bir puan seç", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    requireContext(),
+                    R.string.error_rating_not_selected,
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
@@ -269,71 +382,65 @@ class NoteDetailFragment : Fragment() {
 
     private fun updateStars(stars: List<ImageView>, rating: Int) {
         stars.forEachIndexed { index, star ->
-            if (index < rating) {
-                star.setImageResource(R.drawable.ic_star_filled)
-                star.setColorFilter(
-                    android.graphics.Color.parseColor("#F28A55"),
-                    android.graphics.PorterDuff.Mode.SRC_IN
-                )
-            } else {
-                star.setImageResource(R.drawable.ic_star_outline)
-                star.setColorFilter(
-                    android.graphics.Color.parseColor("#AAB6D6"),
-                    android.graphics.PorterDuff.Mode.SRC_IN
-                )
-            }
+            val filled = index < rating
+            star.setImageResource(
+                if (filled) R.drawable.ic_star_filled else R.drawable.ic_star_outline
+            )
+            star.setColorFilter(
+                ContextCompat.getColor(
+                    requireContext(),
+                    if (filled) R.color.star_filled else R.color.star_empty
+                ),
+                android.graphics.PorterDuff.Mode.SRC_IN
+            )
         }
     }
 
     private fun renderRatingState(state: RatingUiState) {
         when (state) {
-            RatingUiState.Idle -> btnRate.isEnabled = true
-            RatingUiState.Submitting -> btnRate.isEnabled = false
+            RatingUiState.Idle -> binding.btnRate.isEnabled = true
+            RatingUiState.Submitting -> binding.btnRate.isEnabled = false
 
             is RatingUiState.Success -> {
-                btnRate.isEnabled = true
-                postAvgRating = state.result.average
-                postRatingCount = state.result.count
-                postRatingSum = state.result.sum
-                tvAvgRating.text = String.format("%.1f", state.result.average)
-                tvRatingCount.text = "(${state.result.count} oy)"
-
-                val message = if (state.result.updatedExistingRating) {
-                    "Puanın güncellendi!"
+                binding.btnRate.isEnabled = true
+                val messageId = if (state.result.updatedExistingRating) {
+                    R.string.rating_updated
                 } else {
-                    "Puan verildi!"
+                    R.string.rating_saved
                 }
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), messageId, Toast.LENGTH_SHORT).show()
                 viewModel.resetRatingState()
             }
 
             RatingUiState.MissingSession -> {
-                btnRate.isEnabled = true
-                Toast.makeText(requireContext(), "Giriş bulunamadı.", Toast.LENGTH_SHORT).show()
+                binding.btnRate.isEnabled = true
+                Toast.makeText(requireContext(), R.string.error_missing_session, Toast.LENGTH_SHORT)
+                    .show()
                 viewModel.resetRatingState()
             }
 
             RatingUiState.OwnNote -> {
-                btnRate.isEnabled = true
+                binding.btnRate.isEnabled = true
                 Toast.makeText(
                     requireContext(),
-                    "Kendi notuna puan veremezsin!",
+                    R.string.error_rating_own_note,
                     Toast.LENGTH_SHORT
                 ).show()
                 viewModel.resetRatingState()
             }
 
             RatingUiState.MissingNote -> {
-                btnRate.isEnabled = true
-                Toast.makeText(requireContext(), "Not bulunamadı.", Toast.LENGTH_LONG).show()
+                binding.btnRate.isEnabled = true
+                Toast.makeText(requireContext(), R.string.error_note_not_found, Toast.LENGTH_LONG)
+                    .show()
                 viewModel.resetRatingState()
             }
 
             is RatingUiState.Error -> {
-                btnRate.isEnabled = true
+                binding.btnRate.isEnabled = true
                 Toast.makeText(
                     requireContext(),
-                    "Puan kaydedilemedi: ${state.exception.message}",
+                    getString(R.string.error_rating_save, state.exception.message.orEmpty()),
                     Toast.LENGTH_LONG
                 ).show()
                 viewModel.resetRatingState()
@@ -342,24 +449,18 @@ class NoteDetailFragment : Fragment() {
     }
 
     companion object {
-        fun newInstance(post: Post): NoteDetailFragment {
-            val fragment = NoteDetailFragment()
-            val bundle = Bundle()
-            bundle.putString("id", post.id)
-            bundle.putString("title", post.title)
-            bundle.putString("desc", post.desc)
-            bundle.putString("course", post.course)
-            bundle.putString("tag", post.tag)
-            bundle.putString("uploaderEmail", post.authorEmail)
-            bundle.putString("uploaderUid", post.uploaderUid)
-            bundle.putDouble("avgRating", post.avgRating)
-            bundle.putLong("ratingCount", post.ratingCount)
-            bundle.putLong("ratingSum", post.ratingSum)
-            bundle.putString("fileName", post.fileName)
-            bundle.putString("fileType", post.fileType)
-            bundle.putString("fileData", post.fileData)
-            fragment.arguments = bundle
-            return fragment
+        private const val ARG_NOTE_ID = "noteId"
+        private const val MAX_IMAGE_SIZE_PX = 1080
+        private const val BYTES_PER_KB = 1024
+        private const val FILE_PROVIDER_SUFFIX = ".fileprovider"
+        private const val FALLBACK_PDF_NAME = "note.pdf"
+
+        fun newInstance(noteId: String): NoteDetailFragment {
+            return NoteDetailFragment().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_NOTE_ID, noteId)
+                }
+            }
         }
     }
 }

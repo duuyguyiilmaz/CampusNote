@@ -4,11 +4,10 @@ import android.app.AlertDialog
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import duygu.yilmaz.CampusNote.R
 import duygu.yilmaz.CampusNote.data.model.Post
+import duygu.yilmaz.CampusNote.databinding.ItemPostBinding
 
 class PostAdapter(
     private val items: MutableList<Post>,
@@ -17,60 +16,56 @@ class PostAdapter(
     private val onDeleteClick: ((Post) -> Unit)? = null
 ) : RecyclerView.Adapter<PostAdapter.PostVH>() {
 
-    class PostVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvTitle: TextView = itemView.findViewById(R.id.tvTitle)
-        val tvDesc: TextView = itemView.findViewById(R.id.tvDesc)
-        val tvEmail: TextView = itemView.findViewById(R.id.tvEmail)
-        val tvDept: TextView = itemView.findViewById(R.id.tvDept)
-        val tvRating: TextView = itemView.findViewById(R.id.tvRating)
-        val tvRatingCount: TextView = itemView.findViewById(R.id.tvRatingCount)
-        val btnEdit: Button = itemView.findViewById(R.id.btnEdit)
-        val btnDelete: Button = itemView.findViewById(R.id.btnDelete)
-    }
+    class PostVH(val binding: ItemPostBinding) : RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostVH {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_post, parent, false)
-        return PostVH(view)
+        val binding = ItemPostBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return PostVH(binding)
     }
 
     override fun onBindViewHolder(holder: PostVH, position: Int) {
         val post = items[position]
 
-        holder.tvTitle.text = post.title
-        holder.tvDesc.text = post.desc
-        holder.tvEmail.text = post.authorEmail.substringBefore("@")
-        holder.tvDept.text = post.department.take(3).uppercase()
-        holder.tvRating.text = String.format("%.1f", post.avgRating)
-        holder.tvRatingCount.text = "${post.ratingCount} oy"
+        with(holder.binding) {
+            tvTitle.text = post.title
+            tvDesc.text = post.desc
+            tvEmail.text = post.authorEmail.substringBefore("@")
+            tvDept.text = post.department.take(3).uppercase()
+            tvRating.text = String.format("%.1f", post.avgRating)
+            tvRatingCount.text = root.context.getString(R.string.vote_count, post.ratingCount)
 
-        holder.itemView.setOnClickListener {
-            onItemClick?.invoke(post)
-        }
-
-        if (onEditClick != null) {
-            holder.btnEdit.visibility = View.VISIBLE
-            holder.btnEdit.setOnClickListener {
-                onEditClick.invoke(post)
+            root.setOnClickListener {
+                onItemClick?.invoke(post)
             }
-        } else {
-            holder.btnEdit.visibility = View.GONE
-        }
 
-        if (onDeleteClick != null) {
-            holder.btnDelete.visibility = View.VISIBLE
-            holder.btnDelete.setOnClickListener {
-                AlertDialog.Builder(holder.itemView.context)
-                    .setTitle("Notu Sil")
-                    .setMessage("\"${post.title}\" notunu silmek istediğine emin misin?")
-                    .setPositiveButton("Evet, Sil") { _, _ ->
-                        onDeleteClick.invoke(post)
-                    }
-                    .setNegativeButton("İptal", null)
-                    .show()
+            if (onEditClick != null) {
+                btnEdit.visibility = View.VISIBLE
+                btnEdit.setOnClickListener { onEditClick.invoke(post) }
+            } else {
+                btnEdit.visibility = View.GONE
             }
-        } else {
-            holder.btnDelete.visibility = View.GONE
+
+            if (onDeleteClick != null) {
+                btnDelete.visibility = View.VISIBLE
+                btnDelete.setOnClickListener {
+                    AlertDialog.Builder(root.context)
+                        .setTitle(R.string.delete_note_title)
+                        .setMessage(
+                            root.context.getString(R.string.delete_note_message, post.title)
+                        )
+                        .setPositiveButton(R.string.delete_note_confirm) { _, _ ->
+                            onDeleteClick.invoke(post)
+                        }
+                        .setNegativeButton(R.string.action_cancel, null)
+                        .show()
+                }
+            } else {
+                btnDelete.visibility = View.GONE
+            }
         }
     }
 
