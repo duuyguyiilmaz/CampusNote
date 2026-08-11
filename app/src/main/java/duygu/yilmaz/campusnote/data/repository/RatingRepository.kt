@@ -1,6 +1,7 @@
 package duygu.yilmaz.campusnote.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
+import duygu.yilmaz.campusnote.data.model.RatingCalculator
 import duygu.yilmaz.campusnote.data.model.RatingResult
 import kotlinx.coroutines.tasks.await
 
@@ -14,9 +15,6 @@ class RatingRepository(
     ): RatingResult {
         require(noteId.isNotBlank() && raterUid.isNotBlank()) {
             "Note and user identifiers are required"
-        }
-        require(newRating in MIN_RATING..MAX_RATING) {
-            "Rating must be between 1 and 5"
         }
 
         val noteReference = firestore.collection(NOTES_COLLECTION).document(noteId)
@@ -38,29 +36,23 @@ class RatingRepository(
                 transaction.get(reference)
             }
 
-            val oldSum = noteSnapshot.getLong(RATING_SUM_FIELD) ?: 0L
-            val storedCount = noteSnapshot.getLong(RATING_COUNT_FIELD) ?: 0L
-            val updatedExistingRating = ratingSnapshot.exists()
-            val oldRating = if (updatedExistingRating) {
-                ratingSnapshot.getLong(RATING_FIELD) ?: 0L
-            } else {
-                0L
-            }
-            val difference = newRating.toLong() - oldRating
-            val newCount = if (updatedExistingRating) {
-                storedCount.coerceAtLeast(1L)
-            } else {
-                storedCount + 1L
-            }
-            val newSum = (oldSum + difference).coerceAtLeast(0L)
-            val newAverage = if (newCount == 0L) 0.0 else newSum.toDouble() / newCount
+            val totals = RatingCalculator.recalculate(
+                currentSum = noteSnapshot.getLong(RATING_SUM_FIELD) ?: 0L,
+                currentCount = noteSnapshot.getLong(RATING_COUNT_FIELD) ?: 0L,
+                previousRating = if (ratingSnapshot.exists()) {
+                    ratingSnapshot.getLong(RATING_FIELD) ?: 0L
+                } else {
+                    null
+                },
+                newRating = newRating
+            )
 
             transaction.update(
                 noteReference,
                 mapOf(
-                    RATING_SUM_FIELD to newSum,
-                    RATING_COUNT_FIELD to newCount,
-                    AVERAGE_RATING_FIELD to newAverage
+                    RATING_SUM_FIELD to totals.sum,
+                    RATING_COUNT_FIELD to totals.count,
+                    AVERAGE_RATING_FIELD to totals.average
                 )
             )
             transaction.set(
@@ -74,22 +66,20 @@ class RatingRepository(
 
             if (ownerReference != null && ownerSnapshot?.exists() == true) {
                 val currentPoints = ownerSnapshot.getLong(POINTS_FIELD) ?: 0L
-                val newPoints = (currentPoints + difference).coerceAtLeast(0L)
+                val newPoints = (currentPoints + totals.pointsDelta).coerceAtLeast(0L)
                 transaction.update(ownerReference, POINTS_FIELD, newPoints)
             }
 
             RatingResult(
-                average = newAverage,
-                count = newCount,
-                sum = newSum,
-                updatedExistingRating = updatedExistingRating
+                average = totals.average,
+                count = totals.count,
+                sum = totals.sum,
+                updatedExistingRating = totals.updatedExistingRating
             )
         }.await()
     }
 
     private companion object {
-        const val MIN_RATING = 1
-        const val MAX_RATING = 5
         const val NOTES_COLLECTION = "notes"
         const val RATINGS_COLLECTION = "ratings"
         const val USERS_COLLECTION = "users"
