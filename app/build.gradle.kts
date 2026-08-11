@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "duygu.yilmaz.CampusNote"
+    namespace = "duygu.yilmaz.campusnote"
     compileSdk = 35
 
     defaultConfig {
