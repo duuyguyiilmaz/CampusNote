@@ -290,3 +290,7 @@ app/src/main/java/duygu/yilmaz/campusnote/
 
 **Duygu Yılmaz** — Computer Engineering, Akdeniz University
 [github.com/duuyguyiilmaz](https://github.com/duuyguyiilmaz)
+
+## License
+
+Released under the [MIT License](LICENSE).
