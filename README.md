@@ -7,6 +7,7 @@ department feed unlocks for you.
 Built as a Mobile Programming course project at Akdeniz University, then refactored
 into a portfolio piece.
 
+[![Android CI](https://github.com/duuyguyiilmaz/CampusNote/actions/workflows/android.yml/badge.svg)](https://github.com/duuyguyiilmaz/CampusNote/actions/workflows/android.yml)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Android](https://img.shields.io/badge/min%20SDK-24-3DDC84?logo=android&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-FFCA28?logo=firebase&logoColor=black)
@@ -225,8 +226,14 @@ emulator on API 24+.
 3. **Enable Email/Password authentication** in Firebase Console → Authentication →
    Sign-in method.
 
-4. **Download `google-services.json`** into `app/`. The committed file points at the
-   original project; replace it with your own.
+4. **Download `google-services.json`** from the Firebase Console into `app/`. This file
+   is deliberately **not** committed — each developer supplies their own, so a clone
+   never writes into someone else's Firestore. `app/google-services.json.example` shows
+   the expected shape:
+
+   ```bash
+   cp app/google-services.json.example app/google-services.json   # then paste in your real values
+   ```
 
 5. **Deploy the security rules** (see [Security rules](#security-rules)), or the app
    will be blocked from reading and writing.
@@ -259,6 +266,16 @@ be invisible, silently corrupting the leaderboard instead of crashing. Ten cases
 first-time votes, changed votes, unchanged votes, average recalculation, and two
 inconsistent-data guards (the total flooring at zero, and the vote count flooring at one
 so the average never divides by zero).
+
+### Continuous integration
+
+[`.github/workflows/android.yml`](.github/workflows/android.yml) runs on every push to
+`main` and on every pull request: unit tests, a debug build, and Android Lint. The debug
+APK and the test report are uploaded as build artifacts.
+
+Because `google-services.json` is not in the repository, CI copies the example file into
+place before building. The placeholder credentials are enough — the Google Services
+plugin only parses the file at build time and never contacts Firebase.
 
 ---
 
