@@ -137,10 +137,10 @@
         android:padding="32dp">
 
         <ImageView
+            android:importantForAccessibility="no"
             android:layout_width="64dp"
             android:layout_height="64dp"
             android:src="@drawable/ic_trophy"
-            android:contentDescription="@null"
             app:tint="#FFFFFF"
             android:layout_marginBottom="16dp"/>
         <TextView

@@ -352,6 +352,8 @@ class NoteDetailFragment : Fragment() {
         )
 
         var selectedRating = 0
+        // Hiçbiri seçili değilken de yıldızların kaçıncı olduğu duyulmalı.
+        updateStars(stars, selectedRating)
 
         stars.forEachIndexed { index, star ->
             star.setOnClickListener {
@@ -380,9 +382,19 @@ class NoteDetailFragment : Fragment() {
         dialog.show()
     }
 
+    /**
+     * Yıldızları seçili puana göre boyar ve açıklamalarını günceller.
+     *
+     * Seçim yalnızca renk ve ikonla anlatılıyor, yani ekran okuyucu kullanan biri için
+     * hiç anlatılmıyordu: beş görsel de "resim" diye okunuyordu. Açıklama hem kaçıncı
+     * yıldız olduğunu hem seçili olup olmadığını söylüyor, böylece kontrol duyulabilir
+     * hâle geliyor.
+     */
     private fun updateStars(stars: List<ImageView>, rating: Int) {
         stars.forEachIndexed { index, star ->
             val filled = index < rating
+            val starNumber = index + 1
+
             star.setImageResource(
                 if (filled) R.drawable.ic_star_filled else R.drawable.ic_star_outline
             )
@@ -392,6 +404,10 @@ class NoteDetailFragment : Fragment() {
                     if (filled) R.color.star_filled else R.color.star_empty
                 ),
                 android.graphics.PorterDuff.Mode.SRC_IN
+            )
+            star.contentDescription = getString(
+                if (filled) R.string.rating_star_selected else R.string.rating_star,
+                starNumber
             )
         }
     }
