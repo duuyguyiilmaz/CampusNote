@@ -4,13 +4,14 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import duygu.yilmaz.campusnote.data.repository.FirebaseNoteRepository
 import duygu.yilmaz.campusnote.data.repository.NoteRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 class LeaderboardViewModel(
-    private val noteRepository: NoteRepository = NoteRepository()
+    private val noteRepository: NoteRepository = FirebaseNoteRepository()
 ) : ViewModel() {
     private val _uiState = MutableLiveData<LeaderboardUiState>(LeaderboardUiState.Idle)
     val uiState: LiveData<LeaderboardUiState> = _uiState

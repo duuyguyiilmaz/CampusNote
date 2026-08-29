@@ -6,13 +6,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.campusnote.data.model.UserProfile
 import duygu.yilmaz.campusnote.data.repository.AuthRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseAuthRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseUserRepository
 import duygu.yilmaz.campusnote.data.repository.UserRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class RegisterViewModel(
-    private val authRepository: AuthRepository = AuthRepository(),
-    private val userRepository: UserRepository = UserRepository()
+    private val authRepository: AuthRepository = FirebaseAuthRepository(),
+    private val userRepository: UserRepository = FirebaseUserRepository()
 ) : ViewModel() {
     private val _uiState = MutableLiveData<AuthUiState>(AuthUiState.Idle)
     val uiState: LiveData<AuthUiState> = _uiState

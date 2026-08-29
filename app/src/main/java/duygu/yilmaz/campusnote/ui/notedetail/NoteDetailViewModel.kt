@@ -7,6 +7,9 @@ import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.campusnote.data.model.Post
 import duygu.yilmaz.campusnote.data.model.RatingResult
 import duygu.yilmaz.campusnote.data.repository.AuthRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseAuthRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseNoteRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseRatingRepository
 import duygu.yilmaz.campusnote.data.repository.NoteNotFoundException
 import duygu.yilmaz.campusnote.data.repository.NoteRepository
 import duygu.yilmaz.campusnote.data.repository.OwnNoteRatingException
@@ -15,9 +18,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class NoteDetailViewModel(
-    private val authRepository: AuthRepository = AuthRepository(),
-    private val ratingRepository: RatingRepository = RatingRepository(),
-    private val noteRepository: NoteRepository = NoteRepository()
+    private val authRepository: AuthRepository = FirebaseAuthRepository(),
+    private val ratingRepository: RatingRepository = FirebaseRatingRepository(),
+    private val noteRepository: NoteRepository = FirebaseNoteRepository()
 ) : ViewModel() {
     private val _noteState = MutableLiveData<NoteDetailUiState>(NoteDetailUiState.Loading)
     val noteState: LiveData<NoteDetailUiState> = _noteState

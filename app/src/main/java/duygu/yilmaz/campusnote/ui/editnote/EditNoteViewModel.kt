@@ -6,14 +6,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.campusnote.data.model.NoteUpdate
 import duygu.yilmaz.campusnote.data.repository.AuthRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseAuthRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseNoteRepository
 import duygu.yilmaz.campusnote.data.repository.NoteNotOwnedException
 import duygu.yilmaz.campusnote.data.repository.NoteRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class EditNoteViewModel(
-    private val authRepository: AuthRepository = AuthRepository(),
-    private val noteRepository: NoteRepository = NoteRepository()
+    private val authRepository: AuthRepository = FirebaseAuthRepository(),
+    private val noteRepository: NoteRepository = FirebaseNoteRepository()
 ) : ViewModel() {
     private val _uiState = MutableLiveData<EditNoteUiState>(EditNoteUiState.Idle)
     val uiState: LiveData<EditNoteUiState> = _uiState
