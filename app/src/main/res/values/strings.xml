@@ -29,6 +29,7 @@
     <string name="error_invalid_email_format">Geçersiz email formatı</string>
     <string name="vote_count">%1$d oy</string>
     <string name="action_cancel">İptal</string>
+    <string name="action_retry">Tekrar dene</string>
 
     <!-- Giriş / kayıt doğrulama -->
     <string name="university_email_domain" translatable="false">@ogr.akdeniz.edu.tr</string>
@@ -79,6 +80,7 @@
     <string name="feed_locked_title">Henüz not yüklemedin!</string>
     <string name="feed_locked_body">Tüm ders notlarına ulaşmak için\nsen de hemen bir not paylaş!</string>
     <string name="feed_locked_action">Not Yükle</string>
+    <string name="error_feed_notes">Notlar yüklenemedi. Bağlantını kontrol et.</string>
 
     <!-- Liderlik tablosu -->
     <string name="leaderboard_title">Liderlik Tablosu</string>
