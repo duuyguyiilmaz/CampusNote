@@ -55,7 +55,6 @@
     <string name="register_subtitle">Yeni hesap oluştur</string>
     <string name="register_action">Kayıt ol</string>
     <string name="register_have_account">Zaten hesabım var</string>
-    <string name="department_select_title">Bölümünü seç</string>
     <string name="register_success">Kayıt başarılı! Hoş geldin!</string>
     <string name="register_error_email_in_use">Bu email zaten kayıtlı</string>
     <string name="register_error_weak_password">Şifre çok zayıf</string>
