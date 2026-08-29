@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -95,7 +96,7 @@
                 android:id="@+id/tvRating"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0.0"
+                tools:text="4.5"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="#FFFFFF"/>
@@ -103,7 +104,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="puan"
+                android:text="@string/label_points"
                 android:textSize="10sp"
                 android:textColor="#AAB6D6"/>
 
@@ -111,7 +112,7 @@
                 android:id="@+id/tvRatingCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0 oy"
+                tools:text="4 oy"
                 android:textSize="10sp"
                 android:textColor="#AAB6D6"/>
 
@@ -123,7 +124,7 @@
             android:layout_height="36dp"
             android:layout_marginTop="12dp"
             android:layout_marginEnd="8dp"
-            android:text=" Düzenle"
+            android:text="@string/action_edit"
             android:textSize="12sp"
             android:textColor="#FFFFFF"
             android:visibility="gone"
@@ -141,7 +142,7 @@
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:layout_marginTop="12dp"
-            android:text=" Sil"
+            android:text="@string/action_delete"
             android:textSize="12sp"
             android:textColor="#AAB6D6"
             android:visibility="gone"

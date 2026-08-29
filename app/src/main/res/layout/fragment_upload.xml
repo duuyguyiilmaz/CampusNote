@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.core.widget.NestedScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -18,7 +19,7 @@
             style="@style/AppText.Title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Not Paylaş"
+            android:text="@string/upload_title"
             android:textColor="@color/soft_orange"/>
 
         <TextView
@@ -26,7 +27,7 @@
             style="@style/AppText.Subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Notlarını paylaş, herkese faydalı ol!"
+            android:text="@string/upload_subtitle"
             android:textColor="#AAB6D6"
             android:layout_marginBottom="24dp"/>
 
@@ -45,7 +46,7 @@
                 style="@style/AppText.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Ders Adı"
+                android:text="@string/label_course"
                 android:layout_marginBottom="4dp"/>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -72,7 +73,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="48dp"
-                    android:hint="Örn: Veri Yapıları"
+                    android:hint="@string/upload_course_hint"
                     android:inputType="text"
                     android:textColor="#1A1A1A"
                     android:textColorHint="#8A94A6"
@@ -85,7 +86,7 @@
                 style="@style/AppText.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Not Başlığı"
+                android:text="@string/label_note_title"
                 android:layout_marginBottom="4dp"/>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -112,7 +113,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="48dp"
-                    android:hint="Örn: 3. Hafta Ders Notları"
+                    android:hint="@string/upload_title_hint"
                     android:inputType="text"
                     android:textColor="#1A1A1A"
                     android:textColorHint="#8A94A6"
@@ -125,7 +126,7 @@
                 style="@style/AppText.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Açıklama"
+                android:text="@string/label_description"
                 android:layout_marginBottom="4dp"/>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -152,7 +153,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="100dp"
                     android:gravity="top"
-                    android:hint="Notun hakkında kısa bir açıklama yaz..."
+                    android:hint="@string/upload_description_hint"
                     android:inputType="textMultiLine"
                     android:textColor="#1A1A1A"
                     android:textColorHint="#8A94A6"
@@ -165,7 +166,7 @@
                 style="@style/AppText.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Etiket"
+                android:text="@string/label_tag"
                 android:layout_marginBottom="4dp"/>
 
             <LinearLayout
@@ -198,7 +199,7 @@
                 style="@style/AppText.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Dosya Ekle"
+                android:text="@string/upload_file_section"
                 android:layout_marginBottom="8dp"/>
 
             <LinearLayout
@@ -228,7 +229,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="PDF Yükle"
+                        android:text="@string/upload_pdf"
                         android:textColor="@color/white"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp"
@@ -255,7 +256,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Fotoğraf Yükle"
+                        android:text="@string/upload_image"
                         android:textColor="@color/white"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp"
@@ -286,7 +287,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="dosya_adi.pdf"
+                    tools:text="hafta3-notlar.pdf"
                     android:textColor="@color/white"
                     android:textSize="13sp"
                     android:maxLines="1"
@@ -318,7 +319,7 @@
             style="@style/AppText.Button"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="Notu Paylaş"
+            android:text="@string/upload_action"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="80dp"
             app:cornerRadius="28dp"

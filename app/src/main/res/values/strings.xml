@@ -3,6 +3,23 @@
 
     <string name="app_name">CampusNote</string>
 
+    <!-- Birden fazla ekranda paylaşılan alan etiketleri -->
+    <string name="label_email">E-posta</string>
+    <string name="label_password">Şifre</string>
+    <string name="label_department">Bölüm</string>
+    <string name="label_course">Ders Adı</string>
+    <string name="label_title">Başlık</string>
+    <string name="label_note_title">Not Başlığı</string>
+    <string name="label_description">Açıklama</string>
+    <string name="label_tag">Etiket</string>
+    <string name="label_points">puan</string>
+
+    <!-- Birden fazla ekranda paylaşılan eylemler -->
+    <string name="action_save">Kaydet</string>
+    <string name="action_confirm">Onayla</string>
+    <string name="action_edit">Düzenle</string>
+    <string name="action_delete">Sil</string>
+
     <!-- Birden fazla ekranda paylaşılan metinler -->
     <string name="error_missing_session">Giriş bulunamadı.</string>
     <string name="error_note_not_found">Not bulunamadı.</string>
@@ -20,13 +37,24 @@
     <string name="error_password_empty">Şifre boş olamaz</string>
     <string name="error_password_too_short">En az %1$d karakter olmalı</string>
 
+    <!-- Açılış ekranı -->
+    <string name="splash_welcome">Hoş Geldiniz</string>
+    <string name="splash_tagline">PAYLAŞ. ÖĞREN. ERİŞ.</string>
+    <string name="splash_action">Başla</string>
+
     <!-- Giriş ekranı -->
+    <string name="login_subtitle">Hesabına giriş yap</string>
+    <string name="login_keep_signed_in">Oturumu açık tut</string>
+    <string name="login_action">Giriş yap</string>
     <string name="login_welcome">Hoş geldin!</string>
     <string name="login_error_user_not_found">Bu email ile kayıtlı kullanıcı bulunamadı</string>
     <string name="login_error_wrong_password">Şifre hatalı</string>
     <string name="login_error_generic">Giriş başarısız. Tekrar deneyin.</string>
 
     <!-- Kayıt ekranı -->
+    <string name="register_subtitle">Yeni hesap oluştur</string>
+    <string name="register_action">Kayıt ol</string>
+    <string name="register_have_account">Zaten hesabım var</string>
     <string name="register_success">Kayıt başarılı! Hoş geldin!</string>
     <string name="register_error_email_in_use">Bu email zaten kayıtlı</string>
     <string name="register_error_weak_password">Şifre çok zayıf</string>
@@ -36,6 +64,8 @@
     <string name="error_department_not_selected">Lütfen bölüm seçiniz</string>
 
     <!-- Onboarding -->
+    <string name="onboarding_title">Nasıl çalışır?</string>
+    <string name="onboarding_action">Hadi başlayalım</string>
     <string name="onboarding_step_one_title">Not paylaşarak puan kazan</string>
     <string name="onboarding_step_one_body">Ders notlarını paylaştıkça puanın artar, sıralamalarda yükselirsin.</string>
     <string name="onboarding_step_two_title">100 puana ulaşınca ödül kazan</string>
@@ -43,7 +73,31 @@
     <string name="onboarding_step_three_title">Kampüs avantajlarına eriş</string>
     <string name="onboarding_step_three_body">Anlaşmalı kafe ve restoranlarda özel indirimlerden yararlan.</string>
 
+    <!-- Feed -->
+    <string name="feed_title">Ders Notları</string>
+    <string name="feed_subtitle">Bölümündeki notları keşfet!</string>
+    <string name="feed_locked_title">Henüz not yüklemedin!</string>
+    <string name="feed_locked_body">Tüm ders notlarına ulaşmak için\nsen de hemen bir not paylaş!</string>
+    <string name="feed_locked_action">Not Yükle</string>
+
+    <!-- Liderlik tablosu -->
+    <string name="leaderboard_title">Liderlik Tablosu</string>
+    <string name="leaderboard_subtitle">En çok puan toplayan notlar burada!</string>
+    <string name="leaderboard_legend_gold">🥇 Altın</string>
+    <string name="leaderboard_legend_silver">🥈 Gümüş</string>
+    <string name="leaderboard_legend_bronze">🥉 Bronz</string>
+    <string name="leaderboard_empty_title">Henüz sıralama yok</string>
+    <string name="leaderboard_empty_body">Not paylaşıldıkça ve oylandıkça\nliderlik tablosu oluşacak!</string>
+
     <!-- Not yükleme -->
+    <string name="upload_title">Not Paylaş</string>
+    <string name="upload_subtitle">Notlarını paylaş, herkese faydalı ol!</string>
+    <string name="upload_course_hint">Örn: Veri Yapıları</string>
+    <string name="upload_title_hint">Örn: 3. Hafta Ders Notları</string>
+    <string name="upload_description_hint">Notun hakkında kısa bir açıklama yaz...</string>
+    <string name="upload_file_section">Dosya Ekle</string>
+    <string name="upload_pdf">PDF Yükle</string>
+    <string name="upload_image">Fotoğraf Yükle</string>
     <string name="tag_prompt">Etiket seçiniz</string>
     <string name="upload_action">Notu Paylaş</string>
     <string name="upload_action_in_progress">Yükleniyor...</string>
@@ -71,6 +125,9 @@
     <string name="rating_count">(%1$d oy)</string>
 
     <!-- Puanlama -->
+    <string name="rating_action">Puan Ver</string>
+    <string name="rating_dialog_title">Puan Ver</string>
+    <string name="rating_dialog_subtitle">Bu not için puanını seç</string>
     <string name="rating_saved">Puan verildi!</string>
     <string name="rating_updated">Puanın güncellendi!</string>
     <string name="error_rating_own_note">Kendi notuna puan veremezsin!</string>
@@ -78,6 +135,29 @@
     <string name="error_rating_save">Puan kaydedilemedi: %1$s</string>
 
     <!-- Profil -->
+    <string name="profile_title">Profilim</string>
+    <string name="profile_points_title">Puan Durumu</string>
+    <!-- Baştaki boşluk puan sayısından ayırmak için; tırnaklar olmadan Android onu kırpar. -->
+    <string name="profile_points_target">" / 100 Puan"</string>
+    <string name="profile_points_hint">100 puana ulaşınca indirimleri açarsın!</string>
+    <string name="profile_my_notes_title">Notlarım</string>
+    <string name="profile_empty_title">Henüz not yüklemedin</string>
+    <string name="profile_empty_body">İlk notunu paylaş!</string>
+    <string name="profile_sign_out">Çıkış Yap</string>
+
+    <!-- Profildeki indirim kartları: şu an sabit tanıtım içeriği, veriden gelmiyor. -->
+    <string name="profile_discounts_title">İndirimlerim</string>
+    <string name="profile_discounts_locked">100 puana ulaşınca indirimler açılır!</string>
+    <string name="discount_cafe_name" translatable="false">Cafe Nero</string>
+    <string name="discount_cafe_detail">Tüm içeceklerde geçerli</string>
+    <string name="discount_cafe_amount" formatted="false">%15</string>
+    <string name="discount_pizza_name" translatable="false">Domino\'s Pizza</string>
+    <string name="discount_pizza_detail">Orta ve büyük boy pizzalarda</string>
+    <string name="discount_pizza_amount" formatted="false">%10</string>
+    <string name="discount_bookstore_name" translatable="false">D&amp;R</string>
+    <string name="discount_bookstore_detail">Kırtasiye ürünlerinde</string>
+    <string name="discount_bookstore_amount" formatted="false">%20</string>
+
     <string name="note_count">%1$d not</string>
     <string name="avatar_placeholder" translatable="false">?</string>
     <string name="error_my_notes_read">Notlarım okunamadı: %1$s</string>
@@ -85,6 +165,9 @@
     <string name="points_remaining">%1$d puan daha kazan, indirimleri aç!</string>
 
     <!-- Not düzenleme -->
+    <string name="edit_note_title">Notu Düzenle</string>
+    <string name="edit_note_subtitle">Notunun bilgilerini güncelleyebilirsin</string>
+    <string name="edit_note_current_file">Mevcut dosya</string>
     <string name="error_title_empty">Başlık boş olamaz</string>
     <string name="note_updated">Not güncellendi!</string>
     <string name="error_note_not_owner">Bu notu düzenleme yetkin yok!</string>

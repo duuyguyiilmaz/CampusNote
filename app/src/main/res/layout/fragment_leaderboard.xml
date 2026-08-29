@@ -22,7 +22,7 @@
             style="@style/AppText.Title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Liderlik Tablosu"
+            android:text="@string/leaderboard_title"
             android:textColor="@color/soft_orange"/>
 
         <TextView
@@ -30,7 +30,7 @@
             style="@style/AppText.Subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="En çok puan toplayan notlar burada!"
+            android:text="@string/leaderboard_subtitle"
             android:textColor="#AAB6D6"/>
     </LinearLayout>
 
@@ -59,7 +59,7 @@
                 android:gravity="center"
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp"
-                android:text="🥇 Altın"
+                android:text="@string/leaderboard_legend_gold"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:textColor="#FFD700"/>
@@ -79,7 +79,7 @@
                 android:gravity="center"
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp"
-                android:text="🥈 Gümüş"
+                android:text="@string/leaderboard_legend_silver"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:textColor="#C0C0C0"/>
@@ -98,7 +98,7 @@
                 android:gravity="center"
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp"
-                android:text="🥉 Bronz"
+                android:text="@string/leaderboard_legend_bronze"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:textColor="#CD7F32"/>
@@ -147,7 +147,7 @@
             style="@style/AppText.Title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Henüz sıralama yok"
+            android:text="@string/leaderboard_empty_title"
             android:textColor="@color/soft_orange"
             android:gravity="center"
             android:layout_marginBottom="8dp"/>
@@ -156,7 +156,7 @@
             style="@style/AppText.Subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Not paylaşıldıkça ve oylandıkça\nliderlik tablosu oluşacak!"
+            android:text="@string/leaderboard_empty_body"
             android:textColor="#AAB6D6"
             android:gravity="center"/>
     </LinearLayout>

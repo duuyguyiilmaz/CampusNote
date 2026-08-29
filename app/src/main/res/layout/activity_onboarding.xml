@@ -15,7 +15,7 @@
         style="@style/AppText.Title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Nasıl çalışır?"
+        android:text="@string/onboarding_title"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -55,7 +55,7 @@
         style="@style/AppText.Button"
         android:layout_width="0dp"
         android:layout_height="52dp"
-        android:text="Hadi başlayalım"
+        android:text="@string/onboarding_action"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="12dp"
         android:maxLines="1"
