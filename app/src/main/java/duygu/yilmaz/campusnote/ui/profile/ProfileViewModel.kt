@@ -5,6 +5,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.campusnote.data.repository.AuthRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseAuthRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseNoteRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseUserRepository
 import duygu.yilmaz.campusnote.data.repository.NoteRepository
 import duygu.yilmaz.campusnote.data.repository.UserRepository
 import kotlinx.coroutines.CancellationException
@@ -13,9 +16,9 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
-    private val authRepository: AuthRepository = AuthRepository(),
-    private val userRepository: UserRepository = UserRepository(),
-    private val noteRepository: NoteRepository = NoteRepository()
+    private val authRepository: AuthRepository = FirebaseAuthRepository(),
+    private val userRepository: UserRepository = FirebaseUserRepository(),
+    private val noteRepository: NoteRepository = FirebaseNoteRepository()
 ) : ViewModel() {
     private val _uiState = MutableLiveData<ProfileUiState>(ProfileUiState.Idle)
     val uiState: LiveData<ProfileUiState> = _uiState

@@ -5,11 +5,12 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.campusnote.data.repository.AuthRepository
+import duygu.yilmaz.campusnote.data.repository.FirebaseAuthRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class LoginViewModel(
-    private val authRepository: AuthRepository = AuthRepository()
+    private val authRepository: AuthRepository = FirebaseAuthRepository()
 ) : ViewModel() {
     private val _uiState = MutableLiveData<AuthUiState>(AuthUiState.Idle)
     val uiState: LiveData<AuthUiState> = _uiState
