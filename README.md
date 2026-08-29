@@ -208,9 +208,9 @@ memory. Fine at course-project scale, wrong at department scale.
 **`notifyDataSetChanged()` instead of `DiffUtil`.** The adapters rebuild the whole list
 on every update, losing item animations.
 
-**Feed listener errors are logged, not shown.** If the Firestore snapshot listener fails,
-`FeedFragment` writes it to logcat and the screen simply stays as it was. Pull-to-refresh
-gives the user a way to retry, but no message explains what went wrong.
+**The leaderboard and profile report errors with a `Toast`.** A toast cannot be acted
+on, so a failed read there still leaves retrying up to the user guessing. The feed uses
+a snackbar with a retry action; the other two screens have not followed yet.
 
 **The report mechanism is unimplemented.** It is part of the original project brief but
 there is no code for it, so the security rules deliberately deny the `reports` collection.

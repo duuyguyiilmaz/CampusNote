@@ -1,7 +1,6 @@
 package duygu.yilmaz.campusnote.ui.feed
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,6 +8,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import duygu.yilmaz.campusnote.R
 import duygu.yilmaz.campusnote.databinding.FragmentFeedBinding
 import duygu.yilmaz.campusnote.ui.common.PostAdapter
@@ -128,23 +128,33 @@ class FeedFragment : Fragment() {
                 showFeed(true)
             }
 
-            is FeedUiState.Error -> when (state.stage) {
-                FeedFailureStage.USER_PROFILE -> {
-                    Toast.makeText(
-                        requireContext(),
-                        getString(
-                            R.string.error_user_profile_read,
-                            state.exception.message.orEmpty()
-                        ),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+            // Her iki hata da yeniden denenebilir: ikisi de startFeed()'in adımları.
+            is FeedUiState.Error -> showRetryableError(
+                message = when (state.stage) {
+                    FeedFailureStage.USER_PROFILE -> getString(
+                        R.string.error_user_profile_read,
+                        state.exception.message.orEmpty()
+                    )
 
-                FeedFailureStage.NOTES -> {
-                    Log.e(TAG, "Firestore listen error: ${state.exception.message}")
+                    FeedFailureStage.NOTES -> getString(R.string.error_feed_notes)
                 }
-            }
+            )
         }
+    }
+
+    /**
+     * Hata mesajını yeniden deneme eylemiyle birlikte gösterir.
+     *
+     * Dinleyici hatası eskiden yalnızca logcat'e yazılıyordu: ekran olduğu gibi
+     * kalıyor, kullanıcı boş bir feed görüp bunun kendi notu olmadığından mı yoksa
+     * bağlantıdan mı kaynaklandığını anlayamıyordu. Toast yerine Snackbar seçildi,
+     * çünkü asıl eksik olan mesaj değil, tekrar deneme yolu — aşağı çekme jesti
+     * bunu zaten yapıyor ama ekranda onu ima eden hiçbir şey yok.
+     */
+    private fun showRetryableError(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
+            .setAction(R.string.action_retry) { viewModel.startFeed() }
+            .show()
     }
 
     /**
@@ -156,9 +166,5 @@ class FeedFragment : Fragment() {
     private fun showFeed(unlocked: Boolean) {
         binding.swipeRefresh.visibility = if (unlocked) View.VISIBLE else View.GONE
         binding.layoutLocked.visibility = if (unlocked) View.GONE else View.VISIBLE
-    }
-
-    private companion object {
-        const val TAG = "FeedFragment"
     }
 }
