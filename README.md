@@ -64,7 +64,8 @@ flowchart TD
     end
 
     subgraph data["data/"]
-        D["Repository<br/><i>suspend fun / Flow</i>"]
+        D["Repository<br/><i>interface: suspend fun / Flow</i>"]
+        H["FirebaseXRepository<br/><i>the only Firebase-aware code</i>"]
         E["Model<br/><i>plain data classes</i>"]
         F["RatingCalculator<br/><i>pure, unit-tested</i>"]
     end
@@ -74,10 +75,11 @@ flowchart TD
     A -->|"user action"| B
     B -->|"emits"| C
     C -->|"observed by"| A
-    B --> D
-    D --> E
-    D --> F
-    D <-->|"await() / callbackFlow"| G
+    B -->|"depends on the interface"| D
+    D -.->|"implemented by"| H
+    H --> E
+    H --> F
+    H <-->|"await() / callbackFlow"| G
 ```
 
 **Key decisions**
@@ -101,6 +103,12 @@ flowchart TD
   the note metadata so feed and leaderboard queries never download file data.
 - **Rating arithmetic is a pure function.** `RatingCalculator` has no Firebase
   dependency, which is what makes it unit-testable — see [Tests](#tests).
+- **Repositories are interfaces.** Each one has a single Firebase-backed implementation
+  (`FirebaseNoteRepository`, …) that ViewModels only see through the interface. Kotlin
+  classes are final, so as concrete classes they could not be substituted in a test
+  without a mocking framework — and their constructors called `FirebaseFirestore
+  .getInstance()`, which throws on the JVM. The split is what makes every ViewModel
+  testable with a hand-written fake.
 
 ---
 
@@ -114,7 +122,7 @@ flowchart TD
 | Auth | Firebase Authentication (email/password) |
 | Database | Cloud Firestore |
 | Build | Gradle 8.13, AGP 8.13.2, version catalog |
-| Tests | JUnit 4 |
+| Tests | JUnit 4, `kotlinx-coroutines-test`, `androidx.arch.core:core-testing` |
 
 ---
 
@@ -261,11 +269,31 @@ emulator on API 24+.
 ./gradlew testDebugUnitTest
 ```
 
-`RatingCalculatorTest` covers the scoring logic — the part of the app where a bug would
-be invisible, silently corrupting the leaderboard instead of crashing. Ten cases cover
-first-time votes, changed votes, unchanged votes, average recalculation, and two
-inconsistent-data guards (the total flooring at zero, and the vote count flooring at one
-so the average never divides by zero).
+87 JVM unit tests, no emulator and no network. They cover the two layers where a bug
+would be invisible rather than loud: the scoring arithmetic, and the decision logic in
+every ViewModel.
+
+| Suite | What it pins down |
+|---|---|
+| `RatingCalculatorTest` | First-time votes, changed votes, unchanged votes, average recalculation, and two inconsistent-data guards — the total flooring at zero, and the vote count flooring at one so the average never divides by zero. |
+| `FeedViewModelTest` | The contribution gate: locked without an upload, unlocked with one, and locked for a missing profile or a blank department. Also asserts the department query is never even built while locked. |
+| `UploadViewModelTest` | The uid, email and department written onto a note, including the `UNKNOWN_DEPARTMENT` fallback that keeps a blank department out of `whereEqualTo` queries. |
+| `NoteDetailViewModelTest` | Metadata and file content loading as separate states, no file read for a note without one, and the rating rules (own note, missing session, deleted note). |
+| `EditNoteViewModelTest` | Ownership and session handling on load and save. |
+| `ProfileViewModelTest` | Total points summed from the user's own notes, and note deletion. |
+| `LoginViewModelTest`, `RegisterViewModelTest` | State transitions, and which of registration's two steps — auth account or profile document — failed. |
+| `LeaderboardViewModelTest`, `MainViewModelTest`, `UploaderNameTest` | Empty vs. content, session routing, and the uploader-name masking shared by three screens. |
+
+ViewModel tests use hand-written fakes of the repository interfaces
+([`FakeRepositories.kt`](app/src/test/java/duygu/yilmaz/campusnote/testing/FakeRepositories.kt))
+rather than a mocking framework, so a test reads as "given this data, what does the
+ViewModel do" instead of a list of stubbed calls.
+
+`viewModelScope` runs on `Dispatchers.Main`, which does not exist on the JVM, so
+[`MainDispatcherRule`](app/src/test/java/duygu/yilmaz/campusnote/testing/MainDispatcherRule.kt)
+swaps in a `StandardTestDispatcher`. It queues coroutines until `advanceUntilIdle()`,
+which is what lets the tests assert the intermediate `Loading` state and the
+double-submit guards that depend on it.
 
 ### Continuous integration
 
@@ -286,7 +314,7 @@ app/src/main/java/duygu/yilmaz/campusnote/
 ├── data/
 │   ├── local/          NoteFileEncoder, OnboardingPreferences
 │   ├── model/          data classes + RatingCalculator
-│   └── repository/     Auth, User, Note, Rating
+│   └── repository/     Auth, User, Note, Rating — interface + Firebase impl each
 └── ui/
     ├── auth/           login + register
     ├── common/         PostAdapter, shared by feed and profile
@@ -299,6 +327,11 @@ app/src/main/java/duygu/yilmaz/campusnote/
     ├── profile/
     ├── splash/
     └── upload/
+
+app/src/test/java/duygu/yilmaz/campusnote/
+├── data/model/         RatingCalculatorTest, UploaderNameTest
+├── testing/            fakes, fixtures, MainDispatcherRule
+└── ui/                 one test class per ViewModel
 ```
 
 ---
