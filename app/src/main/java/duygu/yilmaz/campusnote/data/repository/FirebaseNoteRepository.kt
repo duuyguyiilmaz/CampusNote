@@ -102,15 +102,22 @@ class FirebaseNoteRepository(
         )
 
     /**
-     * Sıralama `whereEqualTo` ile daraltılıyor ama `orderBy` ile değil: puana göre
-     * sıralama hâlâ istemcide yapılıyor. Firestore'da eşitlik filtresi + farklı bir
-     * alanda sıralama bileşik index istiyor; tek bölümün notları zaten sıralanabilecek
-     * kadar az olduğu için o index'in bakım yükü alınmadı. Sayfalama eklendiğinde
-     * sıralamanın sunucuya taşınması gerekecek, o zaman index de gerekli olacak.
+     * Sıralama ve kesme Firestore'da yapılıyor, istemcide değil: `limit` ancak bir
+     * sıra tanımlıyken anlamlı, aksi halde rastgele bir alt küme döner.
+     *
+     * Feed'in aksine burada sayfalama yok — [LEADERBOARD_SIZE] satır sabit. Liderlik
+     * tablosu doğası gereği "ilk N" görünümü; 300. sıraya kadar kaydırmak kimsenin
+     * ihtiyacı değil. Bu bir erişim kısıtlaması da değil: notların tamamına feed'den
+     * ulaşılıyor, burası içeriğe giden yol değil bir sıralama görünümü.
+     *
+     * `department` + `ratingSum` bileşik index'ini gerektiriyor
+     * (`firestore.indexes.json`); index olmadan sorgu FAILED_PRECONDITION ile düşer.
      */
     override fun observeLeaderboard(department: String): Flow<List<LeaderboardEntry>> = callbackFlow {
         val listener = firestore.collection(NOTES_COLLECTION)
             .whereEqualTo(DEPARTMENT_FIELD, department)
+            .orderBy(RATING_SUM_FIELD, Query.Direction.DESCENDING)
+            .limit(LEADERBOARD_SIZE)
             .addSnapshotListener { snapshot, exception ->
                 if (exception != null) {
                     close(exception)
@@ -119,7 +126,6 @@ class FirebaseNoteRepository(
 
                 val entries = snapshot?.documents
                     ?.mapNotNull(::toLeaderboardEntry)
-                    ?.sortedByDescending { it.ratingSum }
                     .orEmpty()
 
                 trySend(entries)
@@ -266,5 +272,9 @@ class FirebaseNoteRepository(
         const val DEPARTMENT_FIELD = "department"
         const val UPLOADER_UID_FIELD = "uploaderUid"
         const val CREATED_AT_FIELD = "createdAt"
+        const val RATING_SUM_FIELD = "ratingSum"
+
+        /** Liderlik tablosunda gösterilen sıra sayısı. */
+        const val LEADERBOARD_SIZE = 50L
     }
 }

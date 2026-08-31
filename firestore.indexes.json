@@ -4,8 +4,28 @@
       "collectionGroup": "notes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "department", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "department",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "department",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ratingSum",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],

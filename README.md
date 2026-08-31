@@ -47,7 +47,7 @@ full email — see
 - **Note rating** on a 1–5 scale; you cannot rate your own notes, and re-rating replaces
   your previous vote instead of adding a second one — both enforced by the security
   rules, not just the app
-- **Leaderboard** ranking your department's notes by total score, with gold/silver/bronze placings
+- **Leaderboard** ranking your department's top 50 notes by total score, with gold/silver/bronze placings
 - **Points and rewards** — your total is the score your own notes have earned; discounts unlock at 100 points
 - **Note management** — edit or delete your own notes from your profile
 
@@ -101,6 +101,11 @@ flowchart TD
   by a `limit(1)` query for the user's own notes rather than a `hasUploadedNote` flag on
   the profile. A stored flag drifted: it was set on upload and never cleared on delete,
   so uploading once and deleting granted permanent access.
+- **The leaderboard is capped rather than paged.** It asks Firestore for the department's
+  top 50 by `ratingSum` and stops there. A leaderboard is a "top N" view by nature, and
+  paging one to rank 300 is machinery for a question nobody asks. It is not an access
+  restriction either: every note is reachable through the feed, which is the path to the
+  content — this screen is a ranking of it.
 - **The feed pages by growing one listener, not by stitching queries.** Notes arrive
   through a live Firestore listener, so paging with a second query would leave two
   windows with different freshness and no clear owner of the order. Instead the same
@@ -236,12 +241,6 @@ one call (`sendEmailVerification()` after sign-up, then gating the feed on
 project are test data, and a mandatory confirmation step would put a mailbox between a
 reviewer and the running app for no benefit at this scale.
 
-**The leaderboard is not paginated.** It reads every note in the department and sorts
-in memory. The feed no longer does (see Key decisions), and the leaderboard can follow
-the same shape — it needs its own composite index on `department` + `ratingSum`, and a
-ranking that only shows part of itself needs more thought about what "rank 21" means
-when the rest is not loaded.
-
 **Deleting a note reports failure with a `Toast`.** Unlike a failed read, the user can
 repeat a failed delete by tapping the button again, so the toast does not leave them
 stuck — but the retry is still theirs to figure out. Offering it in the snackbar would
@@ -291,12 +290,14 @@ emulator on API 24+.
    firebase deploy --only firestore:indexes
    ```
 
-   The feed filters on `department` and orders by `createdAt`, which Firestore serves
-   only from a composite index. Without it the query fails outright with
-   `FAILED_PRECONDITION` and the feed never opens — the error message includes a link
-   that creates the index for you, but deploying
-   [`firestore.indexes.json`](firestore.indexes.json) keeps the definition in the repo
-   where it can be reviewed. Building it takes a few minutes on a live project.
+   Two composite indexes, both on `notes`: `department` + `createdAt` for the feed, and
+   `department` + `ratingSum` for the leaderboard. Firestore serves an equality filter
+   combined with an order on another field only from an index like these, and without
+   them the queries fail outright with `FAILED_PRECONDITION` — the feed and the
+   leaderboard never open. The error message includes a link that creates the index for
+   you, but deploying [`firestore.indexes.json`](firestore.indexes.json) keeps the
+   definitions in the repo where they can be reviewed. Building them takes a few minutes
+   on a live project.
 
 7. **Build and run**
 
