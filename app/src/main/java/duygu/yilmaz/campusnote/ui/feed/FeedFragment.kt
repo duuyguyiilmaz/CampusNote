@@ -150,9 +150,13 @@ class FeedFragment : Fragment() {
      * bağlantıdan mı kaynaklandığını anlayamıyordu. Toast yerine Snackbar seçildi,
      * çünkü asıl eksik olan mesaj değil, tekrar deneme yolu — aşağı çekme jesti
      * bunu zaten yapıyor ama ekranda onu ima eden hiçbir şey yok.
+     *
+     * Fragment'ın kökü sekme çubuğunun arkasına kadar uzandığı için snackbar
+     * `bottomNav`'a bağlanıyor; bağlanmasaydı çubuğun üstüne çizilirdi.
      */
     private fun showRetryableError(message: String) {
         Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
+            .setAnchorView(R.id.bottomNav)
             .setAction(R.string.action_retry) { viewModel.startFeed() }
             .show()
     }
