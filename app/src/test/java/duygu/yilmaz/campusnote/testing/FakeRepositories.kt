@@ -136,8 +136,13 @@ class FakeNoteRepository : NoteRepository {
         return noteFile
     }
 
-    override fun observeNotesByDepartment(department: String): Flow<List<Post>> {
+    /** Son istenen pencere; sayfalama testleri limitin büyüdüğünü buradan görüyor. */
+    var requestedLimits = mutableListOf<Long>()
+        private set
+
+    override fun observeNotesByDepartment(department: String, limit: Long): Flow<List<Post>> {
         observedDepartment = department
+        requestedLimits += limit
         return departmentNotes
     }
 
