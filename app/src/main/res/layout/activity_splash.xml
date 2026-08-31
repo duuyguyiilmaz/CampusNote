@@ -21,6 +21,7 @@
         app:layout_constraintVertical_chainStyle="packed"/>
 
     <ImageView
+        android:importantForAccessibility="no"
         android:id="@+id/ivLogo"
         android:layout_width="240dp"
         android:layout_height="wrap_content"

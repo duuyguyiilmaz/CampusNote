@@ -154,6 +154,7 @@
             android:visibility="gone">
 
             <ImageView
+                android:importantForAccessibility="no"
                 android:id="@+id/ivCurrentFileIcon"
                 android:layout_width="24dp"
                 android:layout_height="24dp"

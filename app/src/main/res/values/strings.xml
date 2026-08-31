@@ -30,6 +30,7 @@
     <string name="vote_count">%1$d oy</string>
     <string name="action_cancel">İptal</string>
     <string name="action_retry">Tekrar dene</string>
+    <string name="action_back">Geri</string>
 
     <!-- Giriş / kayıt doğrulama -->
     <string name="university_email_domain" translatable="false">@ogr.akdeniz.edu.tr</string>
@@ -100,6 +101,7 @@
     <string name="upload_file_section">Dosya Ekle</string>
     <string name="upload_pdf">PDF Yükle</string>
     <string name="upload_image">Fotoğraf Yükle</string>
+    <string name="upload_remove_file">Seçilen dosyayı kaldır</string>
     <string name="tag_prompt">Etiket seçiniz</string>
     <string name="upload_action">Notu Paylaş</string>
     <string name="upload_action_in_progress">Yükleniyor...</string>
@@ -116,6 +118,7 @@
     <string name="file_loading">Dosya yükleniyor...</string>
     <string name="file_open">Dosyayı Aç</string>
     <string name="file_unavailable">Dosya yok</string>
+    <string name="note_image_description">Nota eklenen görsel</string>
     <string name="error_file_not_found">Dosya bulunamadı</string>
     <string name="error_file_load">Dosya yüklenemedi: %1$s</string>
     <string name="error_image_load">Fotoğraf yüklenemedi</string>
@@ -128,6 +131,11 @@
 
     <!-- Puanlama -->
     <string name="rating_action">Puan Ver</string>
+    <!-- Yıldızlar ayrı ayrı tıklanabilir görsellerden oluşuyor; ekran okuyucu bunlarda
+         yalnızca "resim" diyeceği için hangi yıldız olduğu ve seçili olup olmadığı
+         çalışma anında açıklama olarak yazılıyor. -->
+    <string name="rating_star">%1$d yıldız</string>
+    <string name="rating_star_selected">%1$d yıldız, seçili</string>
     <string name="rating_dialog_title">Puan Ver</string>
     <string name="rating_dialog_subtitle">Bu not için puanını seç</string>
     <string name="rating_saved">Puan verildi!</string>
