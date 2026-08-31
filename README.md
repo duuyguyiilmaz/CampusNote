@@ -98,6 +98,11 @@ flowchart TD
   by a `limit(1)` query for the user's own notes rather than a `hasUploadedNote` flag on
   the profile. A stored flag drifted: it was set on upload and never cleared on delete,
   so uploading once and deleting granted permanent access.
+- **Points are derived too, and that is what made them safe.** A user's point total is
+  the sum of `ratingSum` over their own notes, computed where it is displayed. It used to
+  live in `users.points`, written by whoever cast the vote — which forced the rules to
+  let one user write another user's document, and left the owner able to write their own.
+  Deleting the field deleted both holes; nothing read it anyway.
 - **Rating uses a transaction.** `runTransaction` re-reads the note inside the
   transaction, so two people rating the same note at once cannot lose one of the votes.
 - **File content lives in a subcollection.** `notes/{id}/content/file` is separate from
@@ -148,11 +153,11 @@ Cloud Firestore, four collections:
 | `id` | string | matches the Firebase Auth UID |
 | `email` | string | |
 | `department` | string | |
-| `points` | number | earned from ratings on your notes |
 | `createdAt` | number | |
 
-Older user documents may still carry a `hasUploadedNote` boolean. It is no longer read
-or written — the contribution gate is derived from the user's notes instead.
+Older user documents may still carry `hasUploadedNote` and `points`. Neither is read or
+written any more: the contribution gate is derived from the user's notes, and so is the
+point total. Both were stored once and both drifted from the truth — see Key decisions.
 
 **`notes/{noteId}`**
 
@@ -182,8 +187,22 @@ firebase deploy --only firestore:rules
 ```
 
 The rules require authentication everywhere, restrict note edits and deletes to the
-uploader, and pin each rating document to its author's UID. Note that the delete rule
-is the *only* ownership check on deletion — the app code does not verify it.
+uploader, and pin each rating document to its author's UID. The delete rule is the
+*only* ownership check on deletion — the app code does not verify it.
+
+They also verify the scoring rather than trusting it. A vote writes the note's totals and
+the rating document in one atomic commit, and the rule for the note uses `getAfter()` to
+read the rating being written in that same commit, recompute the expected `ratingSum` and
+`ratingCount` from it, and reject anything that does not match. So the totals cannot move
+without a real vote behind them, a changed vote cannot be counted twice, and rating your
+own note is refused by the server rather than only by the client.
+
+The expected totals are the same arithmetic as
+[`RatingCalculator`](app/src/main/java/duygu/yilmaz/campusnote/data/model/RatingCalculation.kt),
+floors included — the client and the rule have to agree exactly, so the rule is written
+as that function's twin. `avgRating` is checked only for range: rules do integer
+division, so an exact comparison is not available, and it is a derived display field
+whose inputs are already pinned.
 
 They are covered by their own test suite; see [Rules tests](#rules-tests).
 
@@ -193,12 +212,10 @@ They are covered by their own test suite; see [Rules tests](#rules-tests).
 
 Honest list of things a reviewer would spot, and why they are the way they are.
 
-**The points system is client-authoritative.**
-Rating a note updates the note's totals *and* the uploader's `points` directly from the
-client, so the security rules have to permit one user to modify another user's points.
-Values are constrained by type and range, but a malicious client could still award
-itself points. The correct fix is to move the calculation into a Cloud Function so the
-client only writes its vote — which again needs the Blaze plan.
+**Rating totals are still computed on the client.** A Cloud Function would compute them
+server-side, and that needs the Blaze plan. The rules make up most of the difference —
+they recompute the expected totals from the vote and reject anything else (see
+[Security rules](#security-rules)) — but the arithmetic itself still runs on a device.
 
 **Email addresses are never verified.** Registration only checks that the address ends
 in `@ogr.akdeniz.edu.tr`; no confirmation mail is sent, so anyone can register with a
@@ -339,7 +356,7 @@ enforces — who may delete a note, who may write to whose `points` — was prev
 unverified. That is the layer an attacker actually meets: the Android client can be
 replaced, the rules cannot.
 
-32 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
+38 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
 [`firestore.rules`](firestore.rules) against the local Firestore emulator through
 `@firebase/rules-unit-testing`. `npm test` starts the emulator, runs the suite and shuts
 it down again; nothing touches the real project, and no billing account is involved.
@@ -347,8 +364,8 @@ it down again; nothing touches the real project, and no billing account is invol
 | Group | What it pins down |
 |---|---|
 | `signed-out access` | Every collection is closed to an unauthenticated client — the one guard shared by all four rule blocks. |
-| `users` | Self-registration only, the document id matching the `id` field, and the narrow exception that lets a rater raise *another* user's `points` — including that it cannot carry a second field along, go negative, or be a non-integer. |
-| `notes` | `uploaderUid` cannot be forged on create; metadata edits are the uploader's alone; a rater may touch only `ratingSum`, `ratingCount` and `avgRating`; delete is owner-only. |
+| `users` | Self-registration only, the document id matching the `id` field, and that nobody updates a profile afterwards — including the two shapes of the old hole: awarding yourself points, and writing points onto someone else. |
+| `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
 | `note content` | The batched note-plus-file upload, owner-only replace and delete, and a test that deliberately asserts the *open* create rule, so the gap documented in `firestore.rules` cannot be closed by accident and go unnoticed. |
 | `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range and the ban on deleting votes. |
 | `unmatched paths` | A path no `match` block covers is denied, so adding a collection to the app without adding a rule fails closed rather than open. |

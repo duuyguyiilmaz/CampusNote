@@ -4,7 +4,6 @@ data class UserProfile(
     val id: String = "",
     val email: String = "",
     val department: String = "",
-    val points: Long = 0L,
     val createdAt: Long = 0L
 ) {
     companion object {

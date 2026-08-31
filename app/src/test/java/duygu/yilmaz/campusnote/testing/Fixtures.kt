@@ -18,9 +18,8 @@ fun authenticatedUser(
 fun userProfile(
     uid: String = "uid-1",
     email: String = "ogrenci@ogr.akdeniz.edu.tr",
-    department: String = "Bilgisayar Mühendisliği",
-    points: Long = 0L
-) = UserProfile(id = uid, email = email, department = department, points = points)
+    department: String = "Bilgisayar Mühendisliği"
+) = UserProfile(id = uid, email = email, department = department)
 
 fun post(
     id: String = "note-1",

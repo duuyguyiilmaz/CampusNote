@@ -9,6 +9,17 @@ class FirebaseRatingRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) : RatingRepository {
 
+    /**
+     * Oy, notun toplamları ve oy dokümanı aynı transaction'da yazılıyor — güvenlik
+     * kurallarının ikisini birbirine bağlayabilmesi buna dayanıyor. Kural, notun yeni
+     * `ratingSum`'ını aynı commit'te yazılan oy dokümanından hesaplıyor, yani ikisi
+     * ayrılırsa yazma reddedilir.
+     *
+     * Not sahibinin puanı burada güncellenmiyor. Puan artık `users` dokümanında
+     * saklanmıyor; profil ekranı kullanıcının kendi notlarının `ratingSum` toplamından
+     * türetiyor. Saklandığı sürece kurallar bir kullanıcının başka bir kullanıcının
+     * dokümanına yazmasına izin vermek zorundaydı ve o izin kapatılamıyordu.
+     */
     override suspend fun submitRating(
         noteId: String,
         raterUid: String,
@@ -30,12 +41,6 @@ class FirebaseRatingRepository(
             if (ownerUid == raterUid) throw OwnNoteRatingException()
 
             val ratingSnapshot = transaction.get(ratingReference)
-            val ownerReference = ownerUid
-                .takeIf { it.isNotBlank() }
-                ?.let { firestore.collection(USERS_COLLECTION).document(it) }
-            val ownerSnapshot = ownerReference?.let { reference ->
-                transaction.get(reference)
-            }
 
             val totals = RatingCalculator.recalculate(
                 currentSum = noteSnapshot.getLong(RATING_SUM_FIELD) ?: 0L,
@@ -65,12 +70,6 @@ class FirebaseRatingRepository(
                 )
             )
 
-            if (ownerReference != null && ownerSnapshot?.exists() == true) {
-                val currentPoints = ownerSnapshot.getLong(POINTS_FIELD) ?: 0L
-                val newPoints = (currentPoints + totals.pointsDelta).coerceAtLeast(0L)
-                transaction.update(ownerReference, POINTS_FIELD, newPoints)
-            }
-
             RatingResult(
                 average = totals.average,
                 count = totals.count,
@@ -83,7 +82,6 @@ class FirebaseRatingRepository(
     private companion object {
         const val NOTES_COLLECTION = "notes"
         const val RATINGS_COLLECTION = "ratings"
-        const val USERS_COLLECTION = "users"
         const val UPLOADER_UID_FIELD = "uploaderUid"
         const val RATING_SUM_FIELD = "ratingSum"
         const val RATING_COUNT_FIELD = "ratingCount"
@@ -91,6 +89,5 @@ class FirebaseRatingRepository(
         const val RATING_FIELD = "rating"
         const val USER_ID_FIELD = "uid"
         const val NOTE_ID_FIELD = "noteId"
-        const val POINTS_FIELD = "points"
     }
 }
