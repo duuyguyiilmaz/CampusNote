@@ -42,6 +42,7 @@ full email — see
 - **University email sign-up** — registration is restricted to `@ogr.akdeniz.edu.tr` addresses
 - **Department selection** from the full list of 144 Akdeniz University departments
 - **Contribution gate** — the department feed stays locked until you upload your first note
+- **Paged feed** — notes load 20 at a time as you scroll; every note in the department is still reachable
 - **Note upload** as PDF or image, with automatic image downscaling and compression
 - **Note rating** on a 1–5 scale; you cannot rate your own notes, and re-rating replaces
   your previous vote instead of adding a second one — both enforced by the security
@@ -100,6 +101,14 @@ flowchart TD
   by a `limit(1)` query for the user's own notes rather than a `hasUploadedNote` flag on
   the profile. A stored flag drifted: it was set on upload and never cleared on delete,
   so uploading once and deleting granted permanent access.
+- **The feed pages by growing one listener, not by stitching queries.** Notes arrive
+  through a live Firestore listener, so paging with a second query would leave two
+  windows with different freshness and no clear owner of the order. Instead the same
+  listener is re-subscribed with a larger `limit` as the user nears the end. The cost is
+  explicit: widening the window re-reads the notes already seen, so 20 + 40 is 60
+  document reads rather than 40. Reading the department's *entire* collection on every
+  open — the previous behaviour — is far more expensive, and most readers never leave
+  the first page.
 - **Points are derived too, and that is what made them safe.** A user's point total is
   the sum of `ratingSum` over their own notes, computed where it is displayed. It used to
   live in `users.points`, written by whoever cast the vote — which forced the rules to
@@ -227,13 +236,11 @@ one call (`sendEmailVerification()` after sign-up, then gating the feed on
 project are test data, and a mandatory confirmation step would put a mailbox between a
 reviewer and the running app for no benefit at this scale.
 
-**No pagination.** The feed and the leaderboard read every note in the department and
-sort in memory. Scoping both queries to one department (rather than the whole
-collection, as the leaderboard used to) bounds this by roughly the number of
-departments, but it is still every matching note on every open. Paginating means
-ordering in the query, and the data that ordering depends on has been normalised
-already — see [Data migrations](#data-migrations) — so the remaining work is the query
-and the load-more UI.
+**The leaderboard is not paginated.** It reads every note in the department and sorts
+in memory. The feed no longer does (see Key decisions), and the leaderboard can follow
+the same shape — it needs its own composite index on `department` + `ratingSum`, and a
+ranking that only shows part of itself needs more thought about what "rank 21" means
+when the rest is not loaded.
 
 **Deleting a note reports failure with a `Toast`.** Unlike a failed read, the user can
 repeat a failed delete by tapping the button again, so the toast does not leave them
@@ -278,7 +285,20 @@ emulator on API 24+.
    an un-deployed project is both blocked from reading and, once unblocked by a
    permissive rule, trivially cheatable. See [Security rules](#security-rules).
 
-6. **Build and run**
+6. **Deploy the Firestore index**
+
+   ```bash
+   firebase deploy --only firestore:indexes
+   ```
+
+   The feed filters on `department` and orders by `createdAt`, which Firestore serves
+   only from a composite index. Without it the query fails outright with
+   `FAILED_PRECONDITION` and the feed never opens — the error message includes a link
+   that creates the index for you, but deploying
+   [`firestore.indexes.json`](firestore.indexes.json) keeps the definition in the repo
+   where it can be reviewed. Building it takes a few minutes on a live project.
+
+7. **Build and run**
 
    ```bash
    ./gradlew installDebug
@@ -301,7 +321,7 @@ emulator on API 24+.
 ./gradlew testDebugUnitTest
 ```
 
-107 JVM tests, no emulator and no network. They cover the layers where a bug would be
+114 JVM tests, no emulator and no network. They cover the layers where a bug would be
 invisible rather than loud: the scoring arithmetic, the decision logic in every
 ViewModel, the list diffing that decides which rows get redrawn, and — for the feature
 the app is built around — what the screen actually shows.
@@ -309,7 +329,7 @@ the app is built around — what the screen actually shows.
 | Suite | What it pins down |
 |---|---|
 | `RatingCalculatorTest` | First-time votes, changed votes, unchanged votes, average recalculation, and two inconsistent-data guards — the total flooring at zero, and the vote count flooring at one so the average never divides by zero. |
-| `FeedViewModelTest` | The contribution gate: locked without an upload, unlocked with one, and locked for a missing profile or a blank department. Also asserts the department query is never even built while locked. |
+| `FeedViewModelTest` | The contribution gate: locked without an upload, unlocked with one, and locked for a missing profile or a blank department — and that the department query is never even built while locked. Also the paging: the window each page asks for, when there is more to fetch, that the last page stops asking, and that the list stays on screen while the next page loads. |
 | `UploadViewModelTest` | The uid, email and department written onto a note, including the `UNKNOWN_DEPARTMENT` fallback that keeps a blank department out of `whereEqualTo` queries. |
 | `NoteDetailViewModelTest` | Metadata and file content loading as separate states, no file read for a note without one, and the rating rules (own note, missing session, deleted note). |
 | `EditNoteViewModelTest` | Ownership and session handling on load and save. |

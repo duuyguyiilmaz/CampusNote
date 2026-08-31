@@ -75,10 +75,20 @@ class FirebaseNoteRepository(
         return legacy?.takeIf { it.isNotEmpty() }
     }
 
-    override fun observeNotesByDepartment(department: String): Flow<List<Post>> =
+    /**
+     * Sıralama artık istemcide değil sorguda: `limit` ancak bir sıra tanımlıysa
+     * anlamlı, aksi halde Firestore rastgele bir alt küme döndürür.
+     *
+     * Bu sorgu `department` + `createdAt` bileşik index'ini gerektiriyor
+     * (`firestore.indexes.json`). Index yayına alınmadan sorgu FAILED_PRECONDITION
+     * ile düşer — feed hiç açılmaz.
+     */
+    override fun observeNotesByDepartment(department: String, limit: Long): Flow<List<Post>> =
         observePosts(
             query = firestore.collection(NOTES_COLLECTION)
                 .whereEqualTo(DEPARTMENT_FIELD, department)
+                .orderBy(CREATED_AT_FIELD, Query.Direction.DESCENDING)
+                .limit(limit)
         )
 
     override fun observeNotesByUploader(
@@ -255,5 +265,6 @@ class FirebaseNoteRepository(
         const val FILE_DATA_FIELD = "fileData"
         const val DEPARTMENT_FIELD = "department"
         const val UPLOADER_UID_FIELD = "uploaderUid"
+        const val CREATED_AT_FIELD = "createdAt"
     }
 }

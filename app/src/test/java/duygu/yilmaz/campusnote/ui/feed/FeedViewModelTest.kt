@@ -1,6 +1,7 @@
 package duygu.yilmaz.campusnote.ui.feed
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import duygu.yilmaz.campusnote.data.model.Post
 import duygu.yilmaz.campusnote.testing.FakeAuthRepository
 import duygu.yilmaz.campusnote.testing.FakeNoteRepository
 import duygu.yilmaz.campusnote.testing.FakeUserRepository
@@ -9,11 +10,13 @@ import duygu.yilmaz.campusnote.testing.authenticatedUser
 import duygu.yilmaz.campusnote.testing.post
 import duygu.yilmaz.campusnote.testing.userProfile
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -73,7 +76,10 @@ class FeedViewModelTest {
             viewModel.startFeed()
             advanceUntilIdle()
 
-            assertEquals(FeedUiState.Content(posts), viewModel.uiState.value)
+            assertEquals(
+                FeedUiState.Content(posts, canLoadMore = false),
+                viewModel.uiState.value
+            )
             assertEquals("Bilgisayar Mühendisliği", noteRepository.observedDepartment)
             assertEquals(listOf("uid-1"), userRepository.requestedUserIds)
         }
@@ -188,4 +194,111 @@ class FeedViewModelTest {
             // Kullanıcı ekrandan ayrıldıysa geç gelen snapshot yazılmamalı.
             assertEquals(FeedUiState.Loading, viewModel.uiState.value)
         }
+
+    @Test
+    fun `ilk sayfa bir sayfa boyu kadar not ister`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            unlockedFeed(flowOf(listOf(post())))
+
+            val viewModel = viewModel()
+            viewModel.startFeed()
+            advanceUntilIdle()
+
+            assertEquals(listOf(20L), noteRepository.requestedLimits)
+        }
+
+    @Test
+    fun `sayfa dolu geldiyse devami olabilir`() = runTest(mainDispatcherRule.testDispatcher) {
+        // Toplam sayı bilinmiyor; "istenen kadar geldi" tek ipucu.
+        unlockedFeed(flowOf(List(20) { post(id = "note-$it") }))
+
+        val viewModel = viewModel()
+        viewModel.startFeed()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as FeedUiState.Content
+        assertTrue(state.canLoadMore)
+    }
+
+    @Test
+    fun `sayfa eksik geldiyse son sayfadir`() = runTest(mainDispatcherRule.testDispatcher) {
+        unlockedFeed(flowOf(List(7) { post(id = "note-$it") }))
+
+        val viewModel = viewModel()
+        viewModel.startFeed()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as FeedUiState.Content
+        assertFalse(state.canLoadMore)
+    }
+
+    @Test
+    fun `daha fazlasi istendiginde pencere buyur`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            unlockedFeed(flowOf(List(20) { post(id = "note-$it") }))
+
+            val viewModel = viewModel()
+            viewModel.startFeed()
+            advanceUntilIdle()
+            viewModel.loadMore()
+            advanceUntilIdle()
+
+            assertEquals(listOf(20L, 40L), noteRepository.requestedLimits)
+        }
+
+    @Test
+    fun `son sayfadayken daha fazlasi istenmez`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            // Liste sonuna her gelişte tetiklendiği için bu koruma olmasa aynı
+            // pencere sonsuza kadar yeniden kurulurdu.
+            unlockedFeed(flowOf(List(3) { post(id = "note-$it") }))
+
+            val viewModel = viewModel()
+            viewModel.startFeed()
+            advanceUntilIdle()
+            viewModel.loadMore()
+            viewModel.loadMore()
+            advanceUntilIdle()
+
+            assertEquals(listOf(20L), noteRepository.requestedLimits)
+        }
+
+    @Test
+    fun `feed yeniden baslatildiginda ilk sayfaya doner`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            unlockedFeed(flowOf(List(20) { post(id = "note-$it") }))
+
+            val viewModel = viewModel()
+            viewModel.startFeed()
+            advanceUntilIdle()
+            viewModel.loadMore()
+            advanceUntilIdle()
+            viewModel.startFeed()
+            advanceUntilIdle()
+
+            assertEquals(listOf(20L, 40L, 20L), noteRepository.requestedLimits)
+        }
+
+    @Test
+    fun `sayfa yuklenirken liste ekranda kalir`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            // Loading'e düşmek listeyi silerdi; kullanıcı kaydırırken ekran boşalırdı.
+            val posts = List(20) { post(id = "note-$it") }
+            unlockedFeed(flowOf(posts))
+
+            val viewModel = viewModel()
+            viewModel.startFeed()
+            advanceUntilIdle()
+            viewModel.loadMore()
+
+            assertTrue(viewModel.uiState.value is FeedUiState.Content)
+        }
+
+    /** Kapıyı açıp verilen akışı feed'e bağlar. */
+    private fun unlockedFeed(notes: Flow<List<Post>>) {
+        authRepository.setUser(authenticatedUser(uid = "uid-1"))
+        userRepository.profile = userProfile(department = "Bilgisayar Mühendisliği")
+        noteRepository.hasUploadedNote = true
+        noteRepository.departmentNotes = notes
+    }
 }

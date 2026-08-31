@@ -9,6 +9,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import duygu.yilmaz.campusnote.R
 import duygu.yilmaz.campusnote.databinding.FragmentFeedBinding
@@ -60,8 +61,10 @@ class FeedFragment : Fragment() {
                     .commit()
             }
         )
-        binding.rvFeed.layoutManager = LinearLayoutManager(requireContext())
+        val layoutManager = LinearLayoutManager(requireContext())
+        binding.rvFeed.layoutManager = layoutManager
         binding.rvFeed.adapter = adapter
+        binding.rvFeed.addOnScrollListener(loadMoreListener(layoutManager))
 
         viewModel.uiState.observe(viewLifecycleOwner, ::renderState)
 
@@ -154,6 +157,26 @@ class FeedFragment : Fragment() {
     }
 
     /**
+     * Liste sonuna yaklaşıldığında bir sonraki sayfayı ister.
+     *
+     * Tam sona değil, [LOAD_MORE_THRESHOLD] satır kala tetikleniyor: istek ile
+     * sonucun gelmesi arasında kullanıcı kaydırmaya devam ediyor, sona basıldığında
+     * istenirse arada boş bir duraklama görünür. Tekrarlanan çağrılar zararsız —
+     * [FeedViewModel.loadMore] son sayfadayken hiçbir şey yapmıyor.
+     */
+    private fun loadMoreListener(layoutManager: LinearLayoutManager) =
+        object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (dy <= 0) return
+
+                val lastVisible = layoutManager.findLastVisibleItemPosition()
+                if (lastVisible >= layoutManager.itemCount - LOAD_MORE_THRESHOLD) {
+                    viewModel.loadMore()
+                }
+            }
+        }
+
+    /**
      * Hata mesajını yeniden deneme eylemiyle birlikte gösterir.
      *
      * Dinleyici hatası eskiden yalnızca logcat'e yazılıyordu: ekran olduğu gibi
@@ -170,6 +193,11 @@ class FeedFragment : Fragment() {
             .setAnchorView(R.id.bottomNav)
             .setAction(R.string.action_retry) { viewModel.startFeed() }
             .show()
+    }
+
+    private companion object {
+        /** Sona kaç satır kala sonraki sayfanın isteneceği. */
+        const val LOAD_MORE_THRESHOLD = 5
     }
 
     /**

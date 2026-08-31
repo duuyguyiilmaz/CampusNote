@@ -18,7 +18,13 @@ interface NoteRepository {
     /** Notun dosya içeriğini base64 olarak döndürür; dosya yoksa null. */
     suspend fun getNoteFile(noteId: String): String?
 
-    fun observeNotesByDepartment(department: String): Flow<List<Post>>
+    /**
+     * @param limit en fazla kaç not dinlensin. Sayfalama tek bir dinleyicinin
+     *   limitini büyüterek yapılıyor: ikinci bir sorgu açıp sonuçları birleştirmek
+     *   yerine aynı dinleyici daha geniş bir pencereyle yeniden kuruluyor, böylece
+     *   feed canlı kalıyor ve sıra tek bir yerden geliyor.
+     */
+    fun observeNotesByDepartment(department: String, limit: Long): Flow<List<Post>>
 
     fun observeNotesByUploader(
         uploaderUid: String,
