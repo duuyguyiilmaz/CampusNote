@@ -4,10 +4,10 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import duygu.yilmaz.campusnote.R
 import duygu.yilmaz.campusnote.databinding.FragmentLeaderboardBinding
 
@@ -110,13 +110,29 @@ class LeaderboardFragment : Fragment() {
                 binding.layoutEmpty.visibility = View.GONE
             }
 
-            is LeaderboardUiState.Error -> {
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.error_generic, state.exception.message.orEmpty()),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
+            is LeaderboardUiState.Error -> showRetryableError(
+                getString(R.string.error_generic, state.exception.message.orEmpty())
+            )
         }
+    }
+
+    /**
+     * Hata mesajını yeniden deneme eylemiyle birlikte gösterir.
+     *
+     * Eskiden Toast'tı: kendisi kaybolduktan sonra geriye boş bir ekran kalıyordu ve
+     * kullanıcının sıralamayı yeniden yüklemek için sekmeden çıkıp dönmekten başka
+     * yolu yoktu. Feed'in aksine burada aşağı çekme jesti yok, yani bu snackbar tek
+     * kurtarma yolu — [Snackbar.LENGTH_INDEFINITE] bu yüzden, kaçırılırsa ekran
+     * gerçekten çıkmaz sokak oluyor.
+     *
+     * `bottomNav`'a bağlanmasının sebebi de bu: fragment'ın kökü sekme çubuğunun
+     * arkasına kadar uzanıyor, dolayısıyla bağlanmayan bir snackbar çubuğun üstüne
+     * çizilir ve kapatılana kadar sekme değiştirmeyi engellerdi.
+     */
+    private fun showRetryableError(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_INDEFINITE)
+            .setAnchorView(R.id.bottomNav)
+            .setAction(R.string.action_retry) { viewModel.startLeaderboard() }
+            .show()
     }
 }

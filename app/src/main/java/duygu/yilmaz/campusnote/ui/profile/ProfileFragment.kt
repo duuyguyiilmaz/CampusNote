@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import duygu.yilmaz.campusnote.R
 import duygu.yilmaz.campusnote.databinding.FragmentProfileBinding
 import duygu.yilmaz.campusnote.ui.auth.LoginActivity
@@ -161,18 +162,40 @@ class ProfileFragment : Fragment() {
                 binding.rvMyNotes.visibility = if (isEmpty) View.GONE else View.VISIBLE
             }
 
+            // Her iki hata da yeniden denenebilir: ikisi de startProfile()'ın adımları.
             is ProfileUiState.Error -> {
                 val reason = state.exception.message.orEmpty()
-                val message = when (state.stage) {
-                    ProfileFailureStage.USER_PROFILE ->
-                        getString(R.string.error_user_profile_read, reason)
+                showRetryableError(
+                    when (state.stage) {
+                        ProfileFailureStage.USER_PROFILE ->
+                            getString(R.string.error_user_profile_read, reason)
 
-                    ProfileFailureStage.NOTES ->
-                        getString(R.string.error_my_notes_read, reason)
-                }
-                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                        ProfileFailureStage.NOTES ->
+                            getString(R.string.error_my_notes_read, reason)
+                    }
+                )
             }
         }
+    }
+
+    /**
+     * Hata mesajını yeniden deneme eylemiyle birlikte gösterir.
+     *
+     * Eskiden Toast'tı: kaybolduktan sonra profil yarı dolu kalıyordu — bölüm, puan
+     * ve not listesi hiç yazılmamış oluyordu ama bunun bir hatadan mı yoksa henüz
+     * not paylaşılmamasından mı kaynaklandığını gösteren hiçbir şey yoktu. Feed'in
+     * aksine burada aşağı çekme jesti yok, yani bu snackbar tek kurtarma yolu;
+     * [Snackbar.LENGTH_INDEFINITE] kaçırılmasını engelliyor.
+     *
+     * `bottomNav`'a bağlanmasının sebebi de bu: fragment'ın kökü sekme çubuğunun
+     * arkasına kadar uzanıyor, dolayısıyla bağlanmayan bir snackbar çubuğun üstüne
+     * çizilir ve kapatılana kadar sekme değiştirmeyi engellerdi.
+     */
+    private fun showRetryableError(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_INDEFINITE)
+            .setAnchorView(R.id.bottomNav)
+            .setAction(R.string.action_retry) { viewModel.startProfile() }
+            .show()
     }
 
     private fun renderActionState(state: ProfileActionState) {

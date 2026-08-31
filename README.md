@@ -213,9 +213,10 @@ memory. Fine at course-project scale, wrong at department scale.
 **`notifyDataSetChanged()` instead of `DiffUtil`.** The adapters rebuild the whole list
 on every update, losing item animations.
 
-**The leaderboard and profile report errors with a `Toast`.** A toast cannot be acted
-on, so a failed read there still leaves retrying up to the user guessing. The feed uses
-a snackbar with a retry action; the other two screens have not followed yet.
+**Deleting a note reports failure with a `Toast`.** Unlike a failed read, the user can
+repeat a failed delete by tapping the button again, so the toast does not leave them
+stuck — but the retry is still theirs to figure out. Offering it in the snackbar would
+mean carrying the note id through `ProfileActionState.DeleteError`.
 
 **The report mechanism is unimplemented.** It is part of the original project brief but
 there is no code for it, so the security rules deliberately deny the `reports` collection.
