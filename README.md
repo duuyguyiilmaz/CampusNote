@@ -28,11 +28,12 @@ into a portfolio piece.
 |:---:|:---:|
 | ![Upload](docs/screenshots/07-upload.png) | ![Leaderboard](docs/screenshots/08-leaderboard.png) |
 
-The leaderboard screenshot shows live Cloud Firestore data — the signed-in user's
-department ranked by total score, read through a real-time snapshot listener. The
-accounts in it are test data. Uploaders are shown by the local part of their address
-rather than the full email;
-see [`UploaderName.kt`](app/src/main/java/duygu/yilmaz/campusnote/data/model/UploaderName.kt).
+The leaderboard screenshot shows live Cloud Firestore data read through a real-time
+snapshot listener; the accounts in it are test data. It was captured before the ranking
+was scoped to the viewer's own department, so the list it shows is wider than what the
+app now returns. Uploaders appear as the local part of their address rather than the
+full email — see
+[`UploaderName.kt`](app/src/main/java/duygu/yilmaz/campusnote/data/model/UploaderName.kt).
 
 ---
 
@@ -43,9 +44,10 @@ see [`UploaderName.kt`](app/src/main/java/duygu/yilmaz/campusnote/data/model/Upl
 - **Contribution gate** — the department feed stays locked until you upload your first note
 - **Note upload** as PDF or image, with automatic image downscaling and compression
 - **Note rating** on a 1–5 scale; you cannot rate your own notes, and re-rating replaces
-  your previous vote instead of adding a second one
+  your previous vote instead of adding a second one — both enforced by the security
+  rules, not just the app
 - **Leaderboard** ranking your department's notes by total score, with gold/silver/bronze placings
-- **Points and rewards** — uploaders earn points from ratings; discounts unlock at 100 points
+- **Points and rewards** — your total is the score your own notes have earned; discounts unlock at 100 points
 - **Note management** — edit or delete your own notes from your profile
 
 ---
@@ -217,15 +219,21 @@ server-side, and that needs the Blaze plan. The rules make up most of the differ
 they recompute the expected totals from the vote and reject anything else (see
 [Security rules](#security-rules)) — but the arithmetic itself still runs on a device.
 
-**Email addresses are never verified.** Registration only checks that the address ends
-in `@ogr.akdeniz.edu.tr`; no confirmation mail is sent, so anyone can register with a
-made-up address on that domain. The "university students only" rule is therefore a
-convention, not a guarantee. Calling `sendEmailVerification()` after sign-up and gating
-the feed on `FirebaseUser.isEmailVerified` would close this, at the cost of a
-confirmation step during registration.
+**Email addresses are deliberately not verified.** Registration checks that the address
+ends in `@ogr.akdeniz.edu.tr` and stops there — no confirmation mail is sent, so the
+"university students only" rule is a convention rather than a guarantee. Closing it is
+one call (`sendEmailVerification()` after sign-up, then gating the feed on
+`FirebaseUser.isEmailVerified`), and it is left open on purpose: the accounts in this
+project are test data, and a mandatory confirmation step would put a mailbox between a
+reviewer and the running app for no benefit at this scale.
 
-**No pagination.** The feed and leaderboard read every matching note and sort in
-memory. Fine at course-project scale, wrong at department scale.
+**No pagination.** The feed and the leaderboard read every note in the department and
+sort in memory. Scoping both queries to one department (rather than the whole
+collection, as the leaderboard used to) bounds this by roughly the number of
+departments, but it is still every matching note on every open. Paginating means
+ordering in the query, and the data that ordering depends on has been normalised
+already — see [Data migrations](#data-migrations) — so the remaining work is the query
+and the load-more UI.
 
 **Deleting a note reports failure with a `Toast`.** Unlike a failed read, the user can
 repeat a failed delete by tapping the button again, so the toast does not leave them
@@ -260,8 +268,15 @@ emulator on API 24+.
    cp app/google-services.json.example app/google-services.json   # then paste in your real values
    ```
 
-5. **Deploy the security rules** (see [Security rules](#security-rules)), or the app
-   will be blocked from reading and writing.
+5. **Deploy the security rules**
+
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
+
+   Not optional, and not only about access: the rules are what verify the scoring, so
+   an un-deployed project is both blocked from reading and, once unblocked by a
+   permissive rule, trivially cheatable. See [Security rules](#security-rules).
 
 6. **Build and run**
 
@@ -352,9 +367,9 @@ npm test
 ```
 
 The JVM tests above stop at the repository interfaces, so everything Firestore itself
-enforces — who may delete a note, who may write to whose `points` — was previously
-unverified. That is the layer an attacker actually meets: the Android client can be
-replaced, the rules cannot.
+enforces — who may delete a note, whether a score can move without a vote behind it — is
+invisible to them. That is the layer an attacker actually meets: the Android client can
+be replaced, the rules cannot.
 
 38 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
 [`firestore.rules`](firestore.rules) against the local Firestore emulator through
