@@ -367,8 +367,8 @@ describe("ratings", () => {
 
 describe("unmatched paths", () => {
   test("a collection with no rule is closed even to signed-in users", async () => {
-    // README mentions a `reports` collection that was never implemented.
-    await assertFails(getDoc(doc(rater, "reports", "anything")));
-    await assertFails(setDoc(doc(rater, "reports", "anything"), { note: NOTE }));
+    // Adding a collection to the app without adding a rule for it must fail closed.
+    await assertFails(getDoc(doc(rater, "unruled", "anything")));
+    await assertFails(setDoc(doc(rater, "unruled", "anything"), { note: NOTE }));
   });
 });

@@ -111,7 +111,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Yukarıda eşleşmeyen her yol reddedilir. README'de geçen `reports`
-    // koleksiyonu henüz uygulanmadı, o yüzden kasten kural tanımlanmadı.
+    // Yukarıda eşleşmeyen her yol reddedilir. Yeni bir koleksiyon eklendiğinde
+    // kuralı da yazılana kadar kapalı kalır — açık kalmasındansa erişilemez olması.
   }
 }
