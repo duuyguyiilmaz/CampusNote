@@ -174,6 +174,8 @@ The rules require authentication everywhere, restrict note edits and deletes to 
 uploader, and pin each rating document to its author's UID. Note that the delete rule
 is the *only* ownership check on deletion — the app code does not verify it.
 
+They are covered by their own test suite; see [Rules tests](#rules-tests).
+
 ---
 
 ## Known limitations
@@ -295,11 +297,44 @@ swaps in a `StandardTestDispatcher`. It queues coroutines until `advanceUntilIdl
 which is what lets the tests assert the intermediate `Loading` state and the
 double-submit guards that depend on it.
 
+### Rules tests
+
+```bash
+cd firestore-tests
+npm ci
+npm test
+```
+
+The JVM tests above stop at the repository interfaces, so everything Firestore itself
+enforces — who may delete a note, who may write to whose `points` — was previously
+unverified. That is the layer an attacker actually meets: the Android client can be
+replaced, the rules cannot.
+
+32 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
+[`firestore.rules`](firestore.rules) against the local Firestore emulator through
+`@firebase/rules-unit-testing`. `npm test` starts the emulator, runs the suite and shuts
+it down again; nothing touches the real project, and no billing account is involved.
+
+| Group | What it pins down |
+|---|---|
+| `signed-out access` | Every collection is closed to an unauthenticated client — the one guard shared by all four rule blocks. |
+| `users` | Self-registration only, the document id matching the `id` field, and the narrow exception that lets a rater raise *another* user's `points` — including that it cannot carry a second field along, go negative, or be a non-integer. |
+| `notes` | `uploaderUid` cannot be forged on create; metadata edits are the uploader's alone; a rater may touch only `ratingSum`, `ratingCount` and `avgRating`; delete is owner-only. |
+| `note content` | The batched note-plus-file upload, owner-only replace and delete, and a test that deliberately asserts the *open* create rule, so the gap documented in `firestore.rules` cannot be closed by accident and go unnoticed. |
+| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range and the ban on deleting votes. |
+| `unmatched paths` | A collection with no rule stays closed, including the `reports` collection mentioned in this README but never implemented. |
+
+Fixtures are seeded with `withSecurityRulesDisabled`, so a broken rule surfaces as a
+failed assertion rather than a failed setup. Each suite asserts both directions — the
+allowed write succeeding and the forged one being denied — because a rule that rejects
+everything would otherwise pass a suite made only of `assertFails`.
+
 ### Continuous integration
 
 [`.github/workflows/android.yml`](.github/workflows/android.yml) runs on every push to
-`main` and on every pull request: unit tests, a debug build, and Android Lint. The debug
-APK and the test report are uploaded as build artifacts.
+`main` and on every pull request. Two jobs run in parallel: unit tests, a debug build and
+Android Lint; and the Firestore rules suite against the emulator. The debug APK and the
+test report are uploaded as build artifacts.
 
 Because `google-services.json` is not in the repository, CI copies the example file into
 place before building. The placeholder credentials are enough — the Google Services
@@ -332,6 +367,8 @@ app/src/test/java/duygu/yilmaz/campusnote/
 ├── data/model/         RatingCalculatorTest, UploaderNameTest
 ├── testing/            fakes, fixtures, MainDispatcherRule
 └── ui/                 one test class per ViewModel
+
+firestore-tests/        emulator-backed tests for firestore.rules
 ```
 
 ---

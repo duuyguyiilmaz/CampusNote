@@ -17,6 +17,12 @@
 .cxx
 local.properties
 
+# Firestore rules test harness (Node). The lockfile is committed; its
+# dependencies and the emulator's debug logs are not.
+/firestore-tests/node_modules
+firestore-debug.log
+ui-debug.log
+
 # Firebase client config — every developer supplies their own.
 # The committed template is app/google-services.json.example.
 /app/google-services.json

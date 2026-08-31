@@ -1,0 +1,21 @@
+{
+  "name": "campusnote-firestore-rules-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Security rule tests for CampusNote's Cloud Firestore rules, run against the local emulator.",
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --config ../firebase.json --only firestore --project campusnote-rules-test \"vitest run\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.2.0",
+    "firebase-tools": "^13.29.1",
+    "vitest": "^2.1.8"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true,
+    "@firebase/util@1.12.1": true,
+    "protobufjs@7.6.6": true
+  }
+}
