@@ -24,7 +24,10 @@ data class RankedEntry(
     val entry: LeaderboardEntry
 )
 
-/** @receiver zaten puana göre sıralı liste; sıra numarası konumdan gelir. */
+/**
+ * @receiver puana göre sıralı liste; sıra numarası konumdan geliyor. Sıralama artık
+ *   Firestore'da yapılıyor (`orderBy(ratingSum)`), yani bu varsayımı sorgu tutuyor.
+ */
 internal fun List<LeaderboardEntry>.ranked(): List<RankedEntry> =
     mapIndexed { index, entry -> RankedEntry(index + 1, entry) }
 
