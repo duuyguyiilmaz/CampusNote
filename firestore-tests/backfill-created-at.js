@@ -1,6 +1,10 @@
-#!/usr/bin/env node
 /**
  * Normalises every note's `createdAt` to a Firestore Timestamp.
+ *
+ * Deliberately has no `#!` line. The repo normalises to CRLF on Windows checkouts, and
+ * a shebang ending in `\r` is one esbuild does not strip, so the test that imports this
+ * file failed to parse — on Windows only, which is why CI stayed green. The script is
+ * always invoked through `node` or the npm script, so the shebang bought nothing.
  *
  * Why this exists: paginating the feed means ordering on `createdAt` in the query
  * instead of sorting in the client, and Firestore's ordering has two behaviours that

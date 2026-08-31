@@ -102,6 +102,13 @@ flowchart TD
   transaction, so two people rating the same note at once cannot lose one of the votes.
 - **File content lives in a subcollection.** `notes/{id}/content/file` is separate from
   the note metadata so feed and leaderboard queries never download file data.
+- **Files are base64 in Firestore, not in Storage.** Firebase Storage is the usual home
+  for binary data, but it requires the billed Blaze plan and this project stays on the
+  free Spark plan. Encoding the file into a Firestore document keeps uploads working
+  within that constraint, at a known cost: base64 inflates data by about a third and a
+  Firestore document may not exceed 1 MiB, so the practical ceiling is ~650 KB. The app
+  is built around that number rather than surprised by it — images are downscaled and
+  re-compressed to fit, and larger PDFs are rejected with a message that says why.
 - **Rating arithmetic is a pure function.** `RatingCalculator` has no Firebase
   dependency, which is what makes it unit-testable — see [Tests](#tests).
 - **Repositories are interfaces.** Each one has a single Firebase-backed implementation
@@ -186,14 +193,6 @@ They are covered by their own test suite; see [Rules tests](#rules-tests).
 
 Honest list of things a reviewer would spot, and why they are the way they are.
 
-**Note files are base64-encoded into Firestore, capping uploads at ~650 KB.**
-The right answer is Firebase Storage, which stores binary data as-is with no such
-limit. Storage requires the billed Blaze plan, and this project stays on the free
-Spark plan, so files are base64-encoded into a Firestore document instead. Since
-base64 inflates data by about a third and a Firestore document may not exceed 1 MiB,
-the practical ceiling is ~650 KB. Images are downscaled and re-compressed to fit;
-larger PDFs are rejected with a clear message.
-
 **The points system is client-authoritative.**
 Rating a note updates the note's totals *and* the uploader's `points` directly from the
 client, so the security rules have to permit one user to modify another user's points.
@@ -215,9 +214,6 @@ memory. Fine at course-project scale, wrong at department scale.
 repeat a failed delete by tapping the button again, so the toast does not leave them
 stuck — but the retry is still theirs to figure out. Offering it in the snackbar would
 mean carrying the note id through `ProfileActionState.DeleteError`.
-
-**The report mechanism is unimplemented.** It is part of the original project brief but
-there is no code for it, so the security rules deliberately deny the `reports` collection.
 
 ---
 
@@ -355,7 +351,7 @@ it down again; nothing touches the real project, and no billing account is invol
 | `notes` | `uploaderUid` cannot be forged on create; metadata edits are the uploader's alone; a rater may touch only `ratingSum`, `ratingCount` and `avgRating`; delete is owner-only. |
 | `note content` | The batched note-plus-file upload, owner-only replace and delete, and a test that deliberately asserts the *open* create rule, so the gap documented in `firestore.rules` cannot be closed by accident and go unnoticed. |
 | `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range and the ban on deleting votes. |
-| `unmatched paths` | A collection with no rule stays closed, including the `reports` collection mentioned in this README but never implemented. |
+| `unmatched paths` | A path no `match` block covers is denied, so adding a collection to the app without adding a rule fails closed rather than open. |
 
 Fixtures are seeded with `withSecurityRulesDisabled`, so a broken rule surfaces as a
 failed assertion rather than a failed setup. Each suite asserts both directions — the
