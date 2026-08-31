@@ -25,7 +25,11 @@ interface NoteRepository {
         defaultUploaderEmail: String
     ): Flow<List<Post>>
 
-    fun observeLeaderboard(): Flow<List<LeaderboardEntry>>
+    /**
+     * @param department sıralama feed ile aynı bölümle sınırlı; kullanıcı başka
+     *   bölümlerin notlarıyla yarışmıyor.
+     */
+    fun observeLeaderboard(department: String): Flow<List<LeaderboardEntry>>
 
     suspend fun deleteNote(noteId: String)
 

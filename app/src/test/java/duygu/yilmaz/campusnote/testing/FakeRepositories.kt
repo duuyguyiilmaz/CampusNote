@@ -116,6 +116,8 @@ class FakeNoteRepository : NoteRepository {
     val appliedUpdates = mutableListOf<AppliedUpdate>()
     var observedDepartment: String? = null
         private set
+    var observedLeaderboardDepartment: String? = null
+        private set
     var observedUploader: Pair<String, String>? = null
         private set
 
@@ -147,7 +149,10 @@ class FakeNoteRepository : NoteRepository {
         return uploaderNotes
     }
 
-    override fun observeLeaderboard(): Flow<List<LeaderboardEntry>> = leaderboard
+    override fun observeLeaderboard(department: String): Flow<List<LeaderboardEntry>> {
+        observedLeaderboardDepartment = department
+        return leaderboard
+    }
 
     override suspend fun deleteNote(noteId: String) {
         deleteNoteError?.let { throw it }

@@ -28,9 +28,10 @@ into a portfolio piece.
 |:---:|:---:|
 | ![Upload](docs/screenshots/07-upload.png) | ![Leaderboard](docs/screenshots/08-leaderboard.png) |
 
-The leaderboard screenshot shows live Cloud Firestore data — notes ranked by total
-score, read through a real-time snapshot listener. The accounts in it are test data.
-Uploaders are shown by the local part of their address rather than the full email;
+The leaderboard screenshot shows live Cloud Firestore data — the signed-in user's
+department ranked by total score, read through a real-time snapshot listener. The
+accounts in it are test data. Uploaders are shown by the local part of their address
+rather than the full email;
 see [`UploaderName.kt`](app/src/main/java/duygu/yilmaz/campusnote/data/model/UploaderName.kt).
 
 ---
@@ -43,7 +44,7 @@ see [`UploaderName.kt`](app/src/main/java/duygu/yilmaz/campusnote/data/model/Upl
 - **Note upload** as PDF or image, with automatic image downscaling and compression
 - **Note rating** on a 1–5 scale; you cannot rate your own notes, and re-rating replaces
   your previous vote instead of adding a second one
-- **Leaderboard** ranking notes by total score, with gold/silver/bronze placings
+- **Leaderboard** ranking your department's notes by total score, with gold/silver/bronze placings
 - **Points and rewards** — uploaders earn points from ratings; discounts unlock at 100 points
 - **Note management** — edit or delete your own notes from your profile
 
@@ -151,7 +152,7 @@ or written — the contribution gate is derived from the user's notes instead.
 | Field | Type | Notes |
 |---|---|---|
 | `title`, `description`, `course`, `tag` | string | |
-| `department` | string | the feed filters on this |
+| `department` | string | the feed and the leaderboard both filter on this |
 | `uploaderUid`, `uploaderEmail` | string | |
 | `fileName`, `fileType`, `fileSize` | string / string / number | `fileType` is `pdf`, `image` or empty |
 | `ratingSum`, `ratingCount`, `avgRating` | number | denormalised so the feed needs no aggregation |
@@ -272,7 +273,7 @@ emulator on API 24+.
 ./gradlew testDebugUnitTest
 ```
 
-102 JVM tests, no emulator and no network. They cover the layers where a bug would be
+107 JVM tests, no emulator and no network. They cover the layers where a bug would be
 invisible rather than loud: the scoring arithmetic, the decision logic in every
 ViewModel, the list diffing that decides which rows get redrawn, and — for the feature
 the app is built around — what the screen actually shows.
@@ -286,7 +287,8 @@ the app is built around — what the screen actually shows.
 | `EditNoteViewModelTest` | Ownership and session handling on load and save. |
 | `ProfileViewModelTest` | Total points summed from the user's own notes, and note deletion. |
 | `LoginViewModelTest`, `RegisterViewModelTest` | State transitions, and which of registration's two steps — auth account or profile document — failed. |
-| `LeaderboardViewModelTest`, `MainViewModelTest`, `UploaderNameTest` | Empty vs. content, session routing, and the uploader-name masking shared by three screens. |
+| `LeaderboardViewModelTest` | Empty vs. content, and the department scoping: which department the ranking is asked for, and the three cases — no session, no profile, blank department — where the query must not be built at all. |
+| `MainViewModelTest`, `UploaderNameTest` | Session routing, and the uploader-name masking shared by three screens. |
 | `PostAdapterTest`, `LeaderboardAdapterTest` | Which rows a `DiffUtil` pass marks as changed. The leaderboard case is the sharp one: a note's medal depends on its rank, so a note that swapped places without changing must still be rebound, or the gold medal stays on the row it left. |
 | `FeedScreenTest` | The contribution gate as a user meets it — the lock and its way out, the unlocked feed and its notes. See [Screen tests](#screen-tests). |
 
@@ -294,6 +296,12 @@ ViewModel tests use hand-written fakes of the repository interfaces
 ([`FakeRepositories.kt`](app/src/test/java/duygu/yilmaz/campusnote/testing/FakeRepositories.kt))
 rather than a mocking framework, so a test reads as "given this data, what does the
 ViewModel do" instead of a list of stubbed calls.
+
+The fakes are also the boundary of what these tests can see. They implement the
+repository *interfaces*, so no test executes a line of `FirebaseNoteRepository` — the
+`whereEqualTo` and `limit` calls that make up the actual queries are covered by running
+the app, not by the suite. A test can prove the leaderboard asks for the right
+department; it cannot prove the query built from it filters on one.
 
 `viewModelScope` runs on `Dispatchers.Main`, which does not exist on the JVM, so
 [`MainDispatcherRule`](app/src/test/java/duygu/yilmaz/campusnote/testing/MainDispatcherRule.kt)

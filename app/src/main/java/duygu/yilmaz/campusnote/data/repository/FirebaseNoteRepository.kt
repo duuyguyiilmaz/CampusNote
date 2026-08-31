@@ -91,8 +91,16 @@ class FirebaseNoteRepository(
             defaultUploaderEmail = defaultUploaderEmail
         )
 
-    override fun observeLeaderboard(): Flow<List<LeaderboardEntry>> = callbackFlow {
+    /**
+     * Sıralama `whereEqualTo` ile daraltılıyor ama `orderBy` ile değil: puana göre
+     * sıralama hâlâ istemcide yapılıyor. Firestore'da eşitlik filtresi + farklı bir
+     * alanda sıralama bileşik index istiyor; tek bölümün notları zaten sıralanabilecek
+     * kadar az olduğu için o index'in bakım yükü alınmadı. Sayfalama eklendiğinde
+     * sıralamanın sunucuya taşınması gerekecek, o zaman index de gerekli olacak.
+     */
+    override fun observeLeaderboard(department: String): Flow<List<LeaderboardEntry>> = callbackFlow {
         val listener = firestore.collection(NOTES_COLLECTION)
+            .whereEqualTo(DEPARTMENT_FIELD, department)
             .addSnapshotListener { snapshot, exception ->
                 if (exception != null) {
                     close(exception)
