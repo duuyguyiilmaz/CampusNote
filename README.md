@@ -124,6 +124,9 @@ flowchart TD
 | Build | Gradle 8.13, AGP 8.13.2, version catalog |
 | Tests | JUnit 4, `kotlinx-coroutines-test`, `androidx.arch.core:core-testing` |
 
+Colours live only in [`colors.xml`](app/src/main/res/values/colors.xml). No layout or
+drawable writes a raw hex, so a tone can be found, counted and changed in one place.
+
 ---
 
 ## Data model

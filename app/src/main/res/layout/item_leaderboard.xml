@@ -27,7 +27,7 @@
             android:layout_height="42dp"
             app:cardCornerRadius="21dp"
             app:cardElevation="0dp"
-            app:cardBackgroundColor="#1A2A55">
+            app:cardBackgroundColor="@color/surface_card">
 
             <TextView
                 android:id="@+id/tvRank"
@@ -64,7 +64,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 tools:text="ogrenci"
-                android:textColor="#AAB6D6"
+                android:textColor="@color/star_empty"
                 android:textSize="11sp"
                 android:layout_marginTop="2dp"/>
 
@@ -74,7 +74,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 tools:text="Bilgisayar Mühendisliği"
-                android:textColor="#AAB6D6"
+                android:textColor="@color/star_empty"
                 android:textSize="11sp"
                 android:layout_marginTop="2dp"/>
 
@@ -86,7 +86,7 @@
             android:layout_height="wrap_content"
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
-            app:cardBackgroundColor="#0F1E44">
+            app:cardBackgroundColor="@color/surface_darkest">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -105,7 +105,7 @@
                     tools:text="18"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="#4F8CFF"
+                    android:textColor="@color/accent"
                     android:fontFamily="@font/poppins_regular"
                     android:gravity="center"/>
 
@@ -114,7 +114,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/label_points"
                     android:textSize="10sp"
-                    android:textColor="#AAB6D6"
+                    android:textColor="@color/star_empty"
                     android:gravity="center"/>
 
                 <TextView
@@ -123,7 +123,7 @@
                     android:layout_height="wrap_content"
                     tools:text="4 oy"
                     android:textSize="10sp"
-                    android:textColor="#AAB6D6"
+                    android:textColor="@color/star_empty"
                     android:gravity="center"
                     android:layout_marginTop="2dp"/>
 
