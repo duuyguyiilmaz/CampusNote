@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -96,7 +97,13 @@ class LeaderboardFragment : Fragment() {
 
     private fun renderState(state: LeaderboardUiState) {
         when (state) {
-            LeaderboardUiState.Idle -> Unit
+            LeaderboardUiState.Idle,
+            LeaderboardUiState.Loading -> Unit
+
+            LeaderboardUiState.MissingSession -> {
+                Toast.makeText(requireContext(), R.string.error_missing_session, Toast.LENGTH_SHORT)
+                    .show()
+            }
 
             LeaderboardUiState.Empty -> {
                 adapter.refresh(emptyList())
@@ -110,8 +117,19 @@ class LeaderboardFragment : Fragment() {
                 binding.layoutEmpty.visibility = View.GONE
             }
 
+            // Her iki hata da yeniden denenebilir: ikisi de startLeaderboard()'un adımları.
             is LeaderboardUiState.Error -> showRetryableError(
-                getString(R.string.error_generic, state.exception.message.orEmpty())
+                when (state.stage) {
+                    LeaderboardFailureStage.USER_PROFILE -> getString(
+                        R.string.error_user_profile_read,
+                        state.exception.message.orEmpty()
+                    )
+
+                    LeaderboardFailureStage.NOTES -> getString(
+                        R.string.error_generic,
+                        state.exception.message.orEmpty()
+                    )
+                }
             )
         }
     }
