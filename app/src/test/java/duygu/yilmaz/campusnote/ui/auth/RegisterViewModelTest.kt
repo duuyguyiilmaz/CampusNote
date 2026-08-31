@@ -51,7 +51,6 @@ class RegisterViewModelTest {
         val saved = userRepository.savedUsers.single()
         assertEquals("duygu@ogr.akdeniz.edu.tr", saved.email)
         assertEquals("Bilgisayar Mühendisliği", saved.department)
-        assertEquals(0L, saved.points)
     }
 
     @Test

@@ -27,7 +27,6 @@ class FirebaseUserRepository(
             id = document.getString("id") ?: document.id,
             email = document.getString("email") ?: "",
             department = document.getString("department") ?: "",
-            points = document.getLong("points") ?: 0L,
             createdAt = document.getLong("createdAt") ?: 0L
         )
     }

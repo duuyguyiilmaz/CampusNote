@@ -5,8 +5,6 @@ data class RatingTotals(
     val sum: Long,
     val count: Long,
     val average: Double,
-    /** Not sahibinin puanına eklenecek fark; oy düşürüldüyse negatif olur. */
-    val pointsDelta: Long,
     /** Kullanıcı ilk kez mi oy verdi, yoksa eski oyunu mu değiştirdi. */
     val updatedExistingRating: Boolean
 )
@@ -61,7 +59,6 @@ object RatingCalculator {
             sum = sum,
             count = count,
             average = average,
-            pointsDelta = delta,
             updatedExistingRating = updatedExistingRating
         )
     }

@@ -28,7 +28,6 @@ class RatingCalculatorTest {
         assertEquals(4L, totals.sum)
         assertEquals(1L, totals.count)
         assertEquals(4.0, totals.average, DELTA)
-        assertEquals(4L, totals.pointsDelta)
         assertFalse(totals.updatedExistingRating)
     }
 
@@ -44,7 +43,6 @@ class RatingCalculatorTest {
         assertEquals(12L, totals.sum)
         assertEquals(3L, totals.count)
         assertEquals(4.0, totals.average, DELTA)
-        assertEquals(3L, totals.pointsDelta)
     }
 
     @Test
@@ -59,7 +57,6 @@ class RatingCalculatorTest {
         assertEquals(10L, totals.sum)
         assertEquals(2L, totals.count)
         assertEquals(5.0, totals.average, DELTA)
-        assertEquals(1L, totals.pointsDelta)
         assertTrue(totals.updatedExistingRating)
     }
 
@@ -74,7 +71,6 @@ class RatingCalculatorTest {
 
         assertEquals(6L, totals.sum)
         assertEquals(2L, totals.count)
-        assertEquals(-4L, totals.pointsDelta)
     }
 
     @Test
@@ -88,7 +84,6 @@ class RatingCalculatorTest {
 
         assertEquals(7L, totals.sum)
         assertEquals(2L, totals.count)
-        assertEquals(0L, totals.pointsDelta)
     }
 
     @Test

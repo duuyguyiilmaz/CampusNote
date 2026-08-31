@@ -7,18 +7,11 @@ rules_version = '2';
 //
 //     firebase deploy --only firestore:rules
 //
-// ÖNEMLİ — bilinen zayıflık: puanlama işlemi tamamen istemcide yapılıyor.
-// RatingRepository bir oy verirken not sahibinin `points` alanını ve notun
-// `ratingSum`/`ratingCount`/`avgRating` alanlarını doğrudan güncelliyor.
-// Bu yüzden aşağıdaki kurallar, oturum açmış bir kullanıcının başka bir
-// kullanıcının puanını ve bir notun ortalamasını değiştirmesine izin vermek
-// zorunda. Değerler tür ve aralık olarak sınırlandırıldı ama kötü niyetli bir
-// istemci hâlâ kendine puan yazabilir.
-//
-// Bunun doğru çözümü puanlamayı bir Cloud Function'a taşımaktır (istemci
-// yalnızca oyunu yazar, toplamları sunucu hesaplar). Cloud Functions
-// faturalandırmalı Blaze planı gerektirdiği için proje ücretsiz planda
-// kaldığı sürece bu risk kabul edilmiş durumda.
+// Puanlama hâlâ istemcide hesaplanıyor — Cloud Functions faturalandırmalı Blaze
+// planı istiyor, proje ücretsiz planda. Ama "istemci hesaplıyor" ile "istemciye
+// güveniliyor" aynı şey değil: notun yeni `ratingSum`/`ratingCount` değerleri
+// aşağıda, aynı commit'te yazılan oy dokümanından yeniden hesaplanıp
+// karşılaştırılıyor. İstemci sonucu üretiyor, sunucu doğruluyor.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -44,14 +37,14 @@ service cloud.firestore {
       allow create: if isOwner(userId)
                     && request.resource.data.id == userId;
 
-      allow update: if isOwner(userId)
-                    // Puanlamanın not sahibinin puanını artırması için gereken izin.
-                    // Yalnızca `points` alanı değişebilir ve negatif olamaz.
-                    || (
-                      changedFields().hasOnly(['points'])
-                      && request.resource.data.points is int
-                      && request.resource.data.points >= 0
-                    );
+      // Uygulama bu dokümanı yalnızca oluşturuyor, hiç güncellemiyor
+      // (`saveUser` tek çağrısı kayıt akışında). Açık bırakmanın bedeli vardı:
+      // `points` burada saklandığı sürece kurallar hem sahibinin kendi puanını
+      // yazmasına hem de bir kullanıcının başkasının puanını değiştirmesine izin
+      // vermek zorundaydı. Puan artık saklanmıyor, notların `ratingSum`
+      // toplamından türetiliyor; dolayısıyla güncellemeye hiç gerek kalmadı.
+      // İleride profil düzenleme eklenirse kendi dar kuralını da getirmeli.
+      allow update: if false;
 
       // Hesap silme uygulamada yok; kaza ile veri kaybını engelle.
       allow delete: if false;
@@ -60,20 +53,67 @@ service cloud.firestore {
     match /notes/{noteId} {
       allow read: if isSignedIn();
 
-      // Not oluşturan kişi kendini başkası olarak gösteremez.
+      // Not oluşturan kişi kendini başkası olarak gösteremez ve puanı sıfırdan
+      // başlatmak zorunda: aksi halde nota doğrudan yüksek puanla doğulurdu.
       allow create: if isSignedIn()
-                    && request.resource.data.uploaderUid == request.auth.uid;
+                    && request.resource.data.uploaderUid == request.auth.uid
+                    && request.resource.data.ratingSum == 0
+                    && request.resource.data.ratingCount == 0;
 
       allow update: if isSignedIn() && (
-                      // Sahibi metadata'yı düzenleyebilir.
-                      resource.data.uploaderUid == request.auth.uid
-                      // Oy veren yalnızca puan alanlarını değiştirebilir.
-                      || (
-                        changedFields().hasOnly(['ratingSum', 'ratingCount', 'avgRating'])
-                        && request.resource.data.ratingSum >= 0
-                        && request.resource.data.ratingCount >= 0
-                      )
+                      isMetadataEditByOwner()
+                      || isRatingWrite(noteId)
                     );
+
+      // Sahibi metadata'yı düzenleyebilir ama puan alanlarına ve sahiplik
+      // bilgisine dokunamaz — kendi notunu öne çıkarmanın en kısa yolu buydu.
+      function isMetadataEditByOwner() {
+        return resource.data.uploaderUid == request.auth.uid
+               && !changedFields().hasAny([
+                    'ratingSum', 'ratingCount', 'avgRating', 'uploaderUid'
+                  ]);
+      }
+
+      function ratingPath(noteId) {
+        return /databases/$(database)/documents/ratings/$(request.auth.uid + '_' + noteId);
+      }
+
+      /**
+       * Oyu veren kişinin yazabileceği tek değişiklik.
+       *
+       * `getAfter` aynı commit'in *sonrasındaki* oy dokümanını okur; oy dokümanı
+       * yazılmadan notun toplamı değiştirilemez. Beklenen toplamlar
+       * RatingCalculator ile birebir aynı hesaplanıyor — tabanları dahil, çünkü
+       * istemci de aynı tabanları uyguluyor ve eşitlik tutmak zorunda.
+       *
+       * `math.max` kurallarda yok, o yüzden tabanlar üçlü işleçle yazıldı.
+       */
+      function isRatingWrite(noteId) {
+        let path = ratingPath(noteId);
+        let votedBefore = exists(path);
+        let previous = votedBefore ? get(path).data.rating : 0;
+        let submitted = getAfter(path).data;
+        let rawSum = resource.data.ratingSum + submitted.rating - previous;
+
+        return changedFields().hasOnly(['ratingSum', 'ratingCount', 'avgRating'])
+               // Kendi notuna oy vermek burada yasaklanıyor; eskiden yalnızca
+               // istemci kodunda kontrol ediliyordu.
+               && resource.data.uploaderUid != request.auth.uid
+               && submitted.noteId == noteId
+               && request.resource.data.ratingSum == (rawSum < 0 ? 0 : rawSum)
+               // Oy değiştirildiğinde sayı artmaz.
+               && request.resource.data.ratingCount == (
+                    votedBefore
+                      ? (resource.data.ratingCount < 1 ? 1 : resource.data.ratingCount)
+                      : resource.data.ratingCount + 1
+                  )
+               // Ortalama türetilmiş bir gösterim alanı; asıl doğrulama toplam ve
+               // sayıda. Kurallarda tam sayı bölmesi yapıldığı için burada
+               // birebir eşitlik yerine aralık kontrolü var.
+               && request.resource.data.avgRating is number
+               && request.resource.data.avgRating >= 0
+               && request.resource.data.avgRating <= 5;
+      }
 
       // Uygulama kodu silme öncesi sahiplik kontrolü YAPMIYOR; tek gerçek
       // engel bu kural. (NoteRepository.deleteNote doğrudan siliyor, arayüz
@@ -106,7 +146,12 @@ service cloud.firestore {
                             && ratingId == request.auth.uid + '_' + request.resource.data.noteId
                             && request.resource.data.rating is int
                             && request.resource.data.rating >= 1
-                            && request.resource.data.rating <= 5;
+                            && request.resource.data.rating <= 5
+                            // Kendi notuna oy veren bir kayıt hiç oluşmasın:
+                            // notun toplamını değiştirmese de liderlik tablosunun
+                            // oy sayısını şişirirdi.
+                            && get(/databases/$(database)/documents/notes/$(request.resource.data.noteId))
+                                 .data.uploaderUid != request.auth.uid;
 
       allow delete: if false;
     }

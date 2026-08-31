@@ -55,14 +55,12 @@ beforeEach(async () => {
       id: OWNER,
       email: "owner@ogr.akdeniz.edu.tr",
       department: "Bilgisayar Mühendisliği",
-      points: 10,
       createdAt: 1,
     });
     await setDoc(doc(db, "users", RATER), {
       id: RATER,
       email: "rater@ogr.akdeniz.edu.tr",
       department: "Bilgisayar Mühendisliği",
-      points: 0,
       createdAt: 1,
     });
     await setDoc(doc(db, "notes", NOTE), {
@@ -83,6 +81,31 @@ beforeEach(async () => {
     });
   });
 });
+
+/**
+ * Bir oyu uygulamanın yazdığı gibi yazar: notun toplamları ve oy dokümanı tek
+ * atomik commit'te. Kural, notun yeni toplamlarını aynı commit'teki oy
+ * dokümanından doğruluyor, o yüzden ikisini ayırmak testin anlamını kaybettirir.
+ *
+ * @param db oy veren bağlam
+ * @param uid oy dokümanının sahibi olarak yazılacak uid — kurala göre çağıranınki olmalı
+ * @param totals notun yazılacak yeni değerleri; `extra` ile fazladan alan sızdırılır
+ */
+function vote(db, uid, noteId, rating, { sum, count, extra = {} }) {
+  const batch = writeBatch(db);
+  batch.update(doc(db, "notes", noteId), {
+    ratingSum: sum,
+    ratingCount: count,
+    avgRating: count === 0 ? 0 : sum / count,
+    ...extra,
+  });
+  batch.set(doc(db, "ratings", `${uid}_${noteId}`), {
+    uid,
+    noteId,
+    rating,
+  });
+  return batch.commit();
+}
 
 describe("signed-out access", () => {
   // Every collection matches on isSignedIn() first, so this is the one guard
@@ -114,7 +137,6 @@ describe("users", () => {
         id: RATER,
         email: "rater@ogr.akdeniz.edu.tr",
         department: "Bilgisayar Mühendisliği",
-        points: 0,
         createdAt: 1,
       }),
     );
@@ -122,44 +144,36 @@ describe("users", () => {
 
   test("a user cannot create a profile under someone else's uid", async () => {
     await testEnv.clearFirestore();
-    await assertFails(
-      setDoc(doc(rater, "users", OWNER), { id: OWNER, points: 0 }),
-    );
+    await assertFails(setDoc(doc(rater, "users", OWNER), { id: OWNER }));
   });
 
   test("a create whose id field disagrees with the document id is rejected", async () => {
     await testEnv.clearFirestore();
-    await assertFails(
-      setDoc(doc(rater, "users", RATER), { id: OWNER, points: 0 }),
-    );
+    await assertFails(setDoc(doc(rater, "users", RATER), { id: OWNER }));
   });
 
-  test("a user may edit their own profile freely", async () => {
-    await assertSucceeds(
+  test("nobody may update a profile, not even its owner", async () => {
+    // The app only ever creates this document. Leaving update open is what forced
+    // the old rule to permit writing `points` — the field that made self-awarding
+    // a one-line request.
+    await assertFails(
       updateDoc(doc(rater, "users", RATER), { department: "Matematik" }),
     );
-  });
-
-  test("rating another user's note may raise only their points", async () => {
-    // The client-side rating flow needs this: it writes the owner's new total.
-    await assertSucceeds(
-      updateDoc(doc(rater, "users", OWNER), { points: 14 }),
-    );
-  });
-
-  test("a points write cannot smuggle another field along with it", async () => {
     await assertFails(
-      updateDoc(doc(rater, "users", OWNER), {
-        points: 14,
-        email: "attacker@example.com",
-      }),
+      updateDoc(doc(owner, "users", OWNER), { department: "Matematik" }),
     );
   });
 
-  test("points must be a non-negative integer", async () => {
-    await assertFails(updateDoc(doc(rater, "users", OWNER), { points: -1 }));
-    await assertFails(updateDoc(doc(rater, "users", OWNER), { points: 4.5 }));
-    await assertFails(updateDoc(doc(rater, "users", OWNER), { points: "9" }));
+  test("a user cannot award themselves points", async () => {
+    // This was the hole: `allow update: if isOwner(userId)` let a user write any
+    // field of their own document, so `points: 999999` needed no rating at all.
+    await assertFails(
+      updateDoc(doc(rater, "users", RATER), { points: 999999 }),
+    );
+  });
+
+  test("a user cannot write points onto anyone else either", async () => {
+    await assertFails(updateDoc(doc(rater, "users", OWNER), { points: 14 }));
   });
 
   test("a stranger cannot rewrite another profile's department", async () => {
@@ -184,6 +198,8 @@ describe("notes", () => {
         title: "Note",
         uploaderUid: RATER,
         department: "Bilgisayar Mühendisliği",
+        ratingSum: 0,
+        ratingCount: 0,
       }),
     );
     await assertFails(
@@ -191,6 +207,20 @@ describe("notes", () => {
         title: "Note",
         uploaderUid: OWNER,
         department: "Bilgisayar Mühendisliği",
+        ratingSum: 0,
+        ratingCount: 0,
+      }),
+    );
+  });
+
+  test("a note cannot be born with a score", async () => {
+    await assertFails(
+      setDoc(doc(rater, "notes", "head-start"), {
+        title: "Note",
+        uploaderUid: RATER,
+        department: "Bilgisayar Mühendisliği",
+        ratingSum: 500,
+        ratingCount: 100,
       }),
     );
   });
@@ -207,41 +237,65 @@ describe("notes", () => {
     );
   });
 
-  test("a rater may update only the three rating fields", async () => {
-    await assertSucceeds(
-      updateDoc(doc(rater, "notes", NOTE), {
-        ratingSum: 4,
-        ratingCount: 1,
-        avgRating: 4,
+  test("the uploader cannot raise their own note's score while editing it", async () => {
+    // The shortest route to the top of the leaderboard used to be editing your
+    // own note, since ownership alone authorised the whole document.
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "Güncellenmiş başlık",
+        ratingSum: 500,
       }),
     );
+  });
+
+  test("a vote and the totals it implies are accepted together", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 4, { sum: 4, count: 1 }));
+  });
+
+  test("totals cannot move without a vote to justify them", async () => {
+    // This is the whole point of the getAfter() check: the note update is only
+    // authorised by a rating document written in the same commit.
+    await assertFails(
+      updateDoc(doc(rater, "notes", NOTE), {
+        ratingSum: 500,
+        ratingCount: 100,
+        avgRating: 5,
+      }),
+    );
+  });
+
+  test("the totals must match the vote, not exceed it", async () => {
+    // Every value here stays inside the range checks, so the only thing that can
+    // reject them is the arithmetic: a 1-star vote claiming a sum of 5, and a
+    // 5-star vote claiming a second voter that does not exist.
+    await assertFails(vote(rater, RATER, NOTE, 1, { sum: 5, count: 1 }));
+    await assertFails(vote(rater, RATER, NOTE, 5, { sum: 5, count: 2 }));
+    await assertFails(vote(rater, RATER, NOTE, 3, { sum: 3, count: 0 }));
+  });
+
+  test("changing a vote moves the sum by the difference and leaves the count", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 2, { sum: 2, count: 1 }));
+    await assertSucceeds(vote(rater, RATER, NOTE, 5, { sum: 5, count: 1 }));
+  });
+
+  test("a changed vote cannot be counted twice", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 2, { sum: 2, count: 1 }));
+    await assertFails(vote(rater, RATER, NOTE, 5, { sum: 5, count: 2 }));
+  });
+
+  test("nobody can rate their own note", async () => {
+    await assertFails(vote(owner, OWNER, NOTE, 5, { sum: 5, count: 1 }));
+  });
+
+  test("a vote cannot be laundered through someone else's rating document", async () => {
+    // Writing the totals while pointing getAfter at a rating the caller does not
+    // own: the rating rule rejects the forged document, so the batch fails whole.
+    await assertFails(vote(rater, OWNER, NOTE, 5, { sum: 5, count: 1 }));
   });
 
   test("a rating update cannot carry a metadata change with it", async () => {
     await assertFails(
-      updateDoc(doc(rater, "notes", NOTE), {
-        ratingSum: 4,
-        ratingCount: 1,
-        avgRating: 4,
-        title: "Ele geçirildi",
-      }),
-    );
-  });
-
-  test("rating totals cannot go negative", async () => {
-    await assertFails(
-      updateDoc(doc(rater, "notes", NOTE), {
-        ratingSum: -1,
-        ratingCount: 1,
-        avgRating: 0,
-      }),
-    );
-    await assertFails(
-      updateDoc(doc(rater, "notes", NOTE), {
-        ratingSum: 4,
-        ratingCount: -1,
-        avgRating: 4,
-      }),
+      vote(rater, RATER, NOTE, 4, { sum: 4, count: 1, extra: { title: "Ele geçirildi" } }),
     );
   });
 
@@ -264,6 +318,8 @@ describe("note content", () => {
       title: "Note",
       uploaderUid: RATER,
       department: "Bilgisayar Mühendisliği",
+      ratingSum: 0,
+      ratingCount: 0,
     });
     batch.set(doc(rater, "notes", "batched", "content", "file"), {
       fileData: "ZmFrZQ==",
