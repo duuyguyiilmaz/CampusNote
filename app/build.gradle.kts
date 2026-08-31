@@ -40,6 +40,14 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric ekranı gerçekten şişiriyor, o yüzden layout ve string
+            // kaynaklarının birim test classpath'inde bulunması gerekiyor.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -64,6 +72,12 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.androidx.arch.core.testing)
     testImplementation(libs.kotlinx.coroutines.test)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+
+    // Ekran testleri de JVM'de koşuyor; ayrı bir androidTest kaynak kümesi yok.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.androidx.espresso.core)
+    testImplementation(libs.androidx.fragment.testing)
+    // FragmentScenario'nun fragment'ı barındıracak boş activity'si buradan geliyor.
+    debugImplementation(libs.androidx.fragment.testing.manifest)
 }

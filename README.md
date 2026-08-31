@@ -122,7 +122,7 @@ flowchart TD
 | Auth | Firebase Authentication (email/password) |
 | Database | Cloud Firestore |
 | Build | Gradle 8.13, AGP 8.13.2, version catalog |
-| Tests | JUnit 4, `kotlinx-coroutines-test`, `androidx.arch.core:core-testing` |
+| Tests | JUnit 4, `kotlinx-coroutines-test`, `androidx.arch.core:core-testing`, Robolectric + Espresso |
 
 Colours live only in [`colors.xml`](app/src/main/res/values/colors.xml). No layout or
 drawable writes a raw hex, so a tone can be found, counted and changed in one place.
@@ -272,9 +272,10 @@ emulator on API 24+.
 ./gradlew testDebugUnitTest
 ```
 
-96 JVM unit tests, no emulator and no network. They cover the layers where a bug would
-be invisible rather than loud: the scoring arithmetic, the decision logic in every
-ViewModel, and the list diffing that decides which rows get redrawn.
+102 JVM tests, no emulator and no network. They cover the layers where a bug would be
+invisible rather than loud: the scoring arithmetic, the decision logic in every
+ViewModel, the list diffing that decides which rows get redrawn, and — for the feature
+the app is built around — what the screen actually shows.
 
 | Suite | What it pins down |
 |---|---|
@@ -287,6 +288,7 @@ ViewModel, and the list diffing that decides which rows get redrawn.
 | `LoginViewModelTest`, `RegisterViewModelTest` | State transitions, and which of registration's two steps — auth account or profile document — failed. |
 | `LeaderboardViewModelTest`, `MainViewModelTest`, `UploaderNameTest` | Empty vs. content, session routing, and the uploader-name masking shared by three screens. |
 | `PostAdapterTest`, `LeaderboardAdapterTest` | Which rows a `DiffUtil` pass marks as changed. The leaderboard case is the sharp one: a note's medal depends on its rank, so a note that swapped places without changing must still be rebound, or the gold medal stays on the row it left. |
+| `FeedScreenTest` | The contribution gate as a user meets it — the lock and its way out, the unlocked feed and its notes. See [Screen tests](#screen-tests). |
 
 ViewModel tests use hand-written fakes of the repository interfaces
 ([`FakeRepositories.kt`](app/src/test/java/duygu/yilmaz/campusnote/testing/FakeRepositories.kt))
@@ -298,6 +300,27 @@ ViewModel do" instead of a list of stubbed calls.
 swaps in a `StandardTestDispatcher`. It queues coroutines until `advanceUntilIdle()`,
 which is what lets the tests assert the intermediate `Loading` state and the
 double-submit guards that depend on it.
+
+### Screen tests
+
+Every other test above stops at the ViewModel. That leaves a gap the ViewModel cannot
+see: `FeedViewModel` deciding `Locked` is not the same as the lock appearing on screen.
+Swap the two `showFeed()` calls in `FeedFragment` and every one of those tests still
+passes while the feed opens to everyone.
+
+[`FeedScreenTest`](app/src/test/java/duygu/yilmaz/campusnote/ui/feed/FeedScreenTest.kt)
+closes that gap for the gate — the one feature the app is built around. It inflates the
+fragment for real and asserts with Espresso what is visible: the lock and the upload
+button that is the only way past it, or the feed and the notes in it.
+
+The tests run under Robolectric, on the JVM, in the same `testDebugUnitTest` task as
+everything else — no emulator, no separate CI job, no `androidTest` source set. The
+fragment takes a `ViewModelProvider.Factory` that is null in production and set by the
+test through a `FragmentFactory`, which is what lets the existing repository fakes drive
+a real screen.
+
+The inverted-gate mutation above is not hypothetical: applying it turns five of these
+six tests red and leaves all 96 other tests green.
 
 ### Rules tests
 
@@ -368,7 +391,8 @@ app/src/main/java/duygu/yilmaz/campusnote/
 app/src/test/java/duygu/yilmaz/campusnote/
 ├── data/model/         RatingCalculatorTest, UploaderNameTest
 ├── testing/            fakes, fixtures, MainDispatcherRule
-└── ui/                 one test class per ViewModel
+└── ui/                 one test class per ViewModel, the two adapter
+                        diff tests, and FeedScreenTest
 
 firestore-tests/        emulator-backed tests for firestore.rules
 ```
