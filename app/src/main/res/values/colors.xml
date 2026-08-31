@@ -1,38 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
 
+    <!--
+      Uygulamanın tam paleti. Layout ve drawable dosyalarında ham hex kullanılmıyor;
+      bir renk buraya girmeden ekrana çıkmamalı, aksi halde aynı tonun kaç yerde
+      geçtiği ve değiştirilince nerelerin etkileneceği görünmez oluyor.
+    -->
+
+    <!-- Arka plan gradyanı: gradient_background.xml bu üçünü sırayla kullanır. -->
     <color name="gradient_start">#1A2D5A</color>
     <color name="gradient_mid">#2A4080</color>
     <color name="gradient_end">#3D5BA8</color>
 
-    <color name="primary">#1F2E5A</color>
+    <!--
+      Gradyanın üzerinde duran koyu lacivert yüzeyler, en koyudan en açığa.
+      Aralarındaki farklar küçük ama kasıtlı: kart, kartın içindeki kart ve
+      kartın kenarlığı bu sıraya göre ayrışıyor.
+    -->
+    <color name="surface_darkest">#0F1E44</color>
     <color name="primary_dark">#162042</color>
+    <color name="surface_card">#1A2A55</color>
+    <color name="surface_input">#1A2A5E</color>
+    <color name="surface_raised">#1E2D5A</color>
+    <color name="primary">#1F2E5A</color>
+    <color name="surface_border">#2A3F7E</color>
     <color name="primary_light">#2E437A</color>
+    <color name="surface_border_light">#3D5A9E</color>
+
+    <!--
+      Giriş ve kayıt formları koyu zemin yerine açık bir kart üzerinde duruyor,
+      bu yüzden metin alanlarının kendi açık paleti var.
+    -->
+    <color name="input_background">#F5F7FA</color>
+    <color name="input_stroke">#D0D6E0</color>
+    <color name="input_hint">#8A94A6</color>
+    <color name="input_text">#1A1A1A</color>
+
+    <!-- Vurgular. -->
     <color name="accent">#4F8CFF</color>
+    <color name="accent_vivid">#3D5AFE</color>
 
+    <!--
+      Üç turuncu birbirine çok yakın ve bu bir tasarım tutarsızlığı — ama farkları
+      gerçek, o yüzden tek renge indirmek görünümü değiştirirdi. Ayrı isimler en
+      azından üç ton olduğunu görünür kılıyor.
+    -->
     <color name="soft_orange">#F28A55</color>
+    <color name="soft_orange_light">#F0945F</color>
+    <color name="soft_orange_muted">#F4A261</color>
 
-    <color name="background">#F2F4F7</color>
-    <color name="surface">#FFFFFF</color>
-
-    <color name="text_primary">#1C2A4A</color>
-    <color name="text_secondary">#6B7280</color>
-    <color name="text_white">#FFFFFF</color>
-
-    <color name="gold">#FFD700</color>
-    <color name="error">#EF4444</color>
-    <color name="divider">#E5E7EB</color>
-    <color name="orange">#FF8C00</color>
+    <!-- Metin. -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
     <color name="text_white_80">#CCFFFFFF</color>
+    <color name="text_muted">#B4C1E3</color>
+
+    <!-- Koyu zemin üzerinde saydam beyaz katman; sayı opaklığı verir. -->
+    <color name="overlay_white_12">#20FFFFFF</color>
+
+    <color name="error">#FF6B6B</color>
 
     <!-- Puanlama yıldızları: dolu yıldız marka turuncusunu kullanır. -->
     <color name="star_filled">@color/soft_orange</color>
     <color name="star_empty">#AAB6D6</color>
 
     <!-- Liderlik tablosu ilk üç sıra -->
-    <color name="rank_gold">@color/gold</color>
+    <color name="rank_gold">#FFD700</color>
     <color name="rank_silver">#C0C0C0</color>
     <color name="rank_bronze">#CD7F32</color>
 

@@ -8,9 +8,9 @@
     android:layout_marginHorizontal="16dp"
     android:layout_marginVertical="8dp"
     app:cardCornerRadius="16dp"
-    app:cardBackgroundColor="#1E2D5A"
+    app:cardBackgroundColor="@color/surface_raised"
     app:cardElevation="4dp"
-    app:strokeColor="#2A3F7E"
+    app:strokeColor="@color/surface_border"
     app:strokeWidth="1dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -26,7 +26,7 @@
             android:layout_height="48dp"
             android:gravity="center"
             android:textSize="10sp"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/white"
             android:textStyle="bold"
             android:background="@drawable/blob_blue"
             app:layout_constraintTop_toTopOf="parent"
@@ -42,7 +42,7 @@
             android:layout_marginEnd="8dp"
             android:textStyle="bold"
             android:textSize="15sp"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/white"
             android:maxLines="2"
             android:ellipsize="end"
             app:layout_constraintTop_toTopOf="parent"
@@ -57,7 +57,7 @@
             android:layout_marginStart="12dp"
             android:layout_marginTop="2dp"
             android:textSize="12sp"
-            android:textColor="#AAB6D6"
+            android:textColor="@color/star_empty"
             android:maxLines="1"
             android:ellipsize="end"
             app:layout_constraintTop_toBottomOf="@id/tvTitle"
@@ -72,7 +72,7 @@
             android:layout_marginStart="12dp"
             android:layout_marginTop="2dp"
             android:textSize="12sp"
-            android:textColor="#AAB6D6"
+            android:textColor="@color/star_empty"
             android:maxLines="1"
             android:ellipsize="end"
             app:layout_constraintTop_toBottomOf="@id/tvUploader"
@@ -99,14 +99,14 @@
                 tools:text="4.5"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#FFFFFF"/>
+                android:textColor="@color/white"/>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/label_points"
                 android:textSize="10sp"
-                android:textColor="#AAB6D6"/>
+                android:textColor="@color/star_empty"/>
 
             <TextView
                 android:id="@+id/tvRatingCount"
@@ -114,7 +114,7 @@
                 android:layout_height="wrap_content"
                 tools:text="4 oy"
                 android:textSize="10sp"
-                android:textColor="#AAB6D6"/>
+                android:textColor="@color/star_empty"/>
 
         </LinearLayout>
 
@@ -126,11 +126,11 @@
             android:layout_marginEnd="8dp"
             android:text="@string/action_edit"
             android:textSize="12sp"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/white"
             android:visibility="gone"
             app:cornerRadius="12dp"
-            app:backgroundTint="#2A3F7E"
-            app:strokeColor="#3D5AFE"
+            app:backgroundTint="@color/surface_border"
+            app:strokeColor="@color/accent_vivid"
             app:strokeWidth="1dp"
             app:layout_constraintTop_toBottomOf="@id/tvDesc"
             app:layout_constraintStart_toEndOf="@id/tvDept"
@@ -144,11 +144,11 @@
             android:layout_marginTop="12dp"
             android:text="@string/action_delete"
             android:textSize="12sp"
-            android:textColor="#AAB6D6"
+            android:textColor="@color/star_empty"
             android:visibility="gone"
             app:cornerRadius="12dp"
-            app:backgroundTint="#1A2A5E"
-            app:strokeColor="#2A3F7E"
+            app:backgroundTint="@color/surface_input"
+            app:strokeColor="@color/surface_border"
             app:strokeWidth="1dp"
             app:layout_constraintTop_toBottomOf="@id/tvDesc"
             app:layout_constraintEnd_toEndOf="parent"/>

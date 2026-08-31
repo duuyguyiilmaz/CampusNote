@@ -74,7 +74,7 @@
         android:layout_marginStart="72dp"
         android:layout_marginEnd="72dp"
         app:cornerRadius="28dp"
-        app:backgroundTint="#1E2D5A"
+        app:backgroundTint="@color/surface_raised"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>

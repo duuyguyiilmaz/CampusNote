@@ -34,7 +34,7 @@
             android:layout_gravity="center"
             app:cardCornerRadius="45dp"
             app:cardElevation="0dp"
-            app:cardBackgroundColor="#1A2A55">
+            app:cardBackgroundColor="@color/surface_card">
 
             <TextView
                 android:id="@+id/tvAvatar"
@@ -192,7 +192,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/profile_points_target"
                     android:textSize="16sp"
-                    android:textColor="#AAB6D6"
+                    android:textColor="@color/star_empty"
                     android:fontFamily="@font/poppins_regular"/>
             </LinearLayout>
 
@@ -214,7 +214,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/profile_points_hint"
                 android:textSize="12sp"
-                android:textColor="#AAB6D6"
+                android:textColor="@color/star_empty"
                 android:fontFamily="@font/poppins_regular"/>
         </LinearLayout>
 
@@ -274,7 +274,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/profile_discounts_locked"
                     android:textSize="13sp"
-                    android:textColor="#AAB6D6"
+                    android:textColor="@color/star_empty"
                     android:gravity="center"
                     android:fontFamily="@font/poppins_regular"/>
             </LinearLayout>
@@ -324,7 +324,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/discount_cafe_detail"
                             android:textSize="11sp"
-                            android:textColor="#AAB6D6"/>
+                            android:textColor="@color/star_empty"/>
                     </LinearLayout>
 
                     <TextView
@@ -374,7 +374,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/discount_pizza_detail"
                             android:textSize="11sp"
-                            android:textColor="#AAB6D6"/>
+                            android:textColor="@color/star_empty"/>
                     </LinearLayout>
 
                     <TextView
@@ -423,7 +423,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/discount_bookstore_detail"
                             android:textSize="11sp"
-                            android:textColor="#AAB6D6"/>
+                            android:textColor="@color/star_empty"/>
                     </LinearLayout>
 
                     <TextView
@@ -518,7 +518,7 @@
             android:layout_marginTop="24dp"
             app:cornerRadius="28dp"
             app:backgroundTint="@color/primary"
-            app:strokeColor="#2A3F7E"
+            app:strokeColor="@color/surface_border"
             app:strokeWidth="1dp"
             app:icon="@drawable/ic_logout"
             app:iconTint="@color/white"

@@ -37,7 +37,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="120dp"
-            android:indeterminateTint="#F0945F"
+            android:indeterminateTint="@color/soft_orange_light"
             app:layout_constraintTop_toBottomOf="@id/btnBack"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>
@@ -93,7 +93,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:textColor="#AAB6D6"
+                android:textColor="@color/star_empty"
                 android:textSize="14sp"
                 android:gravity="center_vertical"
                 tools:text="mobile programming"/>
@@ -117,7 +117,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_profile"
                 android:importantForAccessibility="no"
-                app:tint="#F0945F"/>
+                app:tint="@color/soft_orange_light"/>
 
             <TextView
                 android:id="@+id/tvUploader"
@@ -154,13 +154,13 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:src="@drawable/ic_description"
-                    app:tint="#F0945F"/>
+                    app:tint="@color/soft_orange_light"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/label_description"
-                    android:textColor="#F0945F"
+                    android:textColor="@color/soft_orange_light"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:layout_marginStart="6dp"/>
@@ -202,7 +202,7 @@
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:src="@drawable/ic_pdf"
-                    app:tint="#F0945F"/>
+                    app:tint="@color/soft_orange_light"/>
 
                 <TextView
                     android:id="@+id/tvPdfFileName"
@@ -227,7 +227,7 @@
                 android:textStyle="bold"
                 android:layout_marginTop="12dp"
                 app:cornerRadius="24dp"
-                app:backgroundTint="#F0945F"/>
+                app:backgroundTint="@color/soft_orange_light"/>
         </LinearLayout>
 
         <!-- Fotoğraf kartı (sadece foto varsa görünür) -->
@@ -251,7 +251,7 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="130dp"
                 android:layout_marginBottom="130dp"
-                android:indeterminateTint="#F0945F"/>
+                android:indeterminateTint="@color/soft_orange_light"/>
 
             <ImageView
                 android:contentDescription="@string/note_image_description"
@@ -259,7 +259,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="300dp"
                 android:scaleType="centerCrop"
-                android:background="#20FFFFFF"
+                android:background="@color/overlay_white_12"
                 android:visibility="gone"/>
         </LinearLayout>
 
@@ -282,7 +282,7 @@
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:src="@drawable/ic_star_filled"
-                app:tint="#F0945F"/>
+                app:tint="@color/soft_orange_light"/>
 
             <TextView
                 android:id="@+id/tvAvgRating"
@@ -300,7 +300,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
-                android:textColor="#AAB6D6"
+                android:textColor="@color/star_empty"
                 android:textSize="14sp"
                 tools:text="(1 oy)"/>
         </LinearLayout>
@@ -317,7 +317,7 @@
             android:layout_marginTop="20dp"
             android:layout_marginBottom="24dp"
             app:cornerRadius="28dp"
-            app:backgroundTint="#F0945F"
+            app:backgroundTint="@color/soft_orange_light"
             app:layout_constraintTop_toBottomOf="@id/layoutRatingInfo"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>

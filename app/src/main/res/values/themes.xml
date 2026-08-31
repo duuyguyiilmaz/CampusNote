@@ -23,7 +23,7 @@
     <style name="AppText.Title" parent="AppText.Semibold">
         <item name="android:textSize">28sp</item>
         <item name="android:letterSpacing">0.02</item>
-        <item name="android:textColor">@color/text_white</item>
+        <item name="android:textColor">@color/white</item>
     </style>
 
     <style name="AppText.Subtitle" parent="AppText.Medium">
@@ -32,10 +32,6 @@
 
     <style name="AppText.Label" parent="AppText.Medium">
         <item name="android:textSize">14sp</item>
-    </style>
-
-    <style name="AppText.Body" parent="AppText.Regular">
-        <item name="android:textSize">16sp</item>
     </style>
 
     <style name="AppText.Caption" parent="AppText.Medium">
@@ -55,7 +51,7 @@
 
     <style name="AppText.CardTitle" parent="AppText.Semibold">
         <item name="android:textSize">16sp</item>
-        <item name="android:textColor">#F0945F</item>
+        <item name="android:textColor">@color/soft_orange_light</item>
     </style>
 
     <style name="AppText.CardBody" parent="AppText.Regular">
@@ -63,9 +59,6 @@
         <item name="android:textColor">@color/text_white_80</item>
     </style>
 
-    <style name="BottomNavText">
-        <item name="android:textSize">11sp</item>
-    </style>
     <style name="TransparentDialog" parent="Theme.MaterialComponents.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:backgroundDimEnabled">true</item>
