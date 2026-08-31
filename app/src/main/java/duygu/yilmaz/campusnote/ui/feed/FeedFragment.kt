@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.annotation.VisibleForTesting
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -22,8 +23,19 @@ class FeedFragment : Fragment() {
 
     private lateinit var adapter: PostAdapter
 
+    /**
+     * Yalnızca ekran testlerinin sahte repository'lerle kurulmuş bir ViewModel
+     * verebilmesi için var; üretimde her zaman null kalır ve varsayılan fabrika
+     * kullanılır. [FeedViewModel]'in parametreleri varsayılan değerli olduğu için
+     * varsayılan fabrika onu argümansız kurabiliyor.
+     */
+    @VisibleForTesting
+    internal var viewModelFactory: ViewModelProvider.Factory? = null
+
     private val viewModel: FeedViewModel by lazy {
-        ViewModelProvider(this)[FeedViewModel::class.java]
+        viewModelFactory
+            ?.let { ViewModelProvider(this, it)[FeedViewModel::class.java] }
+            ?: ViewModelProvider(this)[FeedViewModel::class.java]
     }
 
     override fun onCreateView(
