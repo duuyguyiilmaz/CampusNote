@@ -362,6 +362,41 @@ failed assertion rather than a failed setup. Each suite asserts both directions 
 allowed write succeeding and the forged one being denied — because a rule that rejects
 everything would otherwise pass a suite made only of `assertFails`.
 
+---
+
+## Data migrations
+
+The feed and the leaderboard currently download every note in the department and sort in
+the client. Paginating them means ordering in the query instead — and Firestore's
+ordering has two behaviours that turn old data into damage a user can see:
+
+- **A document that lacks the ordered field is excluded from the query.** Not sorted
+  last: absent. A note written before `createdAt` existed would vanish from the feed
+  with nothing to indicate it ever had.
+- **Values sort by type before value, and numbers come before timestamps.** A note whose
+  `createdAt` is epoch millis would land below every timestamped note whatever its date.
+
+`toPost()` still reads both shapes, which is the evidence that both exist. So the data is
+normalised before the ordering changes, not after:
+
+```bash
+cd firestore-tests
+npm run backfill:created-at -- --project <your-project-id>            # reports only
+npm run backfill:created-at -- --project <your-project-id> --apply    # writes
+```
+
+It needs application-default credentials (`gcloud auth application-default login`) and
+is a dry run unless `--apply` is passed. Notes already carrying a `Timestamp` are left
+alone, so it is safe to re-run after a partial failure. A note with no date anywhere is
+given the epoch rather than the current time — inventing a recent date would float
+undated legacy notes to the top of every feed, which is a louder lie than showing them
+last — and the report says how many were treated that way before it writes anything.
+
+[`backfill-created-at.test.js`](firestore-tests/backfill-created-at.test.js) runs it
+against the emulator with legacy-shaped documents, including the assertion that matters
+most: before the migration an ordered query over two notes returns one of them, and
+after it returns both.
+
 ### Continuous integration
 
 [`.github/workflows/android.yml`](.github/workflows/android.yml) runs on every push to
@@ -402,7 +437,8 @@ app/src/test/java/duygu/yilmaz/campusnote/
 └── ui/                 one test class per ViewModel, the two adapter
                         diff tests, and FeedScreenTest
 
-firestore-tests/        emulator-backed tests for firestore.rules
+firestore-tests/        emulator-backed tests for firestore.rules,
+                        plus the createdAt backfill and its own test
 ```
 
 ---
