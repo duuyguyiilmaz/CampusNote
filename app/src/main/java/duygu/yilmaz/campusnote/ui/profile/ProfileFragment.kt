@@ -54,7 +54,6 @@ class ProfileFragment : Fragment() {
 
     private fun setupAdapter() {
         myNotesAdapter = PostAdapter(
-            mutableListOf(),
             onEditClick = { post ->
                 val editFrag = EditNoteFragment.newInstance(post.id)
                 parentFragmentManager.beginTransaction()

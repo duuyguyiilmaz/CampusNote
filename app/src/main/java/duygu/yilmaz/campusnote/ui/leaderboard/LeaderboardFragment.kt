@@ -34,7 +34,7 @@ class LeaderboardFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        adapter = LeaderboardAdapter(mutableListOf())
+        adapter = LeaderboardAdapter()
         binding.rvLeaderboard.layoutManager = LinearLayoutManager(requireContext())
         binding.rvLeaderboard.adapter = adapter
 

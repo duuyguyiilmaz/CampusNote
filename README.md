@@ -210,9 +210,6 @@ confirmation step during registration.
 **No pagination.** The feed and leaderboard read every matching note and sort in
 memory. Fine at course-project scale, wrong at department scale.
 
-**`notifyDataSetChanged()` instead of `DiffUtil`.** The adapters rebuild the whole list
-on every update, losing item animations.
-
 **Deleting a note reports failure with a `Toast`.** Unlike a failed read, the user can
 repeat a failed delete by tapping the button again, so the toast does not leave them
 stuck — but the retry is still theirs to figure out. Offering it in the snackbar would
@@ -275,9 +272,9 @@ emulator on API 24+.
 ./gradlew testDebugUnitTest
 ```
 
-87 JVM unit tests, no emulator and no network. They cover the two layers where a bug
-would be invisible rather than loud: the scoring arithmetic, and the decision logic in
-every ViewModel.
+96 JVM unit tests, no emulator and no network. They cover the layers where a bug would
+be invisible rather than loud: the scoring arithmetic, the decision logic in every
+ViewModel, and the list diffing that decides which rows get redrawn.
 
 | Suite | What it pins down |
 |---|---|
@@ -289,6 +286,7 @@ every ViewModel.
 | `ProfileViewModelTest` | Total points summed from the user's own notes, and note deletion. |
 | `LoginViewModelTest`, `RegisterViewModelTest` | State transitions, and which of registration's two steps — auth account or profile document — failed. |
 | `LeaderboardViewModelTest`, `MainViewModelTest`, `UploaderNameTest` | Empty vs. content, session routing, and the uploader-name masking shared by three screens. |
+| `PostAdapterTest`, `LeaderboardAdapterTest` | Which rows a `DiffUtil` pass marks as changed. The leaderboard case is the sharp one: a note's medal depends on its rank, so a note that swapped places without changing must still be rebound, or the gold medal stays on the row it left. |
 
 ViewModel tests use hand-written fakes of the repository interfaces
 ([`FakeRepositories.kt`](app/src/test/java/duygu/yilmaz/campusnote/testing/FakeRepositories.kt))

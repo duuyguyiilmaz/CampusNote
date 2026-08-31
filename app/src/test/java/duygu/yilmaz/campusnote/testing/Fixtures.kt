@@ -1,6 +1,7 @@
 package duygu.yilmaz.campusnote.testing
 
 import duygu.yilmaz.campusnote.data.model.AuthenticatedUser
+import duygu.yilmaz.campusnote.data.model.LeaderboardEntry
 import duygu.yilmaz.campusnote.data.model.NoteDraft
 import duygu.yilmaz.campusnote.data.model.Post
 import duygu.yilmaz.campusnote.data.model.UserProfile
@@ -39,6 +40,20 @@ fun post(
     uploaderUid = uploaderUid,
     ratingSum = ratingSum,
     fileType = fileType
+)
+
+fun leaderboardEntry(
+    docId: String = "note-1",
+    title: String = "Veri Yapıları Özeti",
+    ratingSum: Long = 10L,
+    ratingCount: Long = 2L
+) = LeaderboardEntry(
+    docId = docId,
+    title = title,
+    uploaderEmail = "baskasi@ogr.akdeniz.edu.tr",
+    department = "Bilgisayar Mühendisliği",
+    ratingCount = ratingCount,
+    ratingSum = ratingSum
 )
 
 fun noteDraft(

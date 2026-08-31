@@ -39,7 +39,6 @@ class FeedFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         adapter = PostAdapter(
-            mutableListOf(),
             onItemClick = { post ->
                 val fragment = NoteDetailFragment.newInstance(post.id)
 
