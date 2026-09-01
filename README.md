@@ -59,9 +59,21 @@ the name, derived by
 
 ## Architecture
 
-The app follows MVVM with a repository layer. Firebase types stay behind the
-repositories and never reach the `ui` package, and every Firebase call is a `suspend`
-function bridged with `.await()`, so none of them block the main thread.
+The app follows MVVM with a repository layer. Every Firebase call is a `suspend`
+function bridged with `.await()`, so none of them block the main thread, and Firebase
+data types — `DocumentSnapshot`, `Query`, `Timestamp` — stop at the repositories; the
+`ui` package only ever sees the plain data classes in `data/model`.
+
+Two places do reach across that line, and calling the separation absolute would be
+overstating it. Each ViewModel defaults its constructor to the Firebase-backed
+implementation (`AuthRepository = FirebaseAuthRepository()`), which is what lets the
+Activity create it with no wiring — the interface is still what the body depends on, and
+what every test substitutes, but the default names a concrete Firebase class. And
+[`AuthErrorMessages`](app/src/main/java/duygu/yilmaz/campusnote/ui/auth/AuthErrorMessages.kt)
+matches on `FirebaseAuthException.errorCode` to pick an error message, because that code
+is the only stable description of what went wrong; the alternative, translating every
+failure into an app-specific type at the repository, is more indirection than one screen's
+error text is worth. Both are deliberate; neither is invisible.
 
 ```mermaid
 flowchart TD
@@ -287,6 +299,28 @@ They are covered by their own test suite; see [Rules tests](#rules-tests).
 ## Known limitations
 
 Honest list of things a reviewer would spot, and why they are the way they are.
+
+**Nothing runs on a device in CI.** Every test here is JVM-only — Robolectric gives the
+screen tests a real fragment and real view inflation, but no emulator, no `androidTest`
+source set, no instrumentation run. So the things only a device settles — the file picker
+returning a URI the app cannot decode, an OEM keyboard, a configuration change mid-upload
+— are covered by running the app by hand and nothing else. The trade was deliberate:
+`testDebugUnitTest` finishes in under a minute and runs on every push, and an emulator job
+that takes ten would have been switched off.
+
+**No test executes a real Firestore query.** The ViewModel tests substitute fakes of the
+repository *interfaces*, so the `whereEqualTo` / `orderBy` / `limit` calls that make up
+the actual queries never run — see [Tests](#tests). A test can prove the leaderboard asks
+for the right department; it cannot prove the query built from it filters on one. The
+security rules are the other half of that gap and they *are* tested, against the emulator,
+which is where a wrong filter would surface as a denial.
+
+**A green rules suite is not a deployed rule.** `firestore.rules` is tested against the
+emulator on every push, and that says the file is correct — not that the Firebase project
+is running it. The two drift the moment someone edits the rules in the Console, or forgets
+`firebase deploy --only firestore:rules` after a change here. Nothing in this repo can
+detect that; treat the deploy step as part of merging a rules change, not as an
+afterthought.
 
 **Rating totals are still computed on the client.** A Cloud Function would compute them
 server-side, and that needs the Blaze plan. The rules make up most of the difference —
