@@ -46,7 +46,7 @@ class PostAdapter(
             tvDesc.text = post.desc
             tvUploader.text = post.uploaderName
             tvDept.text = post.department.take(3).uppercase()
-            tvRating.text = String.format("%.1f", post.avgRating)
+            tvRating.text = post.ratingSum.toString()
             tvRatingCount.text = root.context.getString(R.string.vote_count, post.ratingCount)
 
             root.setOnClickListener {
@@ -88,7 +88,7 @@ class PostAdapter(
                 oldItem.id == newItem.id
 
             // Post bir data class; `==` bütün alanları karşılaştırıyor, dolayısıyla
-            // nota yeni bir oy geldiğinde avgRating farkı buradan yakalanıyor.
+            // nota yeni bir oy geldiğinde ratingSum farkı buradan yakalanıyor.
             override fun areContentsTheSame(oldItem: Post, newItem: Post) =
                 oldItem == newItem
         }

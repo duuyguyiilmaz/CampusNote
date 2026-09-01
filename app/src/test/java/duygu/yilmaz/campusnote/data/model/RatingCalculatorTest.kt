@@ -27,7 +27,6 @@ class RatingCalculatorTest {
 
         assertEquals(4L, totals.sum)
         assertEquals(1L, totals.count)
-        assertEquals(4.0, totals.average, DELTA)
         assertFalse(totals.updatedExistingRating)
     }
 
@@ -42,7 +41,6 @@ class RatingCalculatorTest {
 
         assertEquals(12L, totals.sum)
         assertEquals(3L, totals.count)
-        assertEquals(4.0, totals.average, DELTA)
     }
 
     @Test
@@ -56,7 +54,6 @@ class RatingCalculatorTest {
 
         assertEquals(10L, totals.sum)
         assertEquals(2L, totals.count)
-        assertEquals(5.0, totals.average, DELTA)
         assertTrue(totals.updatedExistingRating)
     }
 
@@ -98,7 +95,6 @@ class RatingCalculatorTest {
         )
 
         assertEquals(0L, totals.sum)
-        assertEquals(0.0, totals.average, DELTA)
     }
 
     @Test
@@ -112,21 +108,6 @@ class RatingCalculatorTest {
 
         assertEquals(1L, totals.count)
         assertEquals(8L, totals.sum)
-        assertEquals(8.0, totals.average, DELTA)
-    }
-
-    @Test
-    fun `ortalama tam bolunmeyen degerlerde de dogru hesaplanir`() {
-        val totals = RatingCalculator.recalculate(
-            currentSum = 9L,
-            currentCount = 2L,
-            previousRating = null,
-            newRating = 4
-        )
-
-        assertEquals(13L, totals.sum)
-        assertEquals(3L, totals.count)
-        assertEquals(13.0 / 3.0, totals.average, DELTA)
     }
 
     @Test
@@ -149,10 +130,5 @@ class RatingCalculatorTest {
         assertThrows(IllegalArgumentException::class.java) {
             RatingCalculator.recalculate(0L, 0L, null, newRating = -3)
         }
-    }
-
-    private companion object {
-        /** Kayan nokta karşılaştırması için tolerans. */
-        const val DELTA = 1e-9
     }
 }

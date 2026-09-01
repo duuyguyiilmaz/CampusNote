@@ -57,8 +57,7 @@ class FirebaseRatingRepository(
                 noteReference,
                 mapOf(
                     RATING_SUM_FIELD to totals.sum,
-                    RATING_COUNT_FIELD to totals.count,
-                    AVERAGE_RATING_FIELD to totals.average
+                    RATING_COUNT_FIELD to totals.count
                 )
             )
             transaction.set(
@@ -71,7 +70,6 @@ class FirebaseRatingRepository(
             )
 
             RatingResult(
-                average = totals.average,
                 count = totals.count,
                 sum = totals.sum,
                 updatedExistingRating = totals.updatedExistingRating
@@ -85,7 +83,6 @@ class FirebaseRatingRepository(
         const val UPLOADER_UID_FIELD = "uploaderUid"
         const val RATING_SUM_FIELD = "ratingSum"
         const val RATING_COUNT_FIELD = "ratingCount"
-        const val AVERAGE_RATING_FIELD = "avgRating"
         const val RATING_FIELD = "rating"
         const val USER_ID_FIELD = "uid"
         const val NOTE_ID_FIELD = "noteId"

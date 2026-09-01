@@ -32,7 +32,9 @@ The leaderboard screenshot shows live Cloud Firestore data read through a real-t
 snapshot listener; the accounts in it are test data. It was captured before the ranking
 was scoped to the viewer's own department, so the list it shows is wider than what the
 app now returns. Uploaders appear as the local part of their address rather than the
-full email — see
+full email — and since the change described under [Security rules](#security-rules) that
+is no longer a rendering choice: the address is never written to the note at all, only
+the name, derived by
 [`UploaderName.kt`](app/src/main/java/duygu/yilmaz/campusnote/data/model/UploaderName.kt).
 
 ---
@@ -46,7 +48,9 @@ full email — see
 - **Note upload** as PDF or image, with automatic image downscaling and compression
 - **Note rating** on a 1–5 scale; you cannot rate your own notes, and re-rating replaces
   your previous vote instead of adding a second one — both enforced by the security
-  rules, not just the app
+  rules, not just the app. A note's score is the running total of its votes, not an
+  average: the total is the one figure the rules can verify exactly (see
+  [Security rules](#security-rules))
 - **Leaderboard** ranking your department's top 50 notes by total score, with gold/silver/bronze placings
 - **Points and rewards** — your total is the score your own notes have earned; discounts unlock at 100 points
 - **Note management** — edit or delete your own notes from your profile
@@ -55,9 +59,21 @@ full email — see
 
 ## Architecture
 
-The app follows MVVM with a repository layer. Firebase types stay behind the
-repositories and never reach the `ui` package, and every Firebase call is a `suspend`
-function bridged with `.await()`, so none of them block the main thread.
+The app follows MVVM with a repository layer. Every Firebase call is a `suspend`
+function bridged with `.await()`, so none of them block the main thread, and Firebase
+data types — `DocumentSnapshot`, `Query`, `Timestamp` — stop at the repositories; the
+`ui` package only ever sees the plain data classes in `data/model`.
+
+Two places do reach across that line, and calling the separation absolute would be
+overstating it. Each ViewModel defaults its constructor to the Firebase-backed
+implementation (`AuthRepository = FirebaseAuthRepository()`), which is what lets the
+Activity create it with no wiring — the interface is still what the body depends on, and
+what every test substitutes, but the default names a concrete Firebase class. And
+[`AuthErrorMessages`](app/src/main/java/duygu/yilmaz/campusnote/ui/auth/AuthErrorMessages.kt)
+matches on `FirebaseAuthException.errorCode` to pick an error message, because that code
+is the only stable description of what went wrong; the alternative, translating every
+failure into an app-specific type at the repository, is more indirection than one screen's
+error text is worth. Both are deliberate; neither is invisible.
 
 ```mermaid
 flowchart TD
@@ -181,9 +197,9 @@ point total. Both were stored once and both drifted from the truth — see Key d
 |---|---|---|
 | `title`, `description`, `course`, `tag` | string | |
 | `department` | string | the feed and the leaderboard both filter on this |
-| `uploaderUid`, `uploaderEmail` | string | |
+| `uploaderUid`, `uploaderName` | string | `uploaderName` is the part before the `@`, and the only identity a note carries; the address itself is never written (see [Security rules](#security-rules)) |
 | `fileName`, `fileType`, `fileSize` | string / string / number | `fileType` is `pdf`, `image` or empty |
-| `ratingSum`, `ratingCount`, `avgRating` | number | denormalised so the feed needs no aggregation |
+| `ratingSum`, `ratingCount` | number | denormalised so the feed needs no aggregation; `ratingSum` is the score shown on every screen |
 | `createdAt`, `updatedAt` | timestamp | |
 
 **`notes/{noteId}/content/file`** — one field, `fileData`, holding the base64 file content.
@@ -206,6 +222,55 @@ The rules require authentication everywhere, restrict note edits and deletes to 
 uploader, and pin each rating document to its author's UID. The delete rule is the
 *only* ownership check on deletion — the app code does not verify it.
 
+**Reads are scoped, not merely filtered.** Every read used to be `if isSignedIn()`, so any
+signed-in student could pull every profile, every note and every attached file in the
+university. That the app only ever asked for its own department was a property of the app,
+and the app is not the only client anyone can write. Notes and their file subcollections
+are now readable only when their `department` matches the department on the caller's own
+profile, or the note is the caller's own. Firestore evaluates a list against the *query*
+rather than the documents it would return, so an unfiltered query is refused before it
+runs and the feed's `where department == …` filter becomes the condition for running
+rather than a courtesy. The second branch is not slack: the contribution gate and the
+profile screen query `where uploaderUid == me` with no department filter, and a
+single-branch rule rejected them outright — the feed opened empty in production, which is
+how the branch was found. Profiles went further and are
+readable only by their owner: all four `getUser` calls in the app pass the caller's own
+uid, and the leaderboard takes the uploader's name from the note, so the open rule was
+granting an access nobody needed.
+
+**A vote can only be deleted with its note.** `ratings` is a top-level collection
+rather than a subcollection, so deleting a note never touched the votes cast on it and
+the documents piled up unreachable — the rule was a flat `if false`, and rightly so on its
+own terms: a deleted vote does not lower the note's total but does hand the voter a fresh
+first-time vote, so free deletion was a way to pad a score. `existsAfter()` ties the two
+together instead. A vote may be deleted only when the same commit removes its note, and
+only by that note's owner, which is exactly what `deleteNote` now writes.
+
+**Attaching a file is owner-only too.** Creating a content document used to be open
+to any signed-in user, and the rules said why: a batch cannot `get()` its own
+uncommitted parent note, so ownership could not be checked. The `get()` half was true and
+the conclusion was not — `getAfter()` reads the state the commit will leave behind, and
+the rating rule was already using it for exactly this. Overwriting an existing file was
+blocked, but a note that had no file yet would take one from anybody.
+
+**The uploader's address is no longer stored.** Three screens showed
+`email.substringBefore("@")`, which kept the address off the screen but not out of the
+document — masking at render time is not a privacy boundary. Notes now carry
+`uploaderName` and nothing else identifying, the rule requires it to equal the local part
+of the caller's own token email, and writing an `uploaderEmail` field is refused. Existing
+notes are converted by a migration; see [Data migrations](#data-migrations).
+
+Creating a note is pinned to an exact shape. `hasOnly` plus `hasAll` fix the field set,
+so a missing field is refused as firmly as an invented one, and each field is then
+checked for type and size. Identity is taken from the session rather than the request:
+`uploaderUid` must be the caller's own uid, `uploaderName` must be the token email's own
+local part,
+`createdAt` must be `request.time`, and `department` must equal the department on the
+caller's own profile — a note cannot be filed into someone else's feed. Editing a note
+cannot move any of those either. Until this landed the rule checked only `uploaderUid`
+and the two score fields; everything else was open to a client that skipped the Android
+UI, which an attacker was never obliged to use.
+
 They also verify the scoring rather than trusting it. A vote writes the note's totals and
 the rating document in one atomic commit, and the rule for the note uses `getAfter()` to
 read the rating being written in that same commit, recompute the expected `ratingSum` and
@@ -216,9 +281,16 @@ own note is refused by the server rather than only by the client.
 The expected totals are the same arithmetic as
 [`RatingCalculator`](app/src/main/java/duygu/yilmaz/campusnote/data/model/RatingCalculation.kt),
 floors included — the client and the rule have to agree exactly, so the rule is written
-as that function's twin. `avgRating` is checked only for range: rules do integer
-division, so an exact comparison is not available, and it is a derived display field
-whose inputs are already pinned.
+as that function's twin.
+
+**There is no average any more.** A stored `avgRating` was the one score field the rules
+could not actually verify: rules do integer division, so it could only be range-checked
+as "a number between 0 and 5", which left a legitimate vote free to carry a fabricated
+average onto the screen — a note could show 5.0 on a single 1-star rating. Rather than
+guard a field that could not be pinned, the field is gone. Screens show `ratingSum`, the
+running total, which the rule already recomputes from the vote and matches exactly. Old
+documents still carry `avgRating`; nothing reads it, and the create rule refuses to write
+it again.
 
 They are covered by their own test suite; see [Rules tests](#rules-tests).
 
@@ -227,6 +299,28 @@ They are covered by their own test suite; see [Rules tests](#rules-tests).
 ## Known limitations
 
 Honest list of things a reviewer would spot, and why they are the way they are.
+
+**Nothing runs on a device in CI.** Every test here is JVM-only — Robolectric gives the
+screen tests a real fragment and real view inflation, but no emulator, no `androidTest`
+source set, no instrumentation run. So the things only a device settles — the file picker
+returning a URI the app cannot decode, an OEM keyboard, a configuration change mid-upload
+— are covered by running the app by hand and nothing else. The trade was deliberate:
+`testDebugUnitTest` finishes in under a minute and runs on every push, and an emulator job
+that takes ten would have been switched off.
+
+**No test executes a real Firestore query.** The ViewModel tests substitute fakes of the
+repository *interfaces*, so the `whereEqualTo` / `orderBy` / `limit` calls that make up
+the actual queries never run — see [Tests](#tests). A test can prove the leaderboard asks
+for the right department; it cannot prove the query built from it filters on one. The
+security rules are the other half of that gap and they *are* tested, against the emulator,
+which is where a wrong filter would surface as a denial.
+
+**A green rules suite is not a deployed rule.** `firestore.rules` is tested against the
+emulator on every push, and that says the file is correct — not that the Firebase project
+is running it. The two drift the moment someone edits the rules in the Console, or forgets
+`firebase deploy --only firestore:rules` after a change here. Nothing in this repo can
+detect that; treat the deploy step as part of merging a rules change, not as an
+afterthought.
 
 **Rating totals are still computed on the client.** A Cloud Function would compute them
 server-side, and that needs the Blaze plan. The rules make up most of the difference —
@@ -322,7 +416,7 @@ emulator on API 24+.
 ./gradlew testDebugUnitTest
 ```
 
-129 JVM tests, no emulator and no network. They cover the layers where a bug would be
+126 JVM tests, no emulator and no network. They cover the layers where a bug would be
 invisible rather than loud: the scoring arithmetic, the decision logic in every
 ViewModel, the list diffing that decides which rows get redrawn, and — for the feature
 the app is built around — what the screen actually shows.
@@ -394,7 +488,7 @@ enforces — who may delete a note, whether a score can move without a vote behi
 invisible to them. That is the layer an attacker actually meets: the Android client can
 be replaced, the rules cannot.
 
-38 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
+65 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
 [`firestore.rules`](firestore.rules) against the local Firestore emulator through
 `@firebase/rules-unit-testing`. `npm test` starts the emulator, runs the suite and shuts
 it down again; nothing touches the real project, and no billing account is involved.
@@ -402,10 +496,12 @@ it down again; nothing touches the real project, and no billing account is invol
 | Group | What it pins down |
 |---|---|
 | `signed-out access` | Every collection is closed to an unauthenticated client — the one guard shared by all four rule blocks. |
-| `users` | Self-registration only, the document id matching the `id` field, and that nobody updates a profile afterwards — including the two shapes of the old hole: awarding yourself points, and writing points onto someone else. |
-| `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
-| `note content` | The batched note-plus-file upload, owner-only replace and delete, and a test that deliberately asserts the *open* create rule, so the gap documented in `firestore.rules` cannot be closed by accident and go unnoticed. |
-| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range and the ban on deleting votes. |
+| `users` | Self-registration only, the document id matching the `id` field, that nobody updates a profile afterwards — including the two shapes of the old hole, awarding yourself points and writing points onto someone else — and that a profile is readable only by its owner. |
+| `notes` (reads) | A note in the reader's own department is readable and another department's note is not; an unfiltered query is refused, one filtered to the reader's own department is allowed, and one filtered to another department is refused. Two more cover the query the app actually builds for a profile: `where uploaderUid == me` is allowed without a department filter, and the same query for someone else's uid is refused. |
+| `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals, the department, or the identity fields; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
+| `note creation is pinned to an exact shape` | One test per way a hand-rolled request used to get through: an unexpected field, a missing one, a resurrected `avgRating`, another department, a forged `uploaderName`, an email address written onto a note, a client-chosen `createdAt`, a wrong type, and an empty or oversized title. Each asserts the refusal, so relaxing any single check turns exactly one test red. |
+| `note content` | The batched note-plus-file upload, owner-only create, replace and delete, that a file on another department's note cannot be read — otherwise the boundary is walked around through the file path — that a content document carrying anything but `fileData` is refused, and that a batch cannot pair a legitimate note of its own with a file smuggled onto someone else's. |
+| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range. Deletion has four: a vote cannot be removed on its own, not even by the note's owner; the owner may remove it in the same commit that deletes the note; a stranger cannot reach it by deleting a note they do not own; and a vote whose note is already gone stays refused, which is the gap the prune script covers. |
 | `unmatched paths` | A path no `match` block covers is denied, so adding a collection to the app without adding a rule fails closed rather than open. |
 
 Fixtures are seeded with `withSecurityRulesDisabled`, so a broken rule surfaces as a
@@ -448,6 +544,48 @@ against the emulator with legacy-shaped documents, including the assertion that 
 most: before the migration an ordered query over two notes returns one of them, and
 after it returns both.
 
+### Removing the uploader's email
+
+```bash
+cd firestore-tests
+npm run strip:uploader-email -- --project <your-project-id>            # reports only
+npm run strip:uploader-email -- --project <your-project-id> --apply    # writes
+```
+
+Notes written before the privacy change carry a full `uploaderEmail`. The screens only
+ever rendered the part before the `@`, so nothing on display changes — but the address was
+in the document, readable by every student in the department. This replaces it with
+`uploaderName` and deletes the address in the same update, so no note is ever left
+carrying both. Same contract as the backfill above: application-default credentials, a dry
+run unless `--apply` is passed, and safe to re-run after a partial failure. `toPost()`
+still derives the name from a legacy `uploaderEmail` when it finds one, so the app works
+before and after.
+
+[`strip-uploader-email.test.js`](firestore-tests/strip-uploader-email.test.js) runs it
+against the emulator, including the assertion the change exists for: afterwards no
+document in the collection has an `uploaderEmail` field at all.
+
+### Clearing orphaned votes
+
+```bash
+cd firestore-tests
+npm run prune:orphan-ratings -- --project <your-project-id>            # reports only
+npm run prune:orphan-ratings -- --project <your-project-id> --apply    # deletes
+```
+
+Votes cast on notes deleted before the change above are still in the `ratings`
+collection, and no client can reach them: the delete rule calls `get()` on the note, and
+a note that is gone turns that into an evaluation error, which fails closed. This is the
+only thing that can clear them. It reads both collections once and compares in memory
+rather than issuing a `get()` per vote, since the collection it is aimed at is one that
+has been accumulating. A rating carrying no `noteId` is reported and left alone —
+deleting on a guess is worse than saying so.
+
+[`prune-orphan-ratings.test.js`](firestore-tests/prune-orphan-ratings.test.js) runs it
+against the emulator: the orphan goes, the live vote stays, and the note id is read from
+the field rather than split out of the document id, which would be ambiguous whenever a
+uid contains an underscore.
+
 ### Continuous integration
 
 [`.github/workflows/android.yml`](.github/workflows/android.yml) runs on every push to
@@ -489,7 +627,7 @@ app/src/test/java/duygu/yilmaz/campusnote/
                         diff tests, and FeedScreenTest
 
 firestore-tests/        emulator-backed tests for firestore.rules,
-                        plus the createdAt backfill and its own test
+                        plus three data migrations and their own tests
 ```
 
 ---

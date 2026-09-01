@@ -25,7 +25,7 @@ fun post(
     id: String = "note-1",
     title: String = "Veri Yapıları Özeti",
     uploaderUid: String = "uid-2",
-    authorEmail: String = "baskasi@ogr.akdeniz.edu.tr",
+    uploaderName: String = "baskasi",
     department: String = "Bilgisayar Mühendisliği",
     ratingSum: Long = 0L,
     fileType: String = ""
@@ -33,7 +33,7 @@ fun post(
     id = id,
     title = title,
     desc = "",
-    authorEmail = authorEmail,
+    uploaderName = uploaderName,
     department = department,
     timeMills = 0L,
     uploaderUid = uploaderUid,
@@ -49,7 +49,7 @@ fun leaderboardEntry(
 ) = LeaderboardEntry(
     docId = docId,
     title = title,
-    uploaderEmail = "baskasi@ogr.akdeniz.edu.tr",
+    uploaderName = "baskasi",
     department = "Bilgisayar Mühendisliği",
     ratingCount = ratingCount,
     ratingSum = ratingSum

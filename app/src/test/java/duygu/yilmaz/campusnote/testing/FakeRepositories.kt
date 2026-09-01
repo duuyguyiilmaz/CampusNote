@@ -124,11 +124,11 @@ class FakeNoteRepository : NoteRepository {
     override suspend fun createNote(
         draft: NoteDraft,
         uploaderUid: String,
-        uploaderEmail: String,
+        uploaderName: String,
         department: String
     ) {
         createNoteError?.let { throw it }
-        createdNotes += CreatedNote(draft, uploaderUid, uploaderEmail, department)
+        createdNotes += CreatedNote(draft, uploaderUid, uploaderName, department)
     }
 
     override suspend fun getNoteFile(noteId: String): String? {
@@ -148,9 +148,9 @@ class FakeNoteRepository : NoteRepository {
 
     override fun observeNotesByUploader(
         uploaderUid: String,
-        defaultUploaderEmail: String
+        defaultUploaderName: String
     ): Flow<List<Post>> {
-        observedUploader = uploaderUid to defaultUploaderEmail
+        observedUploader = uploaderUid to defaultUploaderName
         return uploaderNotes
     }
 
@@ -182,7 +182,7 @@ class FakeNoteRepository : NoteRepository {
     data class CreatedNote(
         val draft: NoteDraft,
         val uploaderUid: String,
-        val uploaderEmail: String,
+        val uploaderName: String,
         val department: String
     )
 
@@ -195,7 +195,7 @@ class FakeNoteRepository : NoteRepository {
 
 class FakeRatingRepository : RatingRepository {
 
-    var result = RatingResult(average = 4.0, count = 2L, sum = 8L, updatedExistingRating = false)
+    var result = RatingResult(count = 2L, sum = 8L, updatedExistingRating = false)
     var error: Exception? = null
 
     val submissions = mutableListOf<Submission>()

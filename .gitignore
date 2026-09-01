@@ -26,3 +26,6 @@ ui-debug.log
 # Firebase client config — every developer supplies their own.
 # The committed template is app/google-services.json.example.
 /app/google-services.json
+
+# Local Claude Code settings — per-machine tool permissions, not project config.
+/.claude

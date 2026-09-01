@@ -4,7 +4,6 @@ package duygu.yilmaz.campusnote.data.model
 data class RatingTotals(
     val sum: Long,
     val count: Long,
-    val average: Double,
     /** Kullanıcı ilk kez mi oy verdi, yoksa eski oyunu mu değiştirdi. */
     val updatedExistingRating: Boolean
 )
@@ -53,12 +52,10 @@ object RatingCalculator {
 
         // Toplam hiçbir koşulda negatife düşmemeli; eski veriler bozuksa taban 0.
         val sum = (currentSum + delta).coerceAtLeast(0L)
-        val average = if (count == 0L) 0.0 else sum.toDouble() / count
 
         return RatingTotals(
             sum = sum,
             count = count,
-            average = average,
             updatedExistingRating = updatedExistingRating
         )
     }

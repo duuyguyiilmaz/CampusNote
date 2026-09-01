@@ -5,11 +5,16 @@ import {
   initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
+  collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { afterAll, beforeAll, beforeEach, describe, test } from "vitest";
@@ -19,6 +24,12 @@ import { afterAll, beforeAll, beforeEach, describe, test } from "vitest";
 const OWNER = "owner-uid";
 const RATER = "rater-uid";
 const NOTE = "note-1";
+const OWNER_EMAIL = "owner@ogr.akdeniz.edu.tr";
+const RATER_EMAIL = "rater@ogr.akdeniz.edu.tr";
+// The rule derives the only permitted name from the session's own address.
+const OWNER_NAME = "owner";
+const RATER_NAME = "rater";
+const DEPARTMENT = "Bilgisayar Mühendisliği";
 
 let testEnv;
 let owner;
@@ -35,8 +46,10 @@ beforeAll(async () => {
     },
   });
 
-  owner = testEnv.authenticatedContext(OWNER).firestore();
-  rater = testEnv.authenticatedContext(RATER).firestore();
+  // The note-create rule compares uploaderEmail against the session's token, so
+  // the contexts have to carry an email claim the way a real sign-in does.
+  owner = testEnv.authenticatedContext(OWNER, { email: OWNER_EMAIL }).firestore();
+  rater = testEnv.authenticatedContext(RATER, { email: RATER_EMAIL }).firestore();
   anonymous = testEnv.unauthenticatedContext().firestore();
 });
 
@@ -53,34 +66,55 @@ beforeEach(async () => {
     const db = context.firestore();
     await setDoc(doc(db, "users", OWNER), {
       id: OWNER,
-      email: "owner@ogr.akdeniz.edu.tr",
-      department: "Bilgisayar Mühendisliği",
+      email: OWNER_EMAIL,
+      department: DEPARTMENT,
       createdAt: 1,
     });
     await setDoc(doc(db, "users", RATER), {
       id: RATER,
-      email: "rater@ogr.akdeniz.edu.tr",
-      department: "Bilgisayar Mühendisliği",
+      email: RATER_EMAIL,
+      department: DEPARTMENT,
       createdAt: 1,
     });
     await setDoc(doc(db, "notes", NOTE), {
-      title: "Ders notu",
-      desc: "",
-      authorEmail: "owner@ogr.akdeniz.edu.tr",
-      department: "Bilgisayar Mühendisliği",
-      timeMills: 1,
-      uploaderUid: OWNER,
-      avgRating: 0,
-      ratingCount: 0,
-      ratingSum: 0,
-      fileName: "notes.pdf",
-      fileType: "pdf",
+      ...noteFields({ uploaderUid: OWNER, uploaderName: OWNER_NAME }),
+      createdAt: 1,
     });
     await setDoc(doc(db, "notes", NOTE, "content", "file"), {
       fileData: "ZmFrZQ==",
     });
   });
 });
+
+/**
+ * A note document in exactly the shape the create rule now demands.
+ *
+ * The rule pins the field set with hasOnly + hasAll, so tests can no longer write
+ * an approximation: a missing field is as fatal as a forged one. Keeping the shape
+ * in one place is what lets each test override the single field it is about and
+ * stay readable.
+ *
+ * `createdAt` defaults to a server timestamp because the rule requires
+ * request.time — a client-chosen date is one of the things being rejected.
+ */
+function noteFields(overrides = {}) {
+  return {
+    course: "Veri Yapıları",
+    title: "Ders notu",
+    description: "",
+    tag: "",
+    department: DEPARTMENT,
+    uploaderUid: RATER,
+    uploaderName: RATER_NAME,
+    createdAt: serverTimestamp(),
+    ratingSum: 0,
+    ratingCount: 0,
+    fileName: "notes.pdf",
+    fileType: "pdf",
+    fileSize: 1024,
+    ...overrides,
+  };
+}
 
 /**
  * Bir oyu uygulamanın yazdığı gibi yazar: notun toplamları ve oy dokümanı tek
@@ -96,7 +130,6 @@ function vote(db, uid, noteId, rating, { sum, count, extra = {} }) {
   batch.update(doc(db, "notes", noteId), {
     ratingSum: sum,
     ratingCount: count,
-    avgRating: count === 0 ? 0 : sum / count,
     ...extra,
   });
   batch.set(doc(db, "ratings", `${uid}_${noteId}`), {
@@ -125,9 +158,18 @@ describe("signed-out access", () => {
 });
 
 describe("users", () => {
-  test("a signed-in user may read any profile", async () => {
-    // The leaderboard and note detail screens show other people's profiles.
-    await assertSucceeds(getDoc(doc(rater, "users", OWNER)));
+  test("a user may read their own profile", async () => {
+    await assertSucceeds(getDoc(doc(rater, "users", RATER)));
+  });
+
+  /**
+   * Every getUser call in the app passes the caller's own uid — the leaderboard and
+   * note detail take the uploader's name from the note, not from a profile. The
+   * open read rule was an permission nobody used, and it handed any signed-in
+   * student every address and department in the university in one query.
+   */
+  test("a user cannot read someone else's profile", async () => {
+    await assertFails(getDoc(doc(rater, "users", OWNER)));
   });
 
   test("registration writes a profile whose id matches the caller", async () => {
@@ -188,40 +230,193 @@ describe("users", () => {
 });
 
 describe("notes", () => {
-  test("any signed-in user may read notes", async () => {
+  test("a note in the reader's own department can be read", async () => {
     await assertSucceeds(getDoc(doc(rater, "notes", NOTE)));
+  });
+
+  /**
+   * The app filters every feed and leaderboard query by department, but that was a
+   * rendering decision, not a boundary: a client talking to Firestore directly could
+   * drop the filter and pull every note in the university. Rules are evaluated
+   * against each document a query returns and the whole query fails if any is
+   * denied, so the filter is now the condition for the query to run at all.
+   */
+  test("a note in another department cannot be read", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "notes", "other-dept"), {
+        // Başkasının notu olmalı: kendi notun bölüm değişse de okunabilir kalıyor,
+        // o yüzden aynı fixture bu testi ölçmezdi.
+        ...noteFields({
+          department: "Makine Mühendisliği",
+          uploaderUid: OWNER,
+          uploaderName: OWNER_NAME,
+        }),
+        createdAt: 1,
+      });
+    });
+
+    await assertFails(getDoc(doc(rater, "notes", "other-dept")));
+  });
+
+  test("a query without the department filter is refused", async () => {
+    await assertFails(getDocs(collection(rater, "notes")));
+  });
+
+  test("a query filtered to the reader's own department is allowed", async () => {
+    await assertSucceeds(
+      getDocs(query(collection(rater, "notes"), where("department", "==", DEPARTMENT))),
+    );
+  });
+
+  /**
+   * The query the contribution gate and the profile screen actually build. It
+   * carries no department filter, and a rule with only the department branch
+   * rejected it outright — Firestore evaluates a list against the query, not the
+   * documents it would return, so "these happen to be my own notes in my own
+   * department" is not something it can work out. The feed opened empty in
+   * production before this branch existed.
+   */
+  test("a query for the reader's own notes is allowed without a department filter", async () => {
+    await assertSucceeds(
+      getDocs(query(collection(rater, "notes"), where("uploaderUid", "==", RATER))),
+    );
+  });
+
+  test("a query for someone else's notes is refused", async () => {
+    await assertFails(
+      getDocs(query(collection(rater, "notes"), where("uploaderUid", "==", OWNER))),
+    );
+  });
+
+  test("a query filtered to another department is refused", async () => {
+    await assertFails(
+      getDocs(
+        query(collection(rater, "notes"), where("department", "==", "Makine Mühendisliği")),
+      ),
+    );
   });
 
   test("uploaderUid must be the caller's own uid", async () => {
     await assertSucceeds(
-      setDoc(doc(rater, "notes", "own-note"), {
-        title: "Note",
-        uploaderUid: RATER,
-        department: "Bilgisayar Mühendisliği",
-        ratingSum: 0,
-        ratingCount: 0,
-      }),
+      setDoc(doc(rater, "notes", "own-note"), noteFields()),
     );
     await assertFails(
-      setDoc(doc(rater, "notes", "forged-note"), {
-        title: "Note",
-        uploaderUid: OWNER,
-        department: "Bilgisayar Mühendisliği",
-        ratingSum: 0,
-        ratingCount: 0,
-      }),
+      setDoc(
+        doc(rater, "notes", "forged-note"),
+        noteFields({ uploaderUid: OWNER, uploaderName: OWNER_NAME }),
+      ),
+    );
+  });
+
+  /**
+   * The create rule used to check only uploaderUid and the two score fields, which
+   * left everything else — the department a note lands in, the email shown beside
+   * it, and any field at all that nobody expected — writable by a client that skips
+   * the Android UI. The form validation in the app is not a security boundary: an
+   * attacker was never obliged to use the app.
+   */
+  describe("note creation is pinned to an exact shape", () => {
+    test("an unexpected field is refused", async () => {
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "extra-field"),
+          noteFields({ isFeatured: true }),
+        ),
+      );
+    });
+
+    test("a missing field is refused", async () => {
+      const { fileSize, ...withoutFileSize } = noteFields();
+      await assertFails(setDoc(doc(rater, "notes", "missing-field"), withoutFileSize));
+    });
+
+    /**
+     * The average is the field this change removed. It can no longer be verified
+     * against anything — rules do integer division, so a stored avgRating could
+     * only ever be range-checked, which let a legitimate vote carry a fabricated
+     * average to the screen. The value shown is now ratingSum itself, and the old
+     * field is refused so it cannot creep back.
+     */
+    test("avgRating cannot be written back", async () => {
+      await assertFails(
+        setDoc(doc(rater, "notes", "with-average"), noteFields({ avgRating: 5 })),
+      );
+    });
+
+    test("a note cannot be filed under another department", async () => {
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "wrong-dept"),
+          noteFields({ department: "Makine Mühendisliği" }),
+        ),
+      );
+    });
+
+    test("uploaderName cannot be impersonated", async () => {
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "forged-name"),
+          noteFields({ uploaderName: OWNER_NAME }),
+        ),
+      );
+    });
+
+    /**
+     * The address itself is no longer stored anywhere on a note. Masking it at
+     * render time hid it from the screen, not from the document — every student in
+     * the department could read the raw field.
+     */
+    test("an email address cannot be written onto a note", async () => {
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "with-email"),
+          noteFields({ uploaderEmail: RATER_EMAIL }),
+        ),
+      );
+    });
+
+    test("createdAt must be the server's clock, not the client's", async () => {
+      // A client-chosen date would let a note pin itself to the top of a feed that
+      // orders on createdAt, or hide itself at the bottom.
+      await assertFails(
+        setDoc(doc(rater, "notes", "backdated"), noteFields({ createdAt: 1 })),
+      );
+    });
+
+    test("a field of the wrong type is refused", async () => {
+      await assertFails(
+        setDoc(doc(rater, "notes", "bad-sum"), noteFields({ ratingSum: "0" })),
+      );
+      await assertFails(
+        setDoc(doc(rater, "notes", "bad-type"), noteFields({ fileType: "exe" })),
+      );
+    });
+
+    test("an empty title or an oversized one is refused", async () => {
+      await assertFails(
+        setDoc(doc(rater, "notes", "no-title"), noteFields({ title: "" })),
+      );
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "huge-title"),
+          noteFields({ title: "a".repeat(201) }),
+        ),
+      );
+    });
+  });
+
+  test("the uploader cannot move their note to another department while editing", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), { department: "Makine Mühendisliği" }),
     );
   });
 
   test("a note cannot be born with a score", async () => {
     await assertFails(
-      setDoc(doc(rater, "notes", "head-start"), {
-        title: "Note",
-        uploaderUid: RATER,
-        department: "Bilgisayar Mühendisliği",
-        ratingSum: 500,
-        ratingCount: 100,
-      }),
+      setDoc(
+        doc(rater, "notes", "head-start"),
+        noteFields({ ratingSum: 500, ratingCount: 100 }),
+      ),
     );
   });
 
@@ -259,7 +454,6 @@ describe("notes", () => {
       updateDoc(doc(rater, "notes", NOTE), {
         ratingSum: 500,
         ratingCount: 100,
-        avgRating: 5,
       }),
     );
   });
@@ -308,19 +502,36 @@ describe("notes", () => {
 });
 
 describe("note content", () => {
-  test("any signed-in user may read the attached file", async () => {
+  test("a file on a note in the reader's own department can be read", async () => {
     await assertSucceeds(getDoc(doc(rater, "notes", NOTE, "content", "file")));
+  });
+
+  // Without this the department boundary could be walked around through the file
+  // path: the note stays unreadable while its contents do not.
+  test("a file on another department's note cannot be read", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, "notes", "other-dept"), {
+        // Başkasının notu olmalı: kendi notun bölüm değişse de okunabilir kalıyor,
+        // o yüzden aynı fixture bu testi ölçmezdi.
+        ...noteFields({
+          department: "Makine Mühendisliği",
+          uploaderUid: OWNER,
+          uploaderName: OWNER_NAME,
+        }),
+        createdAt: 1,
+      });
+      await setDoc(doc(db, "notes", "other-dept", "content", "file"), {
+        fileData: "ZmFrZQ==",
+      });
+    });
+
+    await assertFails(getDoc(doc(rater, "notes", "other-dept", "content", "file")));
   });
 
   test("upload writes the note and its content in one batch", async () => {
     const batch = writeBatch(rater);
-    batch.set(doc(rater, "notes", "batched"), {
-      title: "Note",
-      uploaderUid: RATER,
-      department: "Bilgisayar Mühendisliği",
-      ratingSum: 0,
-      ratingCount: 0,
-    });
+    batch.set(doc(rater, "notes", "batched"), noteFields());
     batch.set(doc(rater, "notes", "batched", "content", "file"), {
       fileData: "ZmFrZQ==",
     });
@@ -345,15 +556,55 @@ describe("note content", () => {
     await assertFails(deleteDoc(doc(rater, "notes", NOTE, "content", "file")));
   });
 
-  test("content creation is open to any signed-in user — a known gap", async () => {
-    // Documented in firestore.rules: a batch cannot get() its own uncommitted
-    // parent note, so create cannot verify ownership. This test pins the gap in
-    // place so that closing it later is a deliberate, visible change.
-    await assertSucceeds(
+  /**
+   * This used to be asserted the other way round, as a gap the rules documented and
+   * accepted: a batch supposedly could not verify the parent note's owner because
+   * `get()` does not see an uncommitted document. The `get()` half was right and the
+   * conclusion wrong — `getAfter()` reads the post-commit state and the rating rule
+   * was already relying on it. Any signed-in user could hang a content document off
+   * somebody else's note; overwriting an existing file was blocked, but a note that
+   * had no file yet would happily take one.
+   */
+  test("someone else cannot attach content to a note they do not own", async () => {
+    await assertFails(
       setDoc(doc(rater, "notes", NOTE, "content", "extra"), {
         fileData: "ZmFrZQ==",
       }),
     );
+  });
+
+  test("the uploader may attach a file to their own existing note", async () => {
+    // getAfter() returns the current note when the write does not touch it, so the
+    // rule covers adding a file later as well as the batched upload.
+    await assertSucceeds(
+      setDoc(doc(owner, "notes", NOTE, "content", "extra"), {
+        fileData: "ZmFrZQ==",
+      }),
+    );
+  });
+
+  test("a content document carrying anything but fileData is refused", async () => {
+    await assertFails(
+      setDoc(doc(owner, "notes", NOTE, "content", "extra"), {
+        fileData: "ZmFrZQ==",
+        uploaderUid: RATER,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(owner, "notes", NOTE, "content", "extra"), { fileData: 42 }),
+    );
+  });
+
+  test("a batch cannot smuggle content onto someone else's note", async () => {
+    // The batch writes a legitimate note of the caller's own *and* a file on the
+    // owner's note. Each write is evaluated separately, so the second must fail and
+    // take the whole commit with it.
+    const batch = writeBatch(rater);
+    batch.set(doc(rater, "notes", "smuggle"), noteFields());
+    batch.set(doc(rater, "notes", NOTE, "content", "file"), {
+      fileData: "a290dQ==",
+    });
+    await assertFails(batch.commit());
   });
 });
 
@@ -410,14 +661,65 @@ describe("ratings", () => {
     }
   });
 
-  test("votes cannot be deleted", async () => {
+  /** Seeds a vote without going through the rules, so a broken rule shows up as a
+   * failed assertion rather than a failed setup. */
+  const seedVote = async (vote = validVote, id = `${RATER}_${NOTE}`) => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(
-        doc(context.firestore(), "ratings", `${RATER}_${NOTE}`),
-        validVote,
-      );
+      await setDoc(doc(context.firestore(), "ratings", id), vote);
     });
+  };
+
+  /**
+   * A vote on its own must stay put. Deleting one does not lower the note's total,
+   * but it does hand the voter a second first-time vote — the rule would count it
+   * afresh and the tally would climb. Free deletion was the short path to a padded
+   * score, which is why the rule used to be a flat `if false`.
+   */
+  test("a vote cannot be deleted on its own", async () => {
+    await seedVote();
     await assertFails(deleteDoc(doc(rater, "ratings", `${RATER}_${NOTE}`)));
+  });
+
+  test("the note's owner cannot delete a vote while the note stays", async () => {
+    await seedVote();
+    await assertFails(deleteDoc(doc(owner, "ratings", `${RATER}_${NOTE}`)));
+  });
+
+  /**
+   * The pairing the repository now performs. `ratings` is a top-level collection
+   * rather than a subcollection of the note, so deleting a note never touched its
+   * votes and the documents accumulated with nothing able to reach them.
+   */
+  test("the owner may delete a vote in the same commit as its note", async () => {
+    await seedVote();
+
+    const batch = writeBatch(owner);
+    batch.delete(doc(owner, "ratings", `${RATER}_${NOTE}`));
+    batch.delete(doc(owner, "notes", NOTE));
+    await assertSucceeds(batch.commit());
+  });
+
+  test("a stranger cannot delete votes by deleting a note they do not own", async () => {
+    await seedVote();
+
+    const batch = writeBatch(rater);
+    batch.delete(doc(rater, "ratings", `${RATER}_${NOTE}`));
+    batch.delete(doc(rater, "notes", NOTE));
+    await assertFails(batch.commit());
+  });
+
+  /**
+   * The gap the rule deliberately leaves: once a note is gone, `get()` on it fails
+   * and the delete is refused. Votes orphaned before this change are cleaned up by
+   * `prune-orphan-ratings.js`, not by a client.
+   */
+  test("a vote whose note is already gone cannot be deleted by a client", async () => {
+    await seedVote();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await deleteDoc(doc(context.firestore(), "notes", NOTE));
+    });
+
+    await assertFails(deleteDoc(doc(owner, "ratings", `${RATER}_${NOTE}`)));
   });
 });
 

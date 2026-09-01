@@ -12,6 +12,13 @@ rules_version = '2';
 // güveniliyor" aynı şey değil: notun yeni `ratingSum`/`ratingCount` değerleri
 // aşağıda, aynı commit'te yazılan oy dokümanından yeniden hesaplanıp
 // karşılaştırılıyor. İstemci sonucu üretiyor, sunucu doğruluyor.
+//
+// Ortalama puan artık hiç saklanmıyor. Saklandığı sürece kurallar onu tam olarak
+// doğrulayamıyordu — kural dili tam sayı bölmesi yaptığı için `avgRating` yalnızca
+// 0–5 aralığında bir sayı olmakla sınırlanabiliyordu, yani geçerli bir oyla
+// birlikte uydurma bir ortalama yazılabiliyordu. Alan kaldırıldı: gösterilen değer
+// artık `ratingSum`'ın kendisi, o da oy dokümanından birebir doğrulanıyor.
+// Doğrulanamayan bir alanı tutmaktansa tutmamak.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -30,8 +37,18 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Liderlik tablosu ve profil ekranı diğer kullanıcıları da okuyabilmeli.
-      allow read: if isSignedIn();
+      /**
+       * Profil yalnızca sahibine açık.
+       *
+       * Buradaki eski yorum "liderlik tablosu ve profil ekranı diğer kullanıcıları
+       * da okuyabilmeli" diyordu; doğru değildi. Uygulamadaki dört `getUser`
+       * çağrısının dördü de oturumdaki kullanıcının kendi uid'ini geçiyor — sıralama
+       * ve not detayı yükleyenin adını notun kendi alanından alıyor, profilden
+       * değil. Herkese açık okuma, kimsenin ihtiyaç duymadığı bir izindi: oturum
+       * açmış biri bütün öğrencilerin e-postasını ve bölümünü tek sorguda
+       * indirebiliyordu.
+       */
+      allow read: if isOwner(userId);
 
       // Kayıt sırasında kullanıcı yalnızca kendi dokümanını oluşturabilir.
       allow create: if isOwner(userId)
@@ -51,26 +68,145 @@ service cloud.firestore {
     }
 
     match /notes/{noteId} {
-      allow read: if isSignedIn();
+      /**
+       * Notlar yalnızca kendi bölümüne açık.
+       *
+       * Arayüzün her sorguyu `department`'a filtrelemesi bir sınır değildi:
+       * Firestore'a doğrudan bağlanan bir istemci filtreyi kaldırıp bütün
+       * üniversitenin notlarını indirebiliyordu.
+       *
+       * Firestore liste sorgularında kuralı dönen belgelere değil *sorgunun kendisine*
+       * uyguluyor: sorgu, sonuçların kuralı sağlayacağını garanti eden bir filtre
+       * taşımıyorsa hiç çalıştırılmadan reddediliyor. Yani feed'in
+       * `where department == X` filtresi artık isteğe bağlı bir nezaket değil,
+       * sorgunun geçme koşulu.
+       *
+       * `uploaderUid` dalı bu yüzden var, gevşeklikten değil: katkı kapısı ve profil
+       * ekranı `where uploaderUid == ben` sorguluyor ve bölüm filtresi taşımıyor.
+       * Tek dallı bir kural o sorguları — kullanıcının kendi notları olmasına
+       * rağmen — reddediyordu; canlıda feed boş açıldı, kapı hiç değerlendirilemedi.
+       * İki dal, uygulamanın gerçekten kurduğu iki sorguya karşılık geliyor;
+       * filtresiz bir sorgu ikisini de sağlamadığı için hâlâ reddediliyor.
+       */
+      allow read: if isSignedIn() && (
+                    resource.data.department == ownDepartment()
+                    || resource.data.uploaderUid == request.auth.uid
+                  );
 
-      // Not oluşturan kişi kendini başkası olarak gösteremez ve puanı sıfırdan
-      // başlatmak zorunda: aksi halde nota doğrudan yüksek puanla doğulurdu.
+      /**
+       * Not oluşturma.
+       *
+       * Buradaki kontroller uygulamadaki form doğrulamasının kopyası değil, onun
+       * yerine geçeni: Android arayüzü saldırganın kullanmak zorunda olduğu tek yol
+       * değil, Firestore'a doğrudan bağlanan bir istemci hangi alanı isterse yazar.
+       * Eskiden yalnızca `uploaderUid` ile puan alanlarına bakılıyordu; geri kalan
+       * her şey — bölüm adı, yükleyenin e-postası, hiç beklenmeyen alanlar —
+       * serbestti.
+       *
+       * Alan kümesi `hasOnly` + `hasAll` ile birebir sabitleniyor: eksik alan da
+       * fazlası da reddediliyor. Bu, artık yazılmayan `avgRating`'i de kapatıyor —
+       * ortalama saklanmıyor, dolayısıyla uydurulamıyor da.
+       */
       allow create: if isSignedIn()
+                    && hasExactNoteFields()
+                    && hasValidNoteTypes()
+                    // Kimlik istemciden değil, oturumdan geliyor.
                     && request.resource.data.uploaderUid == request.auth.uid
+                    // Nota e-posta hiç yazılmıyor: gösterilen ad doğrudan
+                    // saklanıyor. Arayüzde kırpmak dokümandaki adresi gizlemiyordu
+                    // — aynı bölümdeki herkes ham `uploaderEmail`'i okuyabiliyordu.
+                    && request.resource.data.uploaderName == ownDisplayName()
+                    // Not, yazarın kendi bölümüne düşmek zorunda: aksi halde biri
+                    // başka bölümün feed'ine içerik sokabilirdi. Bölümü boş kalmış
+                    // eski bir profil bu yüzden hiç yükleyemez — uygulamadaki
+                    // `UNKNOWN_DEPARTMENT` yedeği artık yazma yolunda geçmiyor.
+                    // Kayıt bölüm seçmeden tamamlanamadığı için bu yalnızca bozuk
+                    // veriyi kapsıyor, ve o notu zaten hiçbir feed göstermiyordu.
+                    && request.resource.data.department == ownDepartment()
+                    // Sunucu saati; istemci notu geçmişe ya da geleceğe tarihleyemez.
+                    && request.resource.data.createdAt == request.time
+                    // Puanı sıfırdan başlatmak zorunda: aksi halde nota doğrudan
+                    // yüksek puanla doğulurdu.
                     && request.resource.data.ratingSum == 0
                     && request.resource.data.ratingCount == 0;
+
+      function noteFields() {
+        return [
+          'course', 'title', 'description', 'tag', 'department',
+          'uploaderUid', 'uploaderName', 'createdAt',
+          'ratingSum', 'ratingCount',
+          'fileName', 'fileType', 'fileSize'
+        ];
+      }
+
+      function hasExactNoteFields() {
+        return request.resource.data.keys().hasOnly(noteFields())
+               && request.resource.data.keys().hasAll(noteFields());
+      }
+
+      /**
+       * Tip ve boyut kontrolleri. Uzunluk sınırları arayüzdekilerle aynı olmak
+       * zorunda değil — buradaki iş bir dokümanın feed'i bozacak kadar büyümesini
+       * ya da sayı beklenen yere metin yazılmasını engellemek.
+       */
+      function hasValidNoteTypes() {
+        let data = request.resource.data;
+        return data.course is string && data.course.size() > 0 && data.course.size() <= 100
+               && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+               && data.description is string && data.description.size() <= 2000
+               && data.tag is string && data.tag.size() <= 50
+               && data.department is string
+               && data.uploaderUid is string
+               && data.uploaderName is string && data.uploaderName.size() <= 64
+               && data.createdAt is timestamp
+               && data.ratingSum is int
+               && data.ratingCount is int
+               && data.fileName is string && data.fileName.size() <= 260
+               && data.fileType in ['pdf', 'image', '']
+               && data.fileSize is int && data.fileSize >= 0;
+      }
+
+      /**
+       * Çağıranın kendi profilindeki bölüm; istemcinin gönderdiği değil.
+       *
+       * Profili olmayan bir hesapta `get()` null döner ve erişim değerlendirme
+       * hatasına düşer — yani kapalı kalır, ki doğrusu bu.
+       */
+      function ownDepartment() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid))
+                 .data.department;
+      }
+
+      /**
+       * Oturumdaki e-postanın `@` öncesi kısmı — nota yazılabilecek tek ad.
+       *
+       * Adın oturumdan türetilmesi, birinin başkasının adıyla not paylaşmasını
+       * engelliyor; e-postanın kendisi hiçbir yere yazılmıyor.
+       */
+      function ownDisplayName() {
+        return request.auth.token.email.split('@')[0];
+      }
+
+      /** Dosya içeriği kuralı için üst notun bölümü. */
+      function noteDepartment(noteId) {
+        return get(/databases/$(database)/documents/notes/$(noteId))
+                 .data.department;
+      }
 
       allow update: if isSignedIn() && (
                       isMetadataEditByOwner()
                       || isRatingWrite(noteId)
                     );
 
-      // Sahibi metadata'yı düzenleyebilir ama puan alanlarına ve sahiplik
-      // bilgisine dokunamaz — kendi notunu öne çıkarmanın en kısa yolu buydu.
+      // Sahibi metadata'yı düzenleyebilir ama puan alanlarına, sahiplik bilgisine
+      // ve bölüme dokunamaz — kendi notunu öne çıkarmanın en kısa yolu buydu.
+      // `avgRating` listede: alan artık yazılmıyor, düzenlemeyle geri gelmesin.
       function isMetadataEditByOwner() {
         return resource.data.uploaderUid == request.auth.uid
                && !changedFields().hasAny([
-                    'ratingSum', 'ratingCount', 'avgRating', 'uploaderUid'
+                    'ratingSum', 'ratingCount', 'avgRating',
+                    'uploaderUid', 'uploaderName', 'uploaderEmail',
+                    'department', 'createdAt'
                   ]);
       }
 
@@ -95,7 +231,7 @@ service cloud.firestore {
         let submitted = getAfter(path).data;
         let rawSum = resource.data.ratingSum + submitted.rating - previous;
 
-        return changedFields().hasOnly(['ratingSum', 'ratingCount', 'avgRating'])
+        return changedFields().hasOnly(['ratingSum', 'ratingCount'])
                // Kendi notuna oy vermek burada yasaklanıyor; eskiden yalnızca
                // istemci kodunda kontrol ediliyordu.
                && resource.data.uploaderUid != request.auth.uid
@@ -106,13 +242,7 @@ service cloud.firestore {
                     votedBefore
                       ? (resource.data.ratingCount < 1 ? 1 : resource.data.ratingCount)
                       : resource.data.ratingCount + 1
-                  )
-               // Ortalama türetilmiş bir gösterim alanı; asıl doğrulama toplam ve
-               // sayıda. Kurallarda tam sayı bölmesi yapıldığı için burada
-               // birebir eşitlik yerine aralık kontrolü var.
-               && request.resource.data.avgRating is number
-               && request.resource.data.avgRating >= 0
-               && request.resource.data.avgRating <= 5;
+                  );
       }
 
       // Uygulama kodu silme öncesi sahiplik kontrolü YAPMIYOR; tek gerçek
@@ -123,12 +253,32 @@ service cloud.firestore {
 
       // Dosya içeriği ayrı dokümanda: feed sorguları base64 veriyi indirmesin.
       match /content/{contentId} {
-        allow read: if isSignedIn();
+        // Dosya, bağlı olduğu notla aynı kapsamda: notu okuyamayan içeriğini de
+        // okuyamamalı, aksi halde bölüm sınırı dosya yolundan atlanırdı.
+        allow read: if isSignedIn() && noteDepartment(noteId) == ownDepartment();
 
-        // Not ile içerik aynı batch'te yazılıyor. Batch içindeki her yazma
-        // ayrı değerlendirilir ve get() henüz commit edilmemiş üst dokümanı
-        // göremez — bu yüzden create'te sahiplik doğrulanamaz.
-        allow create: if isSignedIn();
+        /**
+         * İçerik yalnızca notun sahibi tarafından oluşturulabilir.
+         *
+         * Burada eskiden `if isSignedIn()` yazıyordu ve yanındaki yorum bunu
+         * "get() henüz commit edilmemiş üst dokümanı göremez" diye açıklıyordu.
+         * Doğru olan kısmı `get()` ile ilgiliydi, sonucu değil: [getAfter] aynı
+         * commit'in *sonrasındaki* hâli okuyor, yani not ile içeriğin birlikte
+         * yazıldığı batch'te bile üst dokümanın sahibi görülebiliyor. Aynı çağrı
+         * oy kuralında zaten kullanılıyordu.
+         *
+         * Açık hâliyle oturum açmış herkes başkasının notuna içerik dokümanı
+         * yazabiliyordu: not sahibinin dosyasının üzerine yazmak `update` ile
+         * engelliyken, dosyası olmayan bir nota istediğini iliştirmek serbestti.
+         *
+         * Notu değiştirmeyen bir yazmada `getAfter` mevcut hâli döndürüyor, bu
+         * yüzden kural kendi eski notuna sonradan dosya eklemeyi de kapsıyor.
+         */
+        allow create: if isSignedIn()
+                      && getAfter(/databases/$(database)/documents/notes/$(noteId))
+                           .data.uploaderUid == request.auth.uid
+                      && request.resource.data.keys().hasOnly(['fileData'])
+                      && request.resource.data.fileData is string;
 
         allow update, delete: if isSignedIn()
           && get(/databases/$(database)/documents/notes/$(noteId))
@@ -153,7 +303,34 @@ service cloud.firestore {
                             && get(/databases/$(database)/documents/notes/$(request.resource.data.noteId))
                                  .data.uploaderUid != request.auth.uid;
 
-      allow delete: if false;
+      /**
+       * Bir oy yalnızca ait olduğu notla birlikte silinebilir.
+       *
+       * Kural eskiden `if false` idi ve tek başına doğruydu: silinen bir oy notun
+       * toplamını düşürmüyor, ama oy verene ikinci kez oy verme hakkı kazandırıyor
+       * — kural onu ilk oy sayıp sayıyı bir daha artırıyor. Yani serbest silme,
+       * puan şişirmenin kısa yoluydu.
+       *
+       * Kapalı hâlin bedeli sahipsiz dokümanlardı: `ratings` notun alt koleksiyonu
+       * değil ayrı bir üst düzey koleksiyon, dolayısıyla not silinince oyları
+       * kalıyor ve hiçbir istemci onları temizleyemiyordu.
+       *
+       * `existsAfter` ikisini birbirine bağlıyor: silme ancak commit'ten sonra not
+       * ortada yoksa geçiyor. Tek başına gönderilen bir oy silme hâlâ reddediliyor,
+       * çünkü not yerinde duruyor. `get()` batch öncesi hâli okuduğu için notun
+       * sahibi de aynı commit içinde doğrulanabiliyor — oyu silebilecek tek kişi
+       * notu silebilecek kişiyle aynı.
+       *
+       * Notu zaten silinmiş eski oylar bu yolla temizlenemez: `get()` olmayan notta
+       * değerlendirme hatasına düşer, yani kapalı kalır. Onlar için
+       * `firestore-tests/prune-orphan-ratings.js` var.
+       */
+      allow delete: if isSignedIn()
+                    && !existsAfter(
+                         /databases/$(database)/documents/notes/$(resource.data.noteId)
+                       )
+                    && get(/databases/$(database)/documents/notes/$(resource.data.noteId))
+                         .data.uploaderUid == request.auth.uid;
     }
 
     // Yukarıda eşleşmeyen her yol reddedilir. Yeni bir koleksiyon eklendiğinde

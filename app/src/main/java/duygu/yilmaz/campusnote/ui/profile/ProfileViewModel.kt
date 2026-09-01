@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import duygu.yilmaz.campusnote.data.model.uploaderName
 import duygu.yilmaz.campusnote.data.repository.AuthRepository
 import duygu.yilmaz.campusnote.data.repository.FirebaseAuthRepository
 import duygu.yilmaz.campusnote.data.repository.FirebaseNoteRepository
@@ -53,7 +54,7 @@ class ProfileViewModel(
 
             noteRepository.observeNotesByUploader(
                 uploaderUid = user.uid,
-                defaultUploaderEmail = user.email
+                defaultUploaderName = user.email.uploaderName()
             )
                 .catch { throwable ->
                     _uiState.value = ProfileUiState.Error(

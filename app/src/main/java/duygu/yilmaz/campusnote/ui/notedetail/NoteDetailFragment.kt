@@ -120,7 +120,7 @@ class NoteDetailFragment : Fragment() {
             tvTag.text = post.tag.uppercase()
         }
 
-        tvAvgRating.text = String.format("%.1f", post.avgRating)
+        tvRatingSum.text = post.ratingSum.toString()
         tvRatingCount.text = getString(R.string.rating_count, post.ratingCount)
     }
 

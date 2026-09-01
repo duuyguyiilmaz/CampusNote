@@ -9,6 +9,7 @@ import duygu.yilmaz.campusnote.data.model.LeaderboardEntry
 import duygu.yilmaz.campusnote.data.model.NoteDraft
 import duygu.yilmaz.campusnote.data.model.NoteUpdate
 import duygu.yilmaz.campusnote.data.model.Post
+import duygu.yilmaz.campusnote.data.model.uploaderName
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -26,7 +27,7 @@ class FirebaseNoteRepository(
     override suspend fun createNote(
         draft: NoteDraft,
         uploaderUid: String,
-        uploaderEmail: String,
+        uploaderName: String,
         department: String
     ) {
         val noteReference = firestore.collection(NOTES_COLLECTION).document()
@@ -37,11 +38,10 @@ class FirebaseNoteRepository(
             "tag" to draft.tag,
             "department" to department,
             "uploaderUid" to uploaderUid,
-            "uploaderEmail" to uploaderEmail,
+            "uploaderName" to uploaderName,
             "createdAt" to FieldValue.serverTimestamp(),
             "ratingSum" to 0L,
             "ratingCount" to 0L,
-            "avgRating" to 0.0,
             "fileName" to draft.fileName,
             "fileType" to draft.fileType,
             "fileSize" to draft.fileSize
@@ -93,12 +93,12 @@ class FirebaseNoteRepository(
 
     override fun observeNotesByUploader(
         uploaderUid: String,
-        defaultUploaderEmail: String
+        defaultUploaderName: String
     ): Flow<List<Post>> =
         observePosts(
             query = firestore.collection(NOTES_COLLECTION)
                 .whereEqualTo(UPLOADER_UID_FIELD, uploaderUid),
-            defaultUploaderEmail = defaultUploaderEmail
+            defaultUploaderName = defaultUploaderName
         )
 
     /**
@@ -135,10 +135,34 @@ class FirebaseNoteRepository(
     }
 
     /** Notu ve içerik dokümanını birlikte siler — Firestore alt koleksiyonları kendiliğinden silmez. */
+    /**
+     * Notu, dosyasını ve ona verilmiş oyları tek commit'te siler.
+     *
+     * Oylar eskiden kalıyordu: `ratings` ayrı bir üst düzey koleksiyon, notun alt
+     * koleksiyonu değil, dolayısıyla notu silmek onlara dokunmuyordu. Geride kalan
+     * doküman kimseye görünmüyor ama sonsuza kadar duruyor ve `<uid>_<noteId>`
+     * kimliğini işgal ediyor.
+     *
+     * Aynı batch'te olmaları şart, süslemeden değil: güvenlik kuralı bir oyun
+     * silinmesine ancak notu da aynı commit'te siliniyorsa izin veriyor
+     * (`existsAfter`). Ayrı ayrı gönderilseler ikisi de reddedilirdi — ve reddin
+     * kendisi doğru, çünkü tek başına silinen bir oy, oy verenin ikinci kez
+     * oylayıp sayıyı şişirmesine kapı açardı.
+     *
+     * Sınır: Firestore bir batch'te en çok 500 yazma kabul ediyor, yani ~498'den
+     * fazla oy almış bir not bu yolla silinemez. Bölüm ölçeğinde ulaşılacak bir
+     * sayı değil; aşılırsa silme hata verir, sessizce yarım kalmaz.
+     */
     override suspend fun deleteNote(noteId: String) {
         val noteReference = firestore.collection(NOTES_COLLECTION).document(noteId)
 
+        val ratings = firestore.collection(RATINGS_COLLECTION)
+            .whereEqualTo(NOTE_ID_FIELD, noteId)
+            .get()
+            .await()
+
         firestore.runBatch { batch ->
+            ratings.documents.forEach { batch.delete(it.reference) }
             batch.delete(noteReference.fileDocument())
             batch.delete(noteReference)
         }.await()
@@ -193,7 +217,7 @@ class FirebaseNoteRepository(
      */
     private fun observePosts(
         query: Query,
-        defaultUploaderEmail: String = ""
+        defaultUploaderName: String = ""
     ): Flow<List<Post>> = callbackFlow {
         val listener = query.addSnapshotListener { snapshot, exception ->
             if (exception != null) {
@@ -202,7 +226,7 @@ class FirebaseNoteRepository(
             }
 
             val posts = snapshot?.documents
-                ?.mapNotNull { document -> toPost(document, defaultUploaderEmail) }
+                ?.mapNotNull { document -> toPost(document, defaultUploaderName) }
                 ?.sortedByDescending { it.timeMills }
                 .orEmpty()
 
@@ -212,9 +236,14 @@ class FirebaseNoteRepository(
         awaitClose { listener.remove() }
     }
 
+    /**
+     * Migration'dan önce yazılmış notlar hâlâ tam `uploaderEmail` taşıyor; okunurken
+     * adı ondan türetiyoruz. Yeni notlarda alan hiç yok — bkz.
+     * `firestore-tests/strip-uploader-email.js`.
+     */
     private fun toPost(
         document: DocumentSnapshot,
-        defaultUploaderEmail: String = ""
+        defaultUploaderName: String = ""
     ): Post? {
         val title = document.getString("title") ?: return null
         val createdAt = try {
@@ -229,13 +258,12 @@ class FirebaseNoteRepository(
             id = document.id,
             title = title,
             desc = document.getString("description") ?: "",
-            authorEmail = document.getString("uploaderEmail") ?: defaultUploaderEmail,
+            uploaderName = document.displayName() ?: defaultUploaderName,
             department = document.getString("department") ?: "",
             timeMills = createdAt,
             uploaderUid = document.getString("uploaderUid") ?: "",
-            avgRating = document.getDouble("avgRating")
-                ?: document.getLong("avgRating")?.toDouble()
-                ?: 0.0,
+            // Eski notlar hâlâ bir `avgRating` alanı taşıyor; okunmuyor. Ortalama
+            // artık ne saklanıyor ne de gösteriliyor — bkz. firestore.rules.
             ratingCount = document.getLong("ratingCount")
                 ?: document.getDouble("ratingCount")?.toLong()
                 ?: 0L,
@@ -248,6 +276,11 @@ class FirebaseNoteRepository(
         )
     }
 
+    /** Yeni şekil önce; eski notlarda ad e-postadan türetiliyor. */
+    private fun DocumentSnapshot.displayName(): String? =
+        getString("uploaderName")
+            ?: getString("uploaderEmail")?.uploaderName()
+
     private fun DocumentReference.fileDocument(): DocumentReference =
         collection(CONTENT_COLLECTION).document(FILE_DOCUMENT)
 
@@ -257,7 +290,7 @@ class FirebaseNoteRepository(
         return LeaderboardEntry(
             docId = document.id,
             title = title,
-            uploaderEmail = document.getString("uploaderEmail") ?: "",
+            uploaderName = document.displayName() ?: "",
             department = document.getString("department") ?: "",
             ratingCount = document.getLong("ratingCount") ?: 0L,
             ratingSum = document.getLong("ratingSum") ?: 0L
@@ -266,6 +299,8 @@ class FirebaseNoteRepository(
 
     private companion object {
         const val NOTES_COLLECTION = "notes"
+        const val RATINGS_COLLECTION = "ratings"
+        const val NOTE_ID_FIELD = "noteId"
         const val CONTENT_COLLECTION = "content"
         const val FILE_DOCUMENT = "file"
         const val FILE_DATA_FIELD = "fileData"

@@ -79,7 +79,9 @@ class ProfileViewModelTest {
             assertEquals(2, state.posts.size)
             assertEquals("duygu@ogr.akdeniz.edu.tr", state.email)
             assertEquals("Bilgisayar Mühendisliği", state.department)
-            assertEquals("uid-1" to "duygu@ogr.akdeniz.edu.tr", noteRepository.observedUploader)
+            // Profil ekranı kendi e-postasını tam gösterir, ama notlara yedek ad
+            // olarak yine kırpılmış hâli geçer.
+            assertEquals("uid-1" to "duygu", noteRepository.observedUploader)
         }
 
     @Test
