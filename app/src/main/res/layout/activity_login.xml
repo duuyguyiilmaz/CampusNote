@@ -104,8 +104,9 @@
                 android:id="@+id/tilPassword"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:passwordToggleEnabled="true"
-                app:passwordToggleTint="@color/input_text"
+                app:endIconMode="password_toggle"
+                app:endIconDrawable="@drawable/ic_password_toggle"
+                app:endIconTint="@color/input_text"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 app:startIconDrawable="@drawable/ic_lock"
                 app:startIconTint="@color/soft_orange"
@@ -138,16 +139,6 @@
                     android:fontFamily="@font/poppins_regular"/>
             </com.google.android.material.textfield.TextInputLayout>
 
-            <CheckBox
-                android:id="@+id/cbRememberMe"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/login_keep_signed_in"
-                android:textColor="@color/white"
-                android:textSize="13sp"
-                android:fontFamily="@font/poppins_regular"
-                android:buttonTint="@color/soft_orange"
-                android:layout_marginTop="8dp"/>
         </LinearLayout>
 
         <ProgressBar

@@ -27,6 +27,14 @@ class ProfileFragment : Fragment() {
 
     private lateinit var myNotesAdapter: PostAdapter
 
+    /**
+     * Ekranda duran hata snackbar'ı; sebebi için bkz. [showRetryableError].
+     *
+     * Snackbar bu fragment'ın değil, [MainActivity]'nin CoordinatorLayout'una
+     * bağlanıyor, dolayısıyla sekme değiştirmek onu kapatmıyor.
+     */
+    private var errorSnackbar: Snackbar? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -132,6 +140,8 @@ class ProfileFragment : Fragment() {
     }
 
     override fun onStop() {
+        // Dinleyiciyle birlikte hata mesajı da gitmeli: ikisi de bu ekrana ait.
+        dismissError()
         viewModel.stopProfile()
         super.onStop()
     }
@@ -147,6 +157,8 @@ class ProfileFragment : Fragment() {
             }
 
             is ProfileUiState.Content -> {
+                // Yeniden deneme tuttuğunda eski hata kendiliğinden kapanmalı.
+                dismissError()
                 binding.tvEmail.text = state.email
                 binding.tvDepartment.text = state.department
                 binding.tvAvatar.text = state.email.firstOrNull()?.uppercaseChar()?.toString()
@@ -191,10 +203,16 @@ class ProfileFragment : Fragment() {
      * çizilir ve kapatılana kadar sekme değiştirmeyi engellerdi.
      */
     private fun showRetryableError(message: String) {
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_INDEFINITE)
+        dismissError()
+        errorSnackbar = Snackbar.make(binding.root, message, Snackbar.LENGTH_INDEFINITE)
             .setAnchorView(R.id.bottomNav)
             .setAction(R.string.action_retry) { viewModel.startProfile() }
-            .show()
+            .also { it.show() }
+    }
+
+    private fun dismissError() {
+        errorSnackbar?.dismiss()
+        errorSnackbar = null
     }
 
     private fun renderActionState(state: ProfileActionState) {

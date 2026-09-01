@@ -1,7 +1,6 @@
 package duygu.yilmaz.campusnote.ui.auth
 
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -16,13 +15,20 @@ class LoginActivity : AppCompatActivity() {
     private val viewModel: LoginViewModel by viewModels()
     private lateinit var binding: ActivityLoginBinding
 
+    /**
+     * Oturum, kullanıcı Profil'den çıkış yapana kadar açık kalır.
+     *
+     * Eskiden burada bir "Oturumu açık tut" kutusu vardı ve atlama yalnızca kutu
+     * işaretliyse yapılıyordu. Firebase oturumu zaten diske yazdığı için kutu
+     * işaretsizken kullanıcı hâlâ giriş yapmış oluyordu — uygulama sadece bunu yok
+     * sayıp formu gösteriyordu. Sonuç: uygulamadan yanlışlıkla çıkan biri her
+     * açılışta şifresini yeniden yazmak zorunda kalıyordu, üstelik "çıkış yapmış"
+     * da değildi. Kutu kaldırıldı; çıkış tek yerden, Profil'deki düğmeden yapılıyor.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-
-        val rememberMe = prefs.getBoolean(KEY_REMEMBER_ME, false)
-        if (rememberMe && viewModel.hasAuthenticatedUser()) {
+        if (viewModel.hasAuthenticatedUser()) {
             goToMainActivity()
             return
         }
@@ -30,7 +36,7 @@ class LoginActivity : AppCompatActivity() {
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        observeAuthState(prefs)
+        observeAuthState()
         setupClickListeners()
         animateViews()
     }
@@ -50,14 +56,13 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    private fun observeAuthState(prefs: SharedPreferences) {
+    private fun observeAuthState() {
         viewModel.uiState.observe(this) { state ->
             when (state) {
                 AuthUiState.Idle -> showLoading(false)
                 AuthUiState.Loading -> showLoading(true)
                 AuthUiState.Success -> {
                     viewModel.resetState()
-                    prefs.edit().putBoolean(KEY_REMEMBER_ME, binding.cbRememberMe.isChecked).apply()
                     showLoading(false)
                     Toast.makeText(this, R.string.login_welcome, Toast.LENGTH_SHORT).show()
                     goToMainActivity()
@@ -155,18 +160,7 @@ class LoginActivity : AppCompatActivity() {
 
     /** Firebase hata metinleri yerelleştirilmemiş geliyor; kullanıcıya Türkçesini gösteriyoruz. */
     private fun showFirebaseError(e: Exception) {
-        val messageId = when {
-            e.message?.contains("no user record") == true ->
-                R.string.login_error_user_not_found
-            e.message?.contains("password is invalid") == true ->
-                R.string.login_error_wrong_password
-            e.message?.contains("badly formatted") == true ->
-                R.string.error_invalid_email_format
-            e.message?.contains("network") == true ->
-                R.string.error_network
-            else -> R.string.login_error_generic
-        }
-        Toast.makeText(this, messageId, Toast.LENGTH_LONG).show()
+        Toast.makeText(this, authErrorMessage(e, AuthAction.SIGN_IN), Toast.LENGTH_LONG).show()
     }
 
     private fun goToMainActivity() {
@@ -175,8 +169,6 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private companion object {
-        const val PREFS_NAME = "campusnote_prefs"
-        const val KEY_REMEMBER_ME = "remember_me"
         const val MIN_PASSWORD_LENGTH = 6
     }
 }

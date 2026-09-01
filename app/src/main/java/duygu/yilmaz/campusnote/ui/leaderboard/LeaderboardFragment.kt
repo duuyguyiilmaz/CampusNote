@@ -19,6 +19,17 @@ class LeaderboardFragment : Fragment() {
 
     private lateinit var adapter: LeaderboardAdapter
 
+    /**
+     * Ekranda duran hata snackbar'ı.
+     *
+     * Referans tutuluyor çünkü snackbar bu fragment'ın değil, [MainActivity]'nin
+     * CoordinatorLayout'una bağlanıyor — sekme değiştirmek fragment'ı yok etse de
+     * snackbar'ı yok etmiyordu. [Snackbar.LENGTH_INDEFINITE] ile birleşince sıralama
+     * hatası kullanıcıyı yükleme ve profil sekmelerine kadar takip ediyor, hiç
+     * kapanmıyordu; index eksikken "Tekrar dene" de her seferinde yenisini açıyordu.
+     */
+    private var errorSnackbar: Snackbar? = null
+
     private val viewModel: LeaderboardViewModel by lazy {
         ViewModelProvider(this)[LeaderboardViewModel::class.java]
     }
@@ -56,6 +67,8 @@ class LeaderboardFragment : Fragment() {
     }
 
     override fun onStop() {
+        // Dinleyiciyle birlikte hata mesajı da gitmeli: ikisi de bu ekrana ait.
+        dismissError()
         viewModel.stopLeaderboard()
         super.onStop()
     }
@@ -106,12 +119,15 @@ class LeaderboardFragment : Fragment() {
             }
 
             LeaderboardUiState.Empty -> {
+                dismissError()
                 adapter.refresh(emptyList())
                 binding.rvLeaderboard.visibility = View.GONE
                 binding.layoutEmpty.visibility = View.VISIBLE
             }
 
             is LeaderboardUiState.Content -> {
+                // Yeniden deneme tuttuğunda eski hata kendiliğinden kapanmalı.
+                dismissError()
                 adapter.refresh(state.entries)
                 binding.rvLeaderboard.visibility = View.VISIBLE
                 binding.layoutEmpty.visibility = View.GONE
@@ -148,9 +164,17 @@ class LeaderboardFragment : Fragment() {
      * çizilir ve kapatılana kadar sekme değiştirmeyi engellerdi.
      */
     private fun showRetryableError(message: String) {
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_INDEFINITE)
+        // Üst üste binen snackbar'lar yerine tek bir tane: hata her tekrar denemede
+        // yeniden geliyor, biriktirmenin anlamı yok.
+        dismissError()
+        errorSnackbar = Snackbar.make(binding.root, message, Snackbar.LENGTH_INDEFINITE)
             .setAnchorView(R.id.bottomNav)
             .setAction(R.string.action_retry) { viewModel.startLeaderboard() }
-            .show()
+            .also { it.show() }
+    }
+
+    private fun dismissError() {
+        errorSnackbar?.dismiss()
+        errorSnackbar = null
     }
 }

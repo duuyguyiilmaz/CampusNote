@@ -187,18 +187,7 @@ class RegisterActivity : AppCompatActivity() {
 
     /** Firebase hata metinleri yerelleştirilmemiş geliyor; kullanıcıya Türkçesini gösteriyoruz. */
     private fun showFirebaseError(e: Exception) {
-        val messageId = when {
-            e.message?.contains("email address is already") == true ->
-                R.string.register_error_email_in_use
-            e.message?.contains("badly formatted") == true ->
-                R.string.error_invalid_email_format
-            e.message?.contains("weak password") == true ->
-                R.string.register_error_weak_password
-            e.message?.contains("network") == true ->
-                R.string.error_network
-            else -> R.string.register_error_generic
-        }
-        Toast.makeText(this, messageId, Toast.LENGTH_LONG).show()
+        Toast.makeText(this, authErrorMessage(e, AuthAction.REGISTER), Toast.LENGTH_LONG).show()
     }
 
     private fun goToMainActivity() {
