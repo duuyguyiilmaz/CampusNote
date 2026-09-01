@@ -9,6 +9,7 @@ import duygu.yilmaz.campusnote.data.model.LeaderboardEntry
 import duygu.yilmaz.campusnote.data.model.NoteDraft
 import duygu.yilmaz.campusnote.data.model.NoteUpdate
 import duygu.yilmaz.campusnote.data.model.Post
+import duygu.yilmaz.campusnote.data.model.uploaderName
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -26,7 +27,7 @@ class FirebaseNoteRepository(
     override suspend fun createNote(
         draft: NoteDraft,
         uploaderUid: String,
-        uploaderEmail: String,
+        uploaderName: String,
         department: String
     ) {
         val noteReference = firestore.collection(NOTES_COLLECTION).document()
@@ -37,7 +38,7 @@ class FirebaseNoteRepository(
             "tag" to draft.tag,
             "department" to department,
             "uploaderUid" to uploaderUid,
-            "uploaderEmail" to uploaderEmail,
+            "uploaderName" to uploaderName,
             "createdAt" to FieldValue.serverTimestamp(),
             "ratingSum" to 0L,
             "ratingCount" to 0L,
@@ -92,12 +93,12 @@ class FirebaseNoteRepository(
 
     override fun observeNotesByUploader(
         uploaderUid: String,
-        defaultUploaderEmail: String
+        defaultUploaderName: String
     ): Flow<List<Post>> =
         observePosts(
             query = firestore.collection(NOTES_COLLECTION)
                 .whereEqualTo(UPLOADER_UID_FIELD, uploaderUid),
-            defaultUploaderEmail = defaultUploaderEmail
+            defaultUploaderName = defaultUploaderName
         )
 
     /**
@@ -192,7 +193,7 @@ class FirebaseNoteRepository(
      */
     private fun observePosts(
         query: Query,
-        defaultUploaderEmail: String = ""
+        defaultUploaderName: String = ""
     ): Flow<List<Post>> = callbackFlow {
         val listener = query.addSnapshotListener { snapshot, exception ->
             if (exception != null) {
@@ -201,7 +202,7 @@ class FirebaseNoteRepository(
             }
 
             val posts = snapshot?.documents
-                ?.mapNotNull { document -> toPost(document, defaultUploaderEmail) }
+                ?.mapNotNull { document -> toPost(document, defaultUploaderName) }
                 ?.sortedByDescending { it.timeMills }
                 .orEmpty()
 
@@ -211,9 +212,14 @@ class FirebaseNoteRepository(
         awaitClose { listener.remove() }
     }
 
+    /**
+     * Migration'dan önce yazılmış notlar hâlâ tam `uploaderEmail` taşıyor; okunurken
+     * adı ondan türetiyoruz. Yeni notlarda alan hiç yok — bkz.
+     * `firestore-tests/strip-uploader-email.js`.
+     */
     private fun toPost(
         document: DocumentSnapshot,
-        defaultUploaderEmail: String = ""
+        defaultUploaderName: String = ""
     ): Post? {
         val title = document.getString("title") ?: return null
         val createdAt = try {
@@ -228,7 +234,7 @@ class FirebaseNoteRepository(
             id = document.id,
             title = title,
             desc = document.getString("description") ?: "",
-            authorEmail = document.getString("uploaderEmail") ?: defaultUploaderEmail,
+            uploaderName = document.displayName() ?: defaultUploaderName,
             department = document.getString("department") ?: "",
             timeMills = createdAt,
             uploaderUid = document.getString("uploaderUid") ?: "",
@@ -246,6 +252,11 @@ class FirebaseNoteRepository(
         )
     }
 
+    /** Yeni şekil önce; eski notlarda ad e-postadan türetiliyor. */
+    private fun DocumentSnapshot.displayName(): String? =
+        getString("uploaderName")
+            ?: getString("uploaderEmail")?.uploaderName()
+
     private fun DocumentReference.fileDocument(): DocumentReference =
         collection(CONTENT_COLLECTION).document(FILE_DOCUMENT)
 
@@ -255,7 +266,7 @@ class FirebaseNoteRepository(
         return LeaderboardEntry(
             docId = document.id,
             title = title,
-            uploaderEmail = document.getString("uploaderEmail") ?: "",
+            uploaderName = document.displayName() ?: "",
             department = document.getString("department") ?: "",
             ratingCount = document.getLong("ratingCount") ?: 0L,
             ratingSum = document.getLong("ratingSum") ?: 0L

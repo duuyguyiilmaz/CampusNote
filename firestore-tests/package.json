@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "firebase emulators:exec --config ../firebase.json --only firestore --project campusnote-rules-test \"vitest run\"",
-    "backfill:created-at": "node backfill-created-at.js"
+    "backfill:created-at": "node backfill-created-at.js",
+    "strip:uploader-email": "node strip-uploader-email.js"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",

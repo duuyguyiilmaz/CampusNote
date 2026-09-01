@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import duygu.yilmaz.campusnote.data.model.NoteDraft
 import duygu.yilmaz.campusnote.data.model.UserProfile
+import duygu.yilmaz.campusnote.data.model.uploaderName
 import duygu.yilmaz.campusnote.data.repository.AuthRepository
 import duygu.yilmaz.campusnote.data.repository.FirebaseAuthRepository
 import duygu.yilmaz.campusnote.data.repository.FirebaseNoteRepository
@@ -51,7 +52,7 @@ class UploadViewModel(
                 noteRepository.createNote(
                     draft = draft,
                     uploaderUid = user.uid,
-                    uploaderEmail = user.email.ifBlank { profile.email },
+                    uploaderName = user.email.ifBlank { profile.email }.uploaderName(),
                     department = profile.department
                         .ifBlank { UserProfile.UNKNOWN_DEPARTMENT }
                 )

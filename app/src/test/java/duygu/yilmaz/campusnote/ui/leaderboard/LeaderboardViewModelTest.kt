@@ -44,7 +44,7 @@ class LeaderboardViewModelTest {
     private fun entry(id: String, ratingSum: Long) = LeaderboardEntry(
         docId = id,
         title = "Not $id",
-        uploaderEmail = "ogrenci@ogr.akdeniz.edu.tr",
+        uploaderName = "ogrenci",
         department = "Bilgisayar Mühendisliği",
         ratingCount = 3L,
         ratingSum = ratingSum

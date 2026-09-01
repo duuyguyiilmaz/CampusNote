@@ -11,7 +11,7 @@ interface NoteRepository {
     suspend fun createNote(
         draft: NoteDraft,
         uploaderUid: String,
-        uploaderEmail: String,
+        uploaderName: String,
         department: String
     )
 
@@ -28,7 +28,7 @@ interface NoteRepository {
 
     fun observeNotesByUploader(
         uploaderUid: String,
-        defaultUploaderEmail: String
+        defaultUploaderName: String
     ): Flow<List<Post>>
 
     /**

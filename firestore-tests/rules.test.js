@@ -5,12 +5,16 @@ import {
   initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
+  collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { afterAll, beforeAll, beforeEach, describe, test } from "vitest";
@@ -22,6 +26,9 @@ const RATER = "rater-uid";
 const NOTE = "note-1";
 const OWNER_EMAIL = "owner@ogr.akdeniz.edu.tr";
 const RATER_EMAIL = "rater@ogr.akdeniz.edu.tr";
+// The rule derives the only permitted name from the session's own address.
+const OWNER_NAME = "owner";
+const RATER_NAME = "rater";
 const DEPARTMENT = "Bilgisayar Mühendisliği";
 
 let testEnv;
@@ -70,7 +77,7 @@ beforeEach(async () => {
       createdAt: 1,
     });
     await setDoc(doc(db, "notes", NOTE), {
-      ...noteFields({ uploaderUid: OWNER, uploaderEmail: OWNER_EMAIL }),
+      ...noteFields({ uploaderUid: OWNER, uploaderName: OWNER_NAME }),
       createdAt: 1,
     });
     await setDoc(doc(db, "notes", NOTE, "content", "file"), {
@@ -98,7 +105,7 @@ function noteFields(overrides = {}) {
     tag: "",
     department: DEPARTMENT,
     uploaderUid: RATER,
-    uploaderEmail: RATER_EMAIL,
+    uploaderName: RATER_NAME,
     createdAt: serverTimestamp(),
     ratingSum: 0,
     ratingCount: 0,
@@ -151,9 +158,18 @@ describe("signed-out access", () => {
 });
 
 describe("users", () => {
-  test("a signed-in user may read any profile", async () => {
-    // The leaderboard and note detail screens show other people's profiles.
-    await assertSucceeds(getDoc(doc(rater, "users", OWNER)));
+  test("a user may read their own profile", async () => {
+    await assertSucceeds(getDoc(doc(rater, "users", RATER)));
+  });
+
+  /**
+   * Every getUser call in the app passes the caller's own uid — the leaderboard and
+   * note detail take the uploader's name from the note, not from a profile. The
+   * open read rule was an permission nobody used, and it handed any signed-in
+   * student every address and department in the university in one query.
+   */
+  test("a user cannot read someone else's profile", async () => {
+    await assertFails(getDoc(doc(rater, "users", OWNER)));
   });
 
   test("registration writes a profile whose id matches the caller", async () => {
@@ -214,8 +230,44 @@ describe("users", () => {
 });
 
 describe("notes", () => {
-  test("any signed-in user may read notes", async () => {
+  test("a note in the reader's own department can be read", async () => {
     await assertSucceeds(getDoc(doc(rater, "notes", NOTE)));
+  });
+
+  /**
+   * The app filters every feed and leaderboard query by department, but that was a
+   * rendering decision, not a boundary: a client talking to Firestore directly could
+   * drop the filter and pull every note in the university. Rules are evaluated
+   * against each document a query returns and the whole query fails if any is
+   * denied, so the filter is now the condition for the query to run at all.
+   */
+  test("a note in another department cannot be read", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "notes", "other-dept"), {
+        ...noteFields({ department: "Makine Mühendisliği" }),
+        createdAt: 1,
+      });
+    });
+
+    await assertFails(getDoc(doc(rater, "notes", "other-dept")));
+  });
+
+  test("a query without the department filter is refused", async () => {
+    await assertFails(getDocs(collection(rater, "notes")));
+  });
+
+  test("a query filtered to the reader's own department is allowed", async () => {
+    await assertSucceeds(
+      getDocs(query(collection(rater, "notes"), where("department", "==", DEPARTMENT))),
+    );
+  });
+
+  test("a query filtered to another department is refused", async () => {
+    await assertFails(
+      getDocs(
+        query(collection(rater, "notes"), where("department", "==", "Makine Mühendisliği")),
+      ),
+    );
   });
 
   test("uploaderUid must be the caller's own uid", async () => {
@@ -225,7 +277,7 @@ describe("notes", () => {
     await assertFails(
       setDoc(
         doc(rater, "notes", "forged-note"),
-        noteFields({ uploaderUid: OWNER, uploaderEmail: OWNER_EMAIL }),
+        noteFields({ uploaderUid: OWNER, uploaderName: OWNER_NAME }),
       ),
     );
   });
@@ -274,11 +326,25 @@ describe("notes", () => {
       );
     });
 
-    test("uploaderEmail cannot be impersonated", async () => {
+    test("uploaderName cannot be impersonated", async () => {
       await assertFails(
         setDoc(
-          doc(rater, "notes", "forged-email"),
-          noteFields({ uploaderEmail: OWNER_EMAIL }),
+          doc(rater, "notes", "forged-name"),
+          noteFields({ uploaderName: OWNER_NAME }),
+        ),
+      );
+    });
+
+    /**
+     * The address itself is no longer stored anywhere on a note. Masking it at
+     * render time hid it from the screen, not from the document — every student in
+     * the department could read the raw field.
+     */
+    test("an email address cannot be written onto a note", async () => {
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "with-email"),
+          noteFields({ uploaderEmail: RATER_EMAIL }),
         ),
       );
     });
@@ -410,8 +476,25 @@ describe("notes", () => {
 });
 
 describe("note content", () => {
-  test("any signed-in user may read the attached file", async () => {
+  test("a file on a note in the reader's own department can be read", async () => {
     await assertSucceeds(getDoc(doc(rater, "notes", NOTE, "content", "file")));
+  });
+
+  // Without this the department boundary could be walked around through the file
+  // path: the note stays unreadable while its contents do not.
+  test("a file on another department's note cannot be read", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, "notes", "other-dept"), {
+        ...noteFields({ department: "Makine Mühendisliği" }),
+        createdAt: 1,
+      });
+      await setDoc(doc(db, "notes", "other-dept", "content", "file"), {
+        fileData: "ZmFrZQ==",
+      });
+    });
+
+    await assertFails(getDoc(doc(rater, "notes", "other-dept", "content", "file")));
   });
 
   test("upload writes the note and its content in one batch", async () => {

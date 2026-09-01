@@ -21,7 +21,7 @@ import java.io.IOException
 /**
  * [UploadViewModel] birim testleri.
  *
- * Yükleme, katkı kapısını açan tek eylem. Bu yüzden nota yazılan bölüm ve e-posta
+ * Yükleme, katkı kapısını açan tek eylem. Bu yüzden nota yazılan bölüm ve ad
  * bilgisinin doğruluğu kritik: yanlış bölüm yazılan not, sahibinin feed'ini açmadığı
  * gibi başka bir bölümün akışına da düşer.
  */
@@ -73,12 +73,14 @@ class UploadViewModelTest {
             val created = noteRepository.createdNotes.single()
             assertEquals(draft, created.draft)
             assertEquals("uid-1", created.uploaderUid)
-            assertEquals("duygu@ogr.akdeniz.edu.tr", created.uploaderEmail)
+            // Nota adresin kendisi değil, `@` öncesi kısmı yazılır — kural da
+            // oturumdaki e-postayı aynı şekilde bölüp karşılaştırıyor.
+            assertEquals("duygu", created.uploaderName)
             assertEquals("Bilgisayar Mühendisliği", created.department)
         }
 
     @Test
-    fun `oturumda e-posta yoksa profildeki adres kullanilir`() =
+    fun `oturumda e-posta yoksa profildeki adresten ad turetilir`() =
         runTest(mainDispatcherRule.testDispatcher) {
             authRepository.setUser(authenticatedUser(uid = "uid-1", email = ""))
             userRepository.profile = userProfile(email = "yedek@ogr.akdeniz.edu.tr")
@@ -87,10 +89,7 @@ class UploadViewModelTest {
             viewModel.uploadNote(noteDraft())
             advanceUntilIdle()
 
-            assertEquals(
-                "yedek@ogr.akdeniz.edu.tr",
-                noteRepository.createdNotes.single().uploaderEmail
-            )
+            assertEquals("yedek", noteRepository.createdNotes.single().uploaderName)
         }
 
     @Test

@@ -37,8 +37,18 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Liderlik tablosu ve profil ekranı diğer kullanıcıları da okuyabilmeli.
-      allow read: if isSignedIn();
+      /**
+       * Profil yalnızca sahibine açık.
+       *
+       * Buradaki eski yorum "liderlik tablosu ve profil ekranı diğer kullanıcıları
+       * da okuyabilmeli" diyordu; doğru değildi. Uygulamadaki dört `getUser`
+       * çağrısının dördü de oturumdaki kullanıcının kendi uid'ini geçiyor — sıralama
+       * ve not detayı yükleyenin adını notun kendi alanından alıyor, profilden
+       * değil. Herkese açık okuma, kimsenin ihtiyaç duymadığı bir izindi: oturum
+       * açmış biri bütün öğrencilerin e-postasını ve bölümünü tek sorguda
+       * indirebiliyordu.
+       */
+      allow read: if isOwner(userId);
 
       // Kayıt sırasında kullanıcı yalnızca kendi dokümanını oluşturabilir.
       allow create: if isOwner(userId)
@@ -58,7 +68,18 @@ service cloud.firestore {
     }
 
     match /notes/{noteId} {
-      allow read: if isSignedIn();
+      /**
+       * Notlar yalnızca kendi bölümüne açık.
+       *
+       * Arayüzün her sorguyu `department`'a filtrelemesi bir sınır değildi:
+       * Firestore'a doğrudan bağlanan bir istemci filtreyi kaldırıp bütün
+       * üniversitenin notlarını indirebiliyordu.
+       *
+       * Sorgular için kural her dönen dokümana ayrı ayrı uygulanır ve biri bile
+       * düşerse sorgunun tamamı reddedilir — yani feed'in `where department == X`
+       * filtresi artık isteğe bağlı bir nezaket değil, sorgunun geçme koşulu.
+       */
+      allow read: if isSignedIn() && resource.data.department == ownDepartment();
 
       /**
        * Not oluşturma.
@@ -79,7 +100,10 @@ service cloud.firestore {
                     && hasValidNoteTypes()
                     // Kimlik istemciden değil, oturumdan geliyor.
                     && request.resource.data.uploaderUid == request.auth.uid
-                    && request.resource.data.uploaderEmail == request.auth.token.email
+                    // Nota e-posta hiç yazılmıyor: gösterilen ad doğrudan
+                    // saklanıyor. Arayüzde kırpmak dokümandaki adresi gizlemiyordu
+                    // — aynı bölümdeki herkes ham `uploaderEmail`'i okuyabiliyordu.
+                    && request.resource.data.uploaderName == ownDisplayName()
                     // Not, yazarın kendi bölümüne düşmek zorunda: aksi halde biri
                     // başka bölümün feed'ine içerik sokabilirdi. Bölümü boş kalmış
                     // eski bir profil bu yüzden hiç yükleyemez — uygulamadaki
@@ -97,7 +121,7 @@ service cloud.firestore {
       function noteFields() {
         return [
           'course', 'title', 'description', 'tag', 'department',
-          'uploaderUid', 'uploaderEmail', 'createdAt',
+          'uploaderUid', 'uploaderName', 'createdAt',
           'ratingSum', 'ratingCount',
           'fileName', 'fileType', 'fileSize'
         ];
@@ -121,7 +145,7 @@ service cloud.firestore {
                && data.tag is string && data.tag.size() <= 50
                && data.department is string
                && data.uploaderUid is string
-               && data.uploaderEmail is string
+               && data.uploaderName is string && data.uploaderName.size() <= 64
                && data.createdAt is timestamp
                && data.ratingSum is int
                && data.ratingCount is int
@@ -130,9 +154,30 @@ service cloud.firestore {
                && data.fileSize is int && data.fileSize >= 0;
       }
 
-      /** Yazarın kendi profilindeki bölüm; istemcinin gönderdiği değil. */
+      /**
+       * Çağıranın kendi profilindeki bölüm; istemcinin gönderdiği değil.
+       *
+       * Profili olmayan bir hesapta `get()` null döner ve erişim değerlendirme
+       * hatasına düşer — yani kapalı kalır, ki doğrusu bu.
+       */
       function ownDepartment() {
         return get(/databases/$(database)/documents/users/$(request.auth.uid))
+                 .data.department;
+      }
+
+      /**
+       * Oturumdaki e-postanın `@` öncesi kısmı — nota yazılabilecek tek ad.
+       *
+       * Adın oturumdan türetilmesi, birinin başkasının adıyla not paylaşmasını
+       * engelliyor; e-postanın kendisi hiçbir yere yazılmıyor.
+       */
+      function ownDisplayName() {
+        return request.auth.token.email.split('@')[0];
+      }
+
+      /** Dosya içeriği kuralı için üst notun bölümü. */
+      function noteDepartment(noteId) {
+        return get(/databases/$(database)/documents/notes/$(noteId))
                  .data.department;
       }
 
@@ -148,7 +193,8 @@ service cloud.firestore {
         return resource.data.uploaderUid == request.auth.uid
                && !changedFields().hasAny([
                     'ratingSum', 'ratingCount', 'avgRating',
-                    'uploaderUid', 'uploaderEmail', 'department', 'createdAt'
+                    'uploaderUid', 'uploaderName', 'uploaderEmail',
+                    'department', 'createdAt'
                   ]);
       }
 
@@ -195,7 +241,9 @@ service cloud.firestore {
 
       // Dosya içeriği ayrı dokümanda: feed sorguları base64 veriyi indirmesin.
       match /content/{contentId} {
-        allow read: if isSignedIn();
+        // Dosya, bağlı olduğu notla aynı kapsamda: notu okuyamayan içeriğini de
+        // okuyamamalı, aksi halde bölüm sınırı dosya yolundan atlanırdı.
+        allow read: if isSignedIn() && noteDepartment(noteId) == ownDepartment();
 
         // Not ile içerik aynı batch'te yazılıyor. Batch içindeki her yazma
         // ayrı değerlendirilir ve get() henüz commit edilmemiş üst dokümanı
