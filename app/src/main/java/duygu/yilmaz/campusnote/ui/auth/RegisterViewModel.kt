@@ -67,9 +67,9 @@ class RegisterViewModel(
      *
      * Silmenin kendisi de düşebilir; o zaman kullanıcıya gösterilecek mesaj
      * değişmiyor, çünkü kullanıcı açısından sonuç aynı: kayıt olmadı. Fark, hesabın
-     * ortada kalmasında ve onu [duygu.yilmaz.campusnote.ui.profile.CompleteProfileActivity]
-     * topluyor. Bu yüzden burada hata yutuluyor — telafi başarısız olduğu için
-     * asıl hatanın üstünü örtmenin anlamı yok.
+     * ortada kalmasında ve onu [CompleteProfileActivity] topluyor. Bu yüzden burada
+     * hata yutuluyor — telafi başarısız olduğu için asıl hatanın üstünü örtmenin
+     * anlamı yok.
      */
     private suspend fun rollBackAccount() {
         try {
