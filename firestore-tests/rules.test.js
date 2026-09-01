@@ -556,15 +556,55 @@ describe("note content", () => {
     await assertFails(deleteDoc(doc(rater, "notes", NOTE, "content", "file")));
   });
 
-  test("content creation is open to any signed-in user — a known gap", async () => {
-    // Documented in firestore.rules: a batch cannot get() its own uncommitted
-    // parent note, so create cannot verify ownership. This test pins the gap in
-    // place so that closing it later is a deliberate, visible change.
-    await assertSucceeds(
+  /**
+   * This used to be asserted the other way round, as a gap the rules documented and
+   * accepted: a batch supposedly could not verify the parent note's owner because
+   * `get()` does not see an uncommitted document. The `get()` half was right and the
+   * conclusion wrong — `getAfter()` reads the post-commit state and the rating rule
+   * was already relying on it. Any signed-in user could hang a content document off
+   * somebody else's note; overwriting an existing file was blocked, but a note that
+   * had no file yet would happily take one.
+   */
+  test("someone else cannot attach content to a note they do not own", async () => {
+    await assertFails(
       setDoc(doc(rater, "notes", NOTE, "content", "extra"), {
         fileData: "ZmFrZQ==",
       }),
     );
+  });
+
+  test("the uploader may attach a file to their own existing note", async () => {
+    // getAfter() returns the current note when the write does not touch it, so the
+    // rule covers adding a file later as well as the batched upload.
+    await assertSucceeds(
+      setDoc(doc(owner, "notes", NOTE, "content", "extra"), {
+        fileData: "ZmFrZQ==",
+      }),
+    );
+  });
+
+  test("a content document carrying anything but fileData is refused", async () => {
+    await assertFails(
+      setDoc(doc(owner, "notes", NOTE, "content", "extra"), {
+        fileData: "ZmFrZQ==",
+        uploaderUid: RATER,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(owner, "notes", NOTE, "content", "extra"), { fileData: 42 }),
+    );
+  });
+
+  test("a batch cannot smuggle content onto someone else's note", async () => {
+    // The batch writes a legitimate note of the caller's own *and* a file on the
+    // owner's note. Each write is evaluated separately, so the second must fail and
+    // take the whole commit with it.
+    const batch = writeBatch(rater);
+    batch.set(doc(rater, "notes", "smuggle"), noteFields());
+    batch.set(doc(rater, "notes", NOTE, "content", "file"), {
+      fileData: "a290dQ==",
+    });
+    await assertFails(batch.commit());
   });
 });
 

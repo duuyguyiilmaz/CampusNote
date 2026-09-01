@@ -257,10 +257,28 @@ service cloud.firestore {
         // okuyamamalı, aksi halde bölüm sınırı dosya yolundan atlanırdı.
         allow read: if isSignedIn() && noteDepartment(noteId) == ownDepartment();
 
-        // Not ile içerik aynı batch'te yazılıyor. Batch içindeki her yazma
-        // ayrı değerlendirilir ve get() henüz commit edilmemiş üst dokümanı
-        // göremez — bu yüzden create'te sahiplik doğrulanamaz.
-        allow create: if isSignedIn();
+        /**
+         * İçerik yalnızca notun sahibi tarafından oluşturulabilir.
+         *
+         * Burada eskiden `if isSignedIn()` yazıyordu ve yanındaki yorum bunu
+         * "get() henüz commit edilmemiş üst dokümanı göremez" diye açıklıyordu.
+         * Doğru olan kısmı `get()` ile ilgiliydi, sonucu değil: [getAfter] aynı
+         * commit'in *sonrasındaki* hâli okuyor, yani not ile içeriğin birlikte
+         * yazıldığı batch'te bile üst dokümanın sahibi görülebiliyor. Aynı çağrı
+         * oy kuralında zaten kullanılıyordu.
+         *
+         * Açık hâliyle oturum açmış herkes başkasının notuna içerik dokümanı
+         * yazabiliyordu: not sahibinin dosyasının üzerine yazmak `update` ile
+         * engelliyken, dosyası olmayan bir nota istediğini iliştirmek serbestti.
+         *
+         * Notu değiştirmeyen bir yazmada `getAfter` mevcut hâli döndürüyor, bu
+         * yüzden kural kendi eski notuna sonradan dosya eklemeyi de kapsıyor.
+         */
+        allow create: if isSignedIn()
+                      && getAfter(/databases/$(database)/documents/notes/$(noteId))
+                           .data.uploaderUid == request.auth.uid
+                      && request.resource.data.keys().hasOnly(['fileData'])
+                      && request.resource.data.fileData is string;
 
         allow update, delete: if isSignedIn()
           && get(/databases/$(database)/documents/notes/$(noteId))
