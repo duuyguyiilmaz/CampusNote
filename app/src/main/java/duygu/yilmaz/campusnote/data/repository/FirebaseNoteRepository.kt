@@ -41,7 +41,6 @@ class FirebaseNoteRepository(
             "createdAt" to FieldValue.serverTimestamp(),
             "ratingSum" to 0L,
             "ratingCount" to 0L,
-            "avgRating" to 0.0,
             "fileName" to draft.fileName,
             "fileType" to draft.fileType,
             "fileSize" to draft.fileSize
@@ -233,9 +232,8 @@ class FirebaseNoteRepository(
             department = document.getString("department") ?: "",
             timeMills = createdAt,
             uploaderUid = document.getString("uploaderUid") ?: "",
-            avgRating = document.getDouble("avgRating")
-                ?: document.getLong("avgRating")?.toDouble()
-                ?: 0.0,
+            // Eski notlar hâlâ bir `avgRating` alanı taşıyor; okunmuyor. Ortalama
+            // artık ne saklanıyor ne de gösteriliyor — bkz. firestore.rules.
             ratingCount = document.getLong("ratingCount")
                 ?: document.getDouble("ratingCount")?.toLong()
                 ?: 0L,

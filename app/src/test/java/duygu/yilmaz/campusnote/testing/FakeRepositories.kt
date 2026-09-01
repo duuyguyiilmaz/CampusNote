@@ -195,7 +195,7 @@ class FakeNoteRepository : NoteRepository {
 
 class FakeRatingRepository : RatingRepository {
 
-    var result = RatingResult(average = 4.0, count = 2L, sum = 8L, updatedExistingRating = false)
+    var result = RatingResult(count = 2L, sum = 8L, updatedExistingRating = false)
     var error: Exception? = null
 
     val submissions = mutableListOf<Submission>()

@@ -187,11 +187,10 @@ class NoteDetailViewModelTest {
     @Test
     fun `basarili oy ekrandaki ortalamayi da gunceller`() =
         runTest(mainDispatcherRule.testDispatcher) {
-            // Ekran, yeniden yüklemeye gerek kalmadan yeni ortalamayı göstermeli.
+            // Ekran, yeniden yüklemeye gerek kalmadan yeni toplamı göstermeli.
             authRepository.setUser(authenticatedUser(uid = "uid-1"))
             noteRepository.note = post(id = "note-1", uploaderUid = "uid-2")
             ratingRepository.result = RatingResult(
-                average = 4.5,
                 count = 4L,
                 sum = 18L,
                 updatedExistingRating = false
@@ -210,7 +209,6 @@ class NoteDetailViewModelTest {
             )
 
             val post = (viewModel.noteState.value as NoteDetailUiState.Content).post
-            assertEquals(4.5, post.avgRating, 1e-9)
             assertEquals(4L, post.ratingCount)
             assertEquals(18L, post.ratingSum)
         }

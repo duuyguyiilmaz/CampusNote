@@ -8,6 +8,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  serverTimestamp,
   setDoc,
   updateDoc,
   writeBatch,
@@ -19,6 +20,9 @@ import { afterAll, beforeAll, beforeEach, describe, test } from "vitest";
 const OWNER = "owner-uid";
 const RATER = "rater-uid";
 const NOTE = "note-1";
+const OWNER_EMAIL = "owner@ogr.akdeniz.edu.tr";
+const RATER_EMAIL = "rater@ogr.akdeniz.edu.tr";
+const DEPARTMENT = "Bilgisayar Mühendisliği";
 
 let testEnv;
 let owner;
@@ -35,8 +39,10 @@ beforeAll(async () => {
     },
   });
 
-  owner = testEnv.authenticatedContext(OWNER).firestore();
-  rater = testEnv.authenticatedContext(RATER).firestore();
+  // The note-create rule compares uploaderEmail against the session's token, so
+  // the contexts have to carry an email claim the way a real sign-in does.
+  owner = testEnv.authenticatedContext(OWNER, { email: OWNER_EMAIL }).firestore();
+  rater = testEnv.authenticatedContext(RATER, { email: RATER_EMAIL }).firestore();
   anonymous = testEnv.unauthenticatedContext().firestore();
 });
 
@@ -53,34 +59,55 @@ beforeEach(async () => {
     const db = context.firestore();
     await setDoc(doc(db, "users", OWNER), {
       id: OWNER,
-      email: "owner@ogr.akdeniz.edu.tr",
-      department: "Bilgisayar Mühendisliği",
+      email: OWNER_EMAIL,
+      department: DEPARTMENT,
       createdAt: 1,
     });
     await setDoc(doc(db, "users", RATER), {
       id: RATER,
-      email: "rater@ogr.akdeniz.edu.tr",
-      department: "Bilgisayar Mühendisliği",
+      email: RATER_EMAIL,
+      department: DEPARTMENT,
       createdAt: 1,
     });
     await setDoc(doc(db, "notes", NOTE), {
-      title: "Ders notu",
-      desc: "",
-      authorEmail: "owner@ogr.akdeniz.edu.tr",
-      department: "Bilgisayar Mühendisliği",
-      timeMills: 1,
-      uploaderUid: OWNER,
-      avgRating: 0,
-      ratingCount: 0,
-      ratingSum: 0,
-      fileName: "notes.pdf",
-      fileType: "pdf",
+      ...noteFields({ uploaderUid: OWNER, uploaderEmail: OWNER_EMAIL }),
+      createdAt: 1,
     });
     await setDoc(doc(db, "notes", NOTE, "content", "file"), {
       fileData: "ZmFrZQ==",
     });
   });
 });
+
+/**
+ * A note document in exactly the shape the create rule now demands.
+ *
+ * The rule pins the field set with hasOnly + hasAll, so tests can no longer write
+ * an approximation: a missing field is as fatal as a forged one. Keeping the shape
+ * in one place is what lets each test override the single field it is about and
+ * stay readable.
+ *
+ * `createdAt` defaults to a server timestamp because the rule requires
+ * request.time — a client-chosen date is one of the things being rejected.
+ */
+function noteFields(overrides = {}) {
+  return {
+    course: "Veri Yapıları",
+    title: "Ders notu",
+    description: "",
+    tag: "",
+    department: DEPARTMENT,
+    uploaderUid: RATER,
+    uploaderEmail: RATER_EMAIL,
+    createdAt: serverTimestamp(),
+    ratingSum: 0,
+    ratingCount: 0,
+    fileName: "notes.pdf",
+    fileType: "pdf",
+    fileSize: 1024,
+    ...overrides,
+  };
+}
 
 /**
  * Bir oyu uygulamanın yazdığı gibi yazar: notun toplamları ve oy dokümanı tek
@@ -96,7 +123,6 @@ function vote(db, uid, noteId, rating, { sum, count, extra = {} }) {
   batch.update(doc(db, "notes", noteId), {
     ratingSum: sum,
     ratingCount: count,
-    avgRating: count === 0 ? 0 : sum / count,
     ...extra,
   });
   batch.set(doc(db, "ratings", `${uid}_${noteId}`), {
@@ -194,34 +220,111 @@ describe("notes", () => {
 
   test("uploaderUid must be the caller's own uid", async () => {
     await assertSucceeds(
-      setDoc(doc(rater, "notes", "own-note"), {
-        title: "Note",
-        uploaderUid: RATER,
-        department: "Bilgisayar Mühendisliği",
-        ratingSum: 0,
-        ratingCount: 0,
-      }),
+      setDoc(doc(rater, "notes", "own-note"), noteFields()),
     );
     await assertFails(
-      setDoc(doc(rater, "notes", "forged-note"), {
-        title: "Note",
-        uploaderUid: OWNER,
-        department: "Bilgisayar Mühendisliği",
-        ratingSum: 0,
-        ratingCount: 0,
-      }),
+      setDoc(
+        doc(rater, "notes", "forged-note"),
+        noteFields({ uploaderUid: OWNER, uploaderEmail: OWNER_EMAIL }),
+      ),
+    );
+  });
+
+  /**
+   * The create rule used to check only uploaderUid and the two score fields, which
+   * left everything else — the department a note lands in, the email shown beside
+   * it, and any field at all that nobody expected — writable by a client that skips
+   * the Android UI. The form validation in the app is not a security boundary: an
+   * attacker was never obliged to use the app.
+   */
+  describe("note creation is pinned to an exact shape", () => {
+    test("an unexpected field is refused", async () => {
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "extra-field"),
+          noteFields({ isFeatured: true }),
+        ),
+      );
+    });
+
+    test("a missing field is refused", async () => {
+      const { fileSize, ...withoutFileSize } = noteFields();
+      await assertFails(setDoc(doc(rater, "notes", "missing-field"), withoutFileSize));
+    });
+
+    /**
+     * The average is the field this change removed. It can no longer be verified
+     * against anything — rules do integer division, so a stored avgRating could
+     * only ever be range-checked, which let a legitimate vote carry a fabricated
+     * average to the screen. The value shown is now ratingSum itself, and the old
+     * field is refused so it cannot creep back.
+     */
+    test("avgRating cannot be written back", async () => {
+      await assertFails(
+        setDoc(doc(rater, "notes", "with-average"), noteFields({ avgRating: 5 })),
+      );
+    });
+
+    test("a note cannot be filed under another department", async () => {
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "wrong-dept"),
+          noteFields({ department: "Makine Mühendisliği" }),
+        ),
+      );
+    });
+
+    test("uploaderEmail cannot be impersonated", async () => {
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "forged-email"),
+          noteFields({ uploaderEmail: OWNER_EMAIL }),
+        ),
+      );
+    });
+
+    test("createdAt must be the server's clock, not the client's", async () => {
+      // A client-chosen date would let a note pin itself to the top of a feed that
+      // orders on createdAt, or hide itself at the bottom.
+      await assertFails(
+        setDoc(doc(rater, "notes", "backdated"), noteFields({ createdAt: 1 })),
+      );
+    });
+
+    test("a field of the wrong type is refused", async () => {
+      await assertFails(
+        setDoc(doc(rater, "notes", "bad-sum"), noteFields({ ratingSum: "0" })),
+      );
+      await assertFails(
+        setDoc(doc(rater, "notes", "bad-type"), noteFields({ fileType: "exe" })),
+      );
+    });
+
+    test("an empty title or an oversized one is refused", async () => {
+      await assertFails(
+        setDoc(doc(rater, "notes", "no-title"), noteFields({ title: "" })),
+      );
+      await assertFails(
+        setDoc(
+          doc(rater, "notes", "huge-title"),
+          noteFields({ title: "a".repeat(201) }),
+        ),
+      );
+    });
+  });
+
+  test("the uploader cannot move their note to another department while editing", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), { department: "Makine Mühendisliği" }),
     );
   });
 
   test("a note cannot be born with a score", async () => {
     await assertFails(
-      setDoc(doc(rater, "notes", "head-start"), {
-        title: "Note",
-        uploaderUid: RATER,
-        department: "Bilgisayar Mühendisliği",
-        ratingSum: 500,
-        ratingCount: 100,
-      }),
+      setDoc(
+        doc(rater, "notes", "head-start"),
+        noteFields({ ratingSum: 500, ratingCount: 100 }),
+      ),
     );
   });
 
@@ -259,7 +362,6 @@ describe("notes", () => {
       updateDoc(doc(rater, "notes", NOTE), {
         ratingSum: 500,
         ratingCount: 100,
-        avgRating: 5,
       }),
     );
   });
@@ -314,13 +416,7 @@ describe("note content", () => {
 
   test("upload writes the note and its content in one batch", async () => {
     const batch = writeBatch(rater);
-    batch.set(doc(rater, "notes", "batched"), {
-      title: "Note",
-      uploaderUid: RATER,
-      department: "Bilgisayar Mühendisliği",
-      ratingSum: 0,
-      ratingCount: 0,
-    });
+    batch.set(doc(rater, "notes", "batched"), noteFields());
     batch.set(doc(rater, "notes", "batched", "content", "file"), {
       fileData: "ZmFrZQ==",
     });

@@ -137,7 +137,6 @@ class NoteDetailViewModel(
 
         _noteState.value = NoteDetailUiState.Content(
             current.copy(
-                avgRating = result.average,
                 ratingCount = result.count,
                 ratingSum = result.sum
             )

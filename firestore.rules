@@ -12,6 +12,13 @@ rules_version = '2';
 // güveniliyor" aynı şey değil: notun yeni `ratingSum`/`ratingCount` değerleri
 // aşağıda, aynı commit'te yazılan oy dokümanından yeniden hesaplanıp
 // karşılaştırılıyor. İstemci sonucu üretiyor, sunucu doğruluyor.
+//
+// Ortalama puan artık hiç saklanmıyor. Saklandığı sürece kurallar onu tam olarak
+// doğrulayamıyordu — kural dili tam sayı bölmesi yaptığı için `avgRating` yalnızca
+// 0–5 aralığında bir sayı olmakla sınırlanabiliyordu, yani geçerli bir oyla
+// birlikte uydurma bir ortalama yazılabiliyordu. Alan kaldırıldı: gösterilen değer
+// artık `ratingSum`'ın kendisi, o da oy dokümanından birebir doğrulanıyor.
+// Doğrulanamayan bir alanı tutmaktansa tutmamak.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -53,24 +60,95 @@ service cloud.firestore {
     match /notes/{noteId} {
       allow read: if isSignedIn();
 
-      // Not oluşturan kişi kendini başkası olarak gösteremez ve puanı sıfırdan
-      // başlatmak zorunda: aksi halde nota doğrudan yüksek puanla doğulurdu.
+      /**
+       * Not oluşturma.
+       *
+       * Buradaki kontroller uygulamadaki form doğrulamasının kopyası değil, onun
+       * yerine geçeni: Android arayüzü saldırganın kullanmak zorunda olduğu tek yol
+       * değil, Firestore'a doğrudan bağlanan bir istemci hangi alanı isterse yazar.
+       * Eskiden yalnızca `uploaderUid` ile puan alanlarına bakılıyordu; geri kalan
+       * her şey — bölüm adı, yükleyenin e-postası, hiç beklenmeyen alanlar —
+       * serbestti.
+       *
+       * Alan kümesi `hasOnly` + `hasAll` ile birebir sabitleniyor: eksik alan da
+       * fazlası da reddediliyor. Bu, artık yazılmayan `avgRating`'i de kapatıyor —
+       * ortalama saklanmıyor, dolayısıyla uydurulamıyor da.
+       */
       allow create: if isSignedIn()
+                    && hasExactNoteFields()
+                    && hasValidNoteTypes()
+                    // Kimlik istemciden değil, oturumdan geliyor.
                     && request.resource.data.uploaderUid == request.auth.uid
+                    && request.resource.data.uploaderEmail == request.auth.token.email
+                    // Not, yazarın kendi bölümüne düşmek zorunda: aksi halde biri
+                    // başka bölümün feed'ine içerik sokabilirdi. Bölümü boş kalmış
+                    // eski bir profil bu yüzden hiç yükleyemez — uygulamadaki
+                    // `UNKNOWN_DEPARTMENT` yedeği artık yazma yolunda geçmiyor.
+                    // Kayıt bölüm seçmeden tamamlanamadığı için bu yalnızca bozuk
+                    // veriyi kapsıyor, ve o notu zaten hiçbir feed göstermiyordu.
+                    && request.resource.data.department == ownDepartment()
+                    // Sunucu saati; istemci notu geçmişe ya da geleceğe tarihleyemez.
+                    && request.resource.data.createdAt == request.time
+                    // Puanı sıfırdan başlatmak zorunda: aksi halde nota doğrudan
+                    // yüksek puanla doğulurdu.
                     && request.resource.data.ratingSum == 0
                     && request.resource.data.ratingCount == 0;
+
+      function noteFields() {
+        return [
+          'course', 'title', 'description', 'tag', 'department',
+          'uploaderUid', 'uploaderEmail', 'createdAt',
+          'ratingSum', 'ratingCount',
+          'fileName', 'fileType', 'fileSize'
+        ];
+      }
+
+      function hasExactNoteFields() {
+        return request.resource.data.keys().hasOnly(noteFields())
+               && request.resource.data.keys().hasAll(noteFields());
+      }
+
+      /**
+       * Tip ve boyut kontrolleri. Uzunluk sınırları arayüzdekilerle aynı olmak
+       * zorunda değil — buradaki iş bir dokümanın feed'i bozacak kadar büyümesini
+       * ya da sayı beklenen yere metin yazılmasını engellemek.
+       */
+      function hasValidNoteTypes() {
+        let data = request.resource.data;
+        return data.course is string && data.course.size() > 0 && data.course.size() <= 100
+               && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+               && data.description is string && data.description.size() <= 2000
+               && data.tag is string && data.tag.size() <= 50
+               && data.department is string
+               && data.uploaderUid is string
+               && data.uploaderEmail is string
+               && data.createdAt is timestamp
+               && data.ratingSum is int
+               && data.ratingCount is int
+               && data.fileName is string && data.fileName.size() <= 260
+               && data.fileType in ['pdf', 'image', '']
+               && data.fileSize is int && data.fileSize >= 0;
+      }
+
+      /** Yazarın kendi profilindeki bölüm; istemcinin gönderdiği değil. */
+      function ownDepartment() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid))
+                 .data.department;
+      }
 
       allow update: if isSignedIn() && (
                       isMetadataEditByOwner()
                       || isRatingWrite(noteId)
                     );
 
-      // Sahibi metadata'yı düzenleyebilir ama puan alanlarına ve sahiplik
-      // bilgisine dokunamaz — kendi notunu öne çıkarmanın en kısa yolu buydu.
+      // Sahibi metadata'yı düzenleyebilir ama puan alanlarına, sahiplik bilgisine
+      // ve bölüme dokunamaz — kendi notunu öne çıkarmanın en kısa yolu buydu.
+      // `avgRating` listede: alan artık yazılmıyor, düzenlemeyle geri gelmesin.
       function isMetadataEditByOwner() {
         return resource.data.uploaderUid == request.auth.uid
                && !changedFields().hasAny([
-                    'ratingSum', 'ratingCount', 'avgRating', 'uploaderUid'
+                    'ratingSum', 'ratingCount', 'avgRating',
+                    'uploaderUid', 'uploaderEmail', 'department', 'createdAt'
                   ]);
       }
 
@@ -95,7 +173,7 @@ service cloud.firestore {
         let submitted = getAfter(path).data;
         let rawSum = resource.data.ratingSum + submitted.rating - previous;
 
-        return changedFields().hasOnly(['ratingSum', 'ratingCount', 'avgRating'])
+        return changedFields().hasOnly(['ratingSum', 'ratingCount'])
                // Kendi notuna oy vermek burada yasaklanıyor; eskiden yalnızca
                // istemci kodunda kontrol ediliyordu.
                && resource.data.uploaderUid != request.auth.uid
@@ -106,13 +184,7 @@ service cloud.firestore {
                     votedBefore
                       ? (resource.data.ratingCount < 1 ? 1 : resource.data.ratingCount)
                       : resource.data.ratingCount + 1
-                  )
-               // Ortalama türetilmiş bir gösterim alanı; asıl doğrulama toplam ve
-               // sayıda. Kurallarda tam sayı bölmesi yapıldığı için burada
-               // birebir eşitlik yerine aralık kontrolü var.
-               && request.resource.data.avgRating is number
-               && request.resource.data.avgRating >= 0
-               && request.resource.data.avgRating <= 5;
+                  );
       }
 
       // Uygulama kodu silme öncesi sahiplik kontrolü YAPMIYOR; tek gerçek

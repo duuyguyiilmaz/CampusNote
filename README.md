@@ -46,7 +46,9 @@ full email — see
 - **Note upload** as PDF or image, with automatic image downscaling and compression
 - **Note rating** on a 1–5 scale; you cannot rate your own notes, and re-rating replaces
   your previous vote instead of adding a second one — both enforced by the security
-  rules, not just the app
+  rules, not just the app. A note's score is the running total of its votes, not an
+  average: the total is the one figure the rules can verify exactly (see
+  [Security rules](#security-rules))
 - **Leaderboard** ranking your department's top 50 notes by total score, with gold/silver/bronze placings
 - **Points and rewards** — your total is the score your own notes have earned; discounts unlock at 100 points
 - **Note management** — edit or delete your own notes from your profile
@@ -183,7 +185,7 @@ point total. Both were stored once and both drifted from the truth — see Key d
 | `department` | string | the feed and the leaderboard both filter on this |
 | `uploaderUid`, `uploaderEmail` | string | |
 | `fileName`, `fileType`, `fileSize` | string / string / number | `fileType` is `pdf`, `image` or empty |
-| `ratingSum`, `ratingCount`, `avgRating` | number | denormalised so the feed needs no aggregation |
+| `ratingSum`, `ratingCount` | number | denormalised so the feed needs no aggregation; `ratingSum` is the score shown on every screen |
 | `createdAt`, `updatedAt` | timestamp | |
 
 **`notes/{noteId}/content/file`** — one field, `fileData`, holding the base64 file content.
@@ -206,6 +208,16 @@ The rules require authentication everywhere, restrict note edits and deletes to 
 uploader, and pin each rating document to its author's UID. The delete rule is the
 *only* ownership check on deletion — the app code does not verify it.
 
+Creating a note is pinned to an exact shape. `hasOnly` plus `hasAll` fix the field set,
+so a missing field is refused as firmly as an invented one, and each field is then
+checked for type and size. Identity is taken from the session rather than the request:
+`uploaderUid` must be the caller's own uid, `uploaderEmail` must match the token's email,
+`createdAt` must be `request.time`, and `department` must equal the department on the
+caller's own profile — a note cannot be filed into someone else's feed. Editing a note
+cannot move any of those either. Until this landed the rule checked only `uploaderUid`
+and the two score fields; everything else was open to a client that skipped the Android
+UI, which an attacker was never obliged to use.
+
 They also verify the scoring rather than trusting it. A vote writes the note's totals and
 the rating document in one atomic commit, and the rule for the note uses `getAfter()` to
 read the rating being written in that same commit, recompute the expected `ratingSum` and
@@ -216,9 +228,16 @@ own note is refused by the server rather than only by the client.
 The expected totals are the same arithmetic as
 [`RatingCalculator`](app/src/main/java/duygu/yilmaz/campusnote/data/model/RatingCalculation.kt),
 floors included — the client and the rule have to agree exactly, so the rule is written
-as that function's twin. `avgRating` is checked only for range: rules do integer
-division, so an exact comparison is not available, and it is a derived display field
-whose inputs are already pinned.
+as that function's twin.
+
+**There is no average any more.** A stored `avgRating` was the one score field the rules
+could not actually verify: rules do integer division, so it could only be range-checked
+as "a number between 0 and 5", which left a legitimate vote free to carry a fabricated
+average onto the screen — a note could show 5.0 on a single 1-star rating. Rather than
+guard a field that could not be pinned, the field is gone. Screens show `ratingSum`, the
+running total, which the rule already recomputes from the vote and matches exactly. Old
+documents still carry `avgRating`; nothing reads it, and the create rule refuses to write
+it again.
 
 They are covered by their own test suite; see [Rules tests](#rules-tests).
 
@@ -322,7 +341,7 @@ emulator on API 24+.
 ./gradlew testDebugUnitTest
 ```
 
-129 JVM tests, no emulator and no network. They cover the layers where a bug would be
+128 JVM tests, no emulator and no network. They cover the layers where a bug would be
 invisible rather than loud: the scoring arithmetic, the decision logic in every
 ViewModel, the list diffing that decides which rows get redrawn, and — for the feature
 the app is built around — what the screen actually shows.
@@ -394,7 +413,7 @@ enforces — who may delete a note, whether a score can move without a vote behi
 invisible to them. That is the layer an attacker actually meets: the Android client can
 be replaced, the rules cannot.
 
-38 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
+47 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
 [`firestore.rules`](firestore.rules) against the local Firestore emulator through
 `@firebase/rules-unit-testing`. `npm test` starts the emulator, runs the suite and shuts
 it down again; nothing touches the real project, and no billing account is involved.
@@ -403,7 +422,8 @@ it down again; nothing touches the real project, and no billing account is invol
 |---|---|
 | `signed-out access` | Every collection is closed to an unauthenticated client — the one guard shared by all four rule blocks. |
 | `users` | Self-registration only, the document id matching the `id` field, and that nobody updates a profile afterwards — including the two shapes of the old hole: awarding yourself points, and writing points onto someone else. |
-| `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
+| `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals, the department, or the identity fields; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
+| `note creation is pinned to an exact shape` | One test per way a hand-rolled request used to get through: an unexpected field, a missing one, a resurrected `avgRating`, another department, a forged `uploaderEmail`, a client-chosen `createdAt`, a wrong type, and an empty or oversized title. Each asserts the refusal, so relaxing any single check turns exactly one test red. |
 | `note content` | The batched note-plus-file upload, owner-only replace and delete, and a test that deliberately asserts the *open* create rule, so the gap documented in `firestore.rules` cannot be closed by accident and go unnoticed. |
 | `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range and the ban on deleting votes. |
 | `unmatched paths` | A path no `match` block covers is denied, so adding a collection to the app without adding a rule fails closed rather than open. |

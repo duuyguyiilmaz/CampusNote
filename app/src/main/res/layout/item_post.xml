@@ -96,7 +96,7 @@
                 android:id="@+id/tvRating"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:text="4.5"
+                tools:text="12"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="@color/white"/>
