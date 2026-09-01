@@ -359,6 +359,17 @@ one call (`sendEmailVerification()` after sign-up, then gating the feed on
 project are test data, and a mandatory confirmation step would put a mailbox between a
 reviewer and the running app for no benefit at this scale.
 
+**Registration writes to two systems, and only one of them can be rolled back.** An auth
+account is created first, then a Firestore profile. If the profile write fails the account
+is deleted again — but that deletion can fail too, and then the account exists with no
+profile: the person is registered as far as Firebase is concerned, cannot sign up again
+with that address, and cannot use the app, because every screen needs the profile. There
+is no transaction spanning both systems on this plan, so the second line of defence is a
+recovery screen: a session with no profile is routed to
+[`CompleteProfileActivity`](app/src/main/java/duygu/yilmaz/campusnote/ui/auth/CompleteProfileActivity.kt),
+which writes the missing document from the session's own uid and address. One such
+account existed in the live project and was recovered through it.
+
 **Deleting a note reports failure with a `Toast`.** Unlike a failed read, the user can
 repeat a failed delete by tapping the button again, so the toast does not leave them
 stuck — but the retry is still theirs to figure out. Offering it in the snackbar would
@@ -440,7 +451,7 @@ emulator on API 24+.
 ./gradlew testDebugUnitTest
 ```
 
-126 JVM tests, no emulator and no network. They cover the layers where a bug would be
+139 JVM tests, no emulator and no network. They cover the layers where a bug would be
 invisible rather than loud: the scoring arithmetic, the decision logic in every
 ViewModel, the list diffing that decides which rows get redrawn, and — for the feature
 the app is built around — what the screen actually shows.
@@ -453,11 +464,13 @@ the app is built around — what the screen actually shows.
 | `NoteDetailViewModelTest` | Metadata and file content loading as separate states, no file read for a note without one, and the rating rules (own note, missing session, deleted note). |
 | `EditNoteViewModelTest` | Ownership and session handling on load and save. |
 | `ProfileViewModelTest` | Total points summed from the user's own notes, and note deletion. |
-| `LoginViewModelTest`, `RegisterViewModelTest` | State transitions, and which of registration's two steps — auth account or profile document — failed. |
+| `LoginViewModelTest`, `RegisterViewModelTest` | State transitions, which of registration's two steps — auth account or profile document — failed, and that a failed profile write rolls the auth account back. Including the case where the rollback itself fails: the user still sees the profile error, because from where they stand the result is the same. |
+| `CompleteProfileViewModelTest` | The recovery path for an account that has no profile: the write takes its uid and address from the session rather than the request, a missing session writes nothing, a double tap saves one profile, and a failed write leaves the screen usable. |
+| `MainViewModelTest` | Session routing, including the three-way decision on startup: signed out, signed in with a profile, and signed in without one. Also that a profile which cannot be *read* is not treated as one that does not exist — a dropped connection must not push someone into a screen where they cannot write either. |
 | `AuthErrorMessagesTest` | That each Firebase auth error code reaches its own Turkish message rather than the catch-all. The mapping used to match on Firebase's English error *sentence*; those strings are not API, they changed, and every failure quietly collapsed into "Tekrar deneyin." with no test to notice. `ERROR_INVALID_CREDENTIAL` is the sharp case — with email enumeration protection on, it is what both a wrong password and an unknown account now return. |
 | `PasswordToggleTest` | That the password field starts masked and its toggle icon reports state, not action: unchecked (crossed-out eye) while hidden, checked (open eye) while visible. The icon is a custom selector wired through `endIconDrawable`, so dropping that one attribute leaves a working button with the inverted icon — invisible to every other test. |
 | `LeaderboardViewModelTest` | Empty vs. content, and the department scoping: which department the ranking is asked for, and the three cases — no session, no profile, blank department — where the query must not be built at all. |
-| `MainViewModelTest`, `UploaderNameTest` | Session routing, and the uploader-name masking shared by three screens. |
+| `UploaderNameTest` | The uploader-name derivation, which the rule mirrors with `email.split('@')[0]`. |
 | `PostAdapterTest`, `LeaderboardAdapterTest` | Which rows a `DiffUtil` pass marks as changed. The leaderboard case is the sharp one: a note's medal depends on its rank, so a note that swapped places without changing must still be rebound, or the gold medal stays on the row it left. |
 | `FeedScreenTest` | The contribution gate as a user meets it — the lock and its way out, the unlocked feed and its notes. See [Screen tests](#screen-tests). |
 

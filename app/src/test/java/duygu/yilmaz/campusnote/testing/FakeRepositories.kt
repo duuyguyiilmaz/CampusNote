@@ -31,12 +31,15 @@ class FakeAuthRepository(
 
     var signInError: Exception? = null
     var registerError: Exception? = null
+    var deleteError: Exception? = null
 
     var signInCount = 0
         private set
     var registerCount = 0
         private set
     var signOutCount = 0
+        private set
+    var deleteCount = 0
         private set
     var lastCredentials: Pair<String, String>? = null
         private set
@@ -46,6 +49,12 @@ class FakeAuthRepository(
     }
 
     override fun currentUser(): AuthenticatedUser? = user
+
+    override suspend fun deleteCurrentUser() {
+        deleteCount++
+        deleteError?.let { throw it }
+        user = null
+    }
 
     override suspend fun signIn(email: String, password: String): AuthenticatedUser {
         signInCount++

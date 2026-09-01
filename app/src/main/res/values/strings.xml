@@ -62,6 +62,11 @@
     <string name="login_error_invalid_credentials">Email veya şifre hatalı</string>
     <string name="login_error_generic">Giriş başarısız. Tekrar deneyin.</string>
 
+    <!-- Profil tamamlama: Auth hesabı olup Firestore profili olmayan oturum -->
+    <string name="complete_profile_subtitle">Hesabın oluşturulmuş ama profilin tamamlanmamış. Bölümünü seçince devam edebilirsin.</string>
+    <string name="complete_profile_action">Profili tamamla</string>
+    <string name="complete_profile_saved">Profilin tamamlandı!</string>
+
     <!-- Kayıt ekranı -->
     <string name="register_subtitle">Yeni hesap oluştur</string>
     <string name="register_action">Kayıt ol</string>

@@ -18,5 +18,20 @@ interface AuthRepository {
 
     suspend fun register(email: String, password: String): AuthenticatedUser
 
+    /**
+     * Az önce oluşturulmuş hesabı geri alır.
+     *
+     * Kayıt iki ayrı sisteme yazıyor — önce Auth hesabı, sonra Firestore profili —
+     * ve ikincisi düşerse geriye kimsenin kullanamadığı bir hesap kalıyor: kişi
+     * Firebase'de kayıtlı görünüyor, aynı adresle yeniden kayıt olamıyor, ama
+     * profili olmadığı için uygulamanın çoğu kapalı. Bu çağrı o durumu telafi
+     * ediyor.
+     *
+     * Telafi garantili değil — silme çağrısının kendisi de düşebilir — o yüzden
+     * ikinci bir savunma var: profili olmayan bir oturum açılışta profil tamamlama
+     * ekranına gidiyor.
+     */
+    suspend fun deleteCurrentUser()
+
     fun signOut()
 }

@@ -49,11 +49,35 @@ class RegisterViewModel(
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (exception: Exception) {
+                rollBackAccount()
                 AuthUiState.Error(
                     exception = exception,
                     stage = AuthFailureStage.USER_PROFILE
                 )
             }
+        }
+    }
+
+    /**
+     * Profil yazılamadığında az önce açılan Auth hesabını geri alır.
+     *
+     * Kayıt iki sisteme yazıyor ve arada yarıda kalabiliyor. Geri almazsak kişi
+     * Firebase'de var olur, aynı adresle yeniden kayıt olamaz ve profili olmadığı
+     * için uygulamayı da kullanamaz — kimsenin çıkamadığı bir durum.
+     *
+     * Silmenin kendisi de düşebilir; o zaman kullanıcıya gösterilecek mesaj
+     * değişmiyor, çünkü kullanıcı açısından sonuç aynı: kayıt olmadı. Fark, hesabın
+     * ortada kalmasında ve onu [duygu.yilmaz.campusnote.ui.profile.CompleteProfileActivity]
+     * topluyor. Bu yüzden burada hata yutuluyor — telafi başarısız olduğu için
+     * asıl hatanın üstünü örtmenin anlamı yok.
+     */
+    private suspend fun rollBackAccount() {
+        try {
+            authRepository.deleteCurrentUser()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            // Bilinçli olarak yutuluyor; yukarıdaki açıklamaya bakın.
         }
     }
 
