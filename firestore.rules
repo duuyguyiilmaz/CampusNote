@@ -75,11 +75,23 @@ service cloud.firestore {
        * Firestore'a doğrudan bağlanan bir istemci filtreyi kaldırıp bütün
        * üniversitenin notlarını indirebiliyordu.
        *
-       * Sorgular için kural her dönen dokümana ayrı ayrı uygulanır ve biri bile
-       * düşerse sorgunun tamamı reddedilir — yani feed'in `where department == X`
-       * filtresi artık isteğe bağlı bir nezaket değil, sorgunun geçme koşulu.
+       * Firestore liste sorgularında kuralı dönen belgelere değil *sorgunun kendisine*
+       * uyguluyor: sorgu, sonuçların kuralı sağlayacağını garanti eden bir filtre
+       * taşımıyorsa hiç çalıştırılmadan reddediliyor. Yani feed'in
+       * `where department == X` filtresi artık isteğe bağlı bir nezaket değil,
+       * sorgunun geçme koşulu.
+       *
+       * `uploaderUid` dalı bu yüzden var, gevşeklikten değil: katkı kapısı ve profil
+       * ekranı `where uploaderUid == ben` sorguluyor ve bölüm filtresi taşımıyor.
+       * Tek dallı bir kural o sorguları — kullanıcının kendi notları olmasına
+       * rağmen — reddediyordu; canlıda feed boş açıldı, kapı hiç değerlendirilemedi.
+       * İki dal, uygulamanın gerçekten kurduğu iki sorguya karşılık geliyor;
+       * filtresiz bir sorgu ikisini de sağlamadığı için hâlâ reddediliyor.
        */
-      allow read: if isSignedIn() && resource.data.department == ownDepartment();
+      allow read: if isSignedIn() && (
+                    resource.data.department == ownDepartment()
+                    || resource.data.uploaderUid == request.auth.uid
+                  );
 
       /**
        * Not oluşturma.

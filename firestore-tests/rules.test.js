@@ -244,7 +244,13 @@ describe("notes", () => {
   test("a note in another department cannot be read", async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), "notes", "other-dept"), {
-        ...noteFields({ department: "Makine Mühendisliği" }),
+        // Başkasının notu olmalı: kendi notun bölüm değişse de okunabilir kalıyor,
+        // o yüzden aynı fixture bu testi ölçmezdi.
+        ...noteFields({
+          department: "Makine Mühendisliği",
+          uploaderUid: OWNER,
+          uploaderName: OWNER_NAME,
+        }),
         createdAt: 1,
       });
     });
@@ -259,6 +265,26 @@ describe("notes", () => {
   test("a query filtered to the reader's own department is allowed", async () => {
     await assertSucceeds(
       getDocs(query(collection(rater, "notes"), where("department", "==", DEPARTMENT))),
+    );
+  });
+
+  /**
+   * The query the contribution gate and the profile screen actually build. It
+   * carries no department filter, and a rule with only the department branch
+   * rejected it outright — Firestore evaluates a list against the query, not the
+   * documents it would return, so "these happen to be my own notes in my own
+   * department" is not something it can work out. The feed opened empty in
+   * production before this branch existed.
+   */
+  test("a query for the reader's own notes is allowed without a department filter", async () => {
+    await assertSucceeds(
+      getDocs(query(collection(rater, "notes"), where("uploaderUid", "==", RATER))),
+    );
+  });
+
+  test("a query for someone else's notes is refused", async () => {
+    await assertFails(
+      getDocs(query(collection(rater, "notes"), where("uploaderUid", "==", OWNER))),
     );
   });
 
@@ -486,7 +512,13 @@ describe("note content", () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();
       await setDoc(doc(db, "notes", "other-dept"), {
-        ...noteFields({ department: "Makine Mühendisliği" }),
+        // Başkasının notu olmalı: kendi notun bölüm değişse de okunabilir kalıyor,
+        // o yüzden aynı fixture bu testi ölçmezdi.
+        ...noteFields({
+          department: "Makine Mühendisliği",
+          uploaderUid: OWNER,
+          uploaderName: OWNER_NAME,
+        }),
         createdAt: 1,
       });
       await setDoc(doc(db, "notes", "other-dept", "content", "file"), {

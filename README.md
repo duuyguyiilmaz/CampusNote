@@ -215,9 +215,13 @@ signed-in student could pull every profile, every note and every attached file i
 university. That the app only ever asked for its own department was a property of the app,
 and the app is not the only client anyone can write. Notes and their file subcollections
 are now readable only when their `department` matches the department on the caller's own
-profile; because rules are evaluated against each document a query returns and the whole
-query fails if one is denied, the feed's `where department == …` filter is now the
-condition for the query to run rather than a courtesy. Profiles went further and are
+profile, or the note is the caller's own. Firestore evaluates a list against the *query*
+rather than the documents it would return, so an unfiltered query is refused before it
+runs and the feed's `where department == …` filter becomes the condition for running
+rather than a courtesy. The second branch is not slack: the contribution gate and the
+profile screen query `where uploaderUid == me` with no department filter, and a
+single-branch rule rejected them outright — the feed opened empty in production, which is
+how the branch was found. Profiles went further and are
 readable only by their owner: all four `getUser` calls in the app pass the caller's own
 uid, and the leaderboard takes the uploader's name from the note, so the open rule was
 granting an access nobody needed.
@@ -435,7 +439,7 @@ enforces — who may delete a note, whether a score can move without a vote behi
 invisible to them. That is the layer an attacker actually meets: the Android client can
 be replaced, the rules cannot.
 
-55 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
+57 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
 [`firestore.rules`](firestore.rules) against the local Firestore emulator through
 `@firebase/rules-unit-testing`. `npm test` starts the emulator, runs the suite and shuts
 it down again; nothing touches the real project, and no billing account is involved.
@@ -444,7 +448,7 @@ it down again; nothing touches the real project, and no billing account is invol
 |---|---|
 | `signed-out access` | Every collection is closed to an unauthenticated client — the one guard shared by all four rule blocks. |
 | `users` | Self-registration only, the document id matching the `id` field, that nobody updates a profile afterwards — including the two shapes of the old hole, awarding yourself points and writing points onto someone else — and that a profile is readable only by its owner. |
-| `notes` (reads) | A note in the reader's own department is readable and one in another department is not; an unfiltered query over the collection is refused, a query filtered to the reader's own department is allowed, and one filtered to another department is refused. The last three are what make the scoping real rather than advisory. |
+| `notes` (reads) | A note in the reader's own department is readable and another department's note is not; an unfiltered query is refused, one filtered to the reader's own department is allowed, and one filtered to another department is refused. Two more cover the query the app actually builds for a profile: `where uploaderUid == me` is allowed without a department filter, and the same query for someone else's uid is refused. |
 | `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals, the department, or the identity fields; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
 | `note creation is pinned to an exact shape` | One test per way a hand-rolled request used to get through: an unexpected field, a missing one, a resurrected `avgRating`, another department, a forged `uploaderName`, an email address written onto a note, a client-chosen `createdAt`, a wrong type, and an empty or oversized title. Each asserts the refusal, so relaxing any single check turns exactly one test red. |
 | `note content` | The batched note-plus-file upload, owner-only replace and delete, that a file on another department's note cannot be read — otherwise the boundary is walked around through the file path — and a test that deliberately asserts the *open* create rule, so the gap documented in `firestore.rules` cannot be closed by accident and go unnoticed. |
