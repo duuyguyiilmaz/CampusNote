@@ -27,6 +27,9 @@
     <string name="error_generic">Hata: %1$s</string>
     <string name="error_network">İnternet bağlantınızı kontrol edin</string>
     <string name="error_invalid_email_format">Geçersiz email formatı</string>
+    <string name="error_too_many_requests">Çok fazla deneme yapıldı. Bir süre sonra tekrar deneyin.</string>
+    <string name="error_user_disabled">Bu hesap devre dışı bırakılmış</string>
+    <string name="error_operation_not_allowed">Email ile giriş bu projede kapalı</string>
     <string name="vote_count">%1$d oy</string>
     <string name="action_cancel">İptal</string>
     <string name="action_retry">Tekrar dene</string>
@@ -46,11 +49,17 @@
 
     <!-- Giriş ekranı -->
     <string name="login_subtitle">Hesabına giriş yap</string>
-    <string name="login_keep_signed_in">Oturumu açık tut</string>
     <string name="login_action">Giriş yap</string>
     <string name="login_welcome">Hoş geldin!</string>
     <string name="login_error_user_not_found">Bu email ile kayıtlı kullanıcı bulunamadı</string>
     <string name="login_error_wrong_password">Şifre hatalı</string>
+    <!--
+        Firebase, e-posta sayım korumasi açıkken "kullanıcı yok" ile "şifre yanlış"ı
+        bilerek ayırmıyor ve ikisine de ERROR_INVALID_CREDENTIAL dönüyor. Hangisi
+        olduğunu söylemek bir saldırgana hangi adreslerin kayıtlı olduğunu da
+        söylerdi; mesaj bu yüzden ikisini birleştiriyor.
+    -->
+    <string name="login_error_invalid_credentials">Email veya şifre hatalı</string>
     <string name="login_error_generic">Giriş başarısız. Tekrar deneyin.</string>
 
     <!-- Kayıt ekranı -->

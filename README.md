@@ -322,7 +322,7 @@ emulator on API 24+.
 ./gradlew testDebugUnitTest
 ```
 
-114 JVM tests, no emulator and no network. They cover the layers where a bug would be
+129 JVM tests, no emulator and no network. They cover the layers where a bug would be
 invisible rather than loud: the scoring arithmetic, the decision logic in every
 ViewModel, the list diffing that decides which rows get redrawn, and — for the feature
 the app is built around — what the screen actually shows.
@@ -336,6 +336,8 @@ the app is built around — what the screen actually shows.
 | `EditNoteViewModelTest` | Ownership and session handling on load and save. |
 | `ProfileViewModelTest` | Total points summed from the user's own notes, and note deletion. |
 | `LoginViewModelTest`, `RegisterViewModelTest` | State transitions, and which of registration's two steps — auth account or profile document — failed. |
+| `AuthErrorMessagesTest` | That each Firebase auth error code reaches its own Turkish message rather than the catch-all. The mapping used to match on Firebase's English error *sentence*; those strings are not API, they changed, and every failure quietly collapsed into "Tekrar deneyin." with no test to notice. `ERROR_INVALID_CREDENTIAL` is the sharp case — with email enumeration protection on, it is what both a wrong password and an unknown account now return. |
+| `PasswordToggleTest` | That the password field starts masked and its toggle icon reports state, not action: unchecked (crossed-out eye) while hidden, checked (open eye) while visible. The icon is a custom selector wired through `endIconDrawable`, so dropping that one attribute leaves a working button with the inverted icon — invisible to every other test. |
 | `LeaderboardViewModelTest` | Empty vs. content, and the department scoping: which department the ranking is asked for, and the three cases — no session, no profile, blank department — where the query must not be built at all. |
 | `MainViewModelTest`, `UploaderNameTest` | Session routing, and the uploader-name masking shared by three screens. |
 | `PostAdapterTest`, `LeaderboardAdapterTest` | Which rows a `DiffUtil` pass marks as changed. The leaderboard case is the sharp one: a note's medal depends on its rank, so a note that swapped places without changing must still be rebound, or the gold medal stays on the row it left. |
@@ -377,7 +379,7 @@ test through a `FragmentFactory`, which is what lets the existing repository fak
 a real screen.
 
 The inverted-gate mutation above is not hypothetical: applying it turns five of these
-six tests red and leaves all 96 other tests green.
+six tests red and leaves every other test in the suite green.
 
 ### Rules tests
 
