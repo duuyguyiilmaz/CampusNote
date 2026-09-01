@@ -495,7 +495,56 @@ describe("notes", () => {
 
   test("the uploader may edit their note's metadata", async () => {
     await assertSucceeds(
-      updateDoc(doc(owner, "notes", NOTE), { title: "Güncellenmiş başlık" }),
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "Güncellenmiş başlık",
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  /**
+   * The check used to be a blacklist — it named the fields that must not move and
+   * let everything else through. A field nobody thought of, including one added
+   * next year, was writable by default, and the metadata that *was* allowed had no
+   * type or size bound at all.
+   */
+  test("an edit cannot introduce a field nobody expects", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "Güncellenmiş başlık",
+        updatedAt: serverTimestamp(),
+        isFeatured: true,
+      }),
+    );
+  });
+
+  test("an edit cannot put the wrong type or size in the metadata", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: 42,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "a".repeat(201),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "",
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test("an edit cannot backdate updatedAt", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "Güncellenmiş başlık",
+        updatedAt: 1,
+      }),
     );
   });
 
@@ -620,6 +669,22 @@ describe("note content", () => {
     await assertSucceeds(deleteDoc(doc(owner, "notes", NOTE, "content", "file")));
   });
 
+  /**
+   * Create pinned the shape and update did not, so the whole check could be skipped
+   * by writing the document twice — a valid one first, anything at all second.
+   */
+  test("replacing a file must keep the same shape", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE, "content", "file"), {
+        fileData: "eWVuaQ==",
+        uploaderUid: RATER,
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE, "content", "file"), { fileData: 42 }),
+    );
+  });
+
   test("someone else cannot overwrite or delete the file", async () => {
     await assertFails(
       setDoc(doc(rater, "notes", NOTE, "content", "file"), {
@@ -683,6 +748,54 @@ describe("note content", () => {
 
 describe("ratings", () => {
   const validVote = { uid: RATER, noteId: NOTE, rating: 4 };
+
+  /** Seeds a vote without going through the rules, so a broken rule shows up as a
+   * failed assertion rather than a failed setup. */
+  const seedVote = async (vote = validVote, id = `${RATER}_${NOTE}`) => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "ratings", id), vote);
+    });
+  };
+
+
+  test("a user may read their own vote", async () => {
+    await seedVote();
+    await assertSucceeds(getDoc(doc(rater, "ratings", `${RATER}_${NOTE}`)));
+  });
+
+  /**
+   * The open read rule exposed every vote in the database to every signed-in user:
+   * who rated what, and how. The app never needed that — the voter reads their own
+   * document inside the rating transaction, and the note's owner reads the votes on
+   * their own note when deleting it.
+   */
+  test("a user cannot read someone else's vote", async () => {
+    await seedVote({ uid: OWNER, noteId: NOTE, rating: 4 }, `${OWNER}_${NOTE}`);
+    await assertFails(getDoc(doc(rater, "ratings", `${OWNER}_${NOTE}`)));
+  });
+
+  test("the whole ratings collection cannot be pulled", async () => {
+    await assertFails(getDocs(collection(rater, "ratings")));
+  });
+
+  test("a user may query their own votes", async () => {
+    await assertSucceeds(
+      getDocs(query(collection(rater, "ratings"), where("uid", "==", RATER))),
+    );
+  });
+
+  test("the note's owner may query the votes on their note", async () => {
+    // This is the read `deleteNote` performs before removing a note.
+    await assertSucceeds(
+      getDocs(query(collection(owner, "ratings"), where("noteId", "==", NOTE))),
+    );
+  });
+
+  test("a stranger cannot query the votes on someone else's note", async () => {
+    await assertFails(
+      getDocs(query(collection(rater, "ratings"), where("noteId", "==", NOTE))),
+    );
+  });
 
   test("a vote is written under <uid>_<noteId>", async () => {
     await assertSucceeds(vote(rater, RATER, NOTE, 4, { sum: 4, count: 1 }));
@@ -835,14 +948,6 @@ describe("ratings", () => {
     }
   });
 
-  /** Seeds a vote without going through the rules, so a broken rule shows up as a
-   * failed assertion rather than a failed setup. */
-  const seedVote = async (vote = validVote, id = `${RATER}_${NOTE}`) => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), "ratings", id), vote);
-    });
-  };
-
   /**
    * A vote on its own must stay put. Deleting one does not lower the note's total,
    * but it does hand the voter a second first-time vote — the rule would count it
@@ -870,6 +975,37 @@ describe("ratings", () => {
     const batch = writeBatch(owner);
     batch.delete(doc(owner, "ratings", `${RATER}_${NOTE}`));
     batch.delete(doc(owner, "notes", NOTE));
+    await assertSucceeds(batch.commit());
+  });
+
+  /**
+   * The realistic delete: a note with many votes, all removed in the commit that
+   * removes it. Rules cap the document access calls one request may make, and each
+   * rating delete here evaluates `existsAfter()` and `get()` on the note. If those
+   * are counted per rating rather than cached per path, a note with a dozen votes
+   * becomes undeletable — which is exactly the size of note that would have them.
+   */
+  test("a note with many votes can still be deleted in one commit", async () => {
+    const voters = Array.from({ length: 12 }, (_, i) => `voter-${i}`);
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      for (const uid of voters) {
+        await setDoc(doc(db, "ratings", `${uid}_${NOTE}`), {
+          uid,
+          noteId: NOTE,
+          rating: 4,
+        });
+      }
+    });
+
+    const batch = writeBatch(owner);
+    for (const uid of voters) {
+      batch.delete(doc(owner, "ratings", `${uid}_${NOTE}`));
+    }
+    batch.delete(doc(owner, "notes", NOTE, "content", "file"));
+    batch.delete(doc(owner, "notes", NOTE));
+
     await assertSucceeds(batch.commit());
   });
 

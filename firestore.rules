@@ -244,16 +244,36 @@ service cloud.firestore {
                       || isRatingWrite(noteId)
                     );
 
-      // Sahibi metadata'yı düzenleyebilir ama puan alanlarına, sahiplik bilgisine
-      // ve bölüme dokunamaz — kendi notunu öne çıkarmanın en kısa yolu buydu.
-      // `avgRating` listede: alan artık yazılmıyor, düzenlemeyle geri gelmesin.
+      /**
+       * Sahibi yalnızca metadata'yı düzenleyebilir.
+       *
+       * Bu kontrol eskiden kara listeydi: dokunulmaması gereken alanlar sayılıyor,
+       * geri kalan her şey serbest bırakılıyordu. Sayılmayan bir alan — bugün var
+       * olmayan ama yarın eklenecek olan da dahil — sessizce yazılabilir demekti;
+       * üstelik `title`'a sayı, `description`'a megabaytlık metin koymak da mümkündü.
+       *
+       * Artık beyaz liste: değişebilecek alan kümesi `hasOnly` ile sabit ve her biri
+       * oluşturmadakiyle aynı tip/boyut kontrolünden geçiyor. Yeni bir alan eklemek
+       * kuralı da güncellemeyi gerektiriyor, ki doğrusu bu.
+       */
       function isMetadataEditByOwner() {
         return resource.data.uploaderUid == request.auth.uid
-               && !changedFields().hasAny([
-                    'ratingSum', 'ratingCount', 'avgRating',
-                    'uploaderUid', 'uploaderName', 'uploaderEmail',
-                    'department', 'createdAt'
-                  ]);
+               && changedFields().hasOnly(editableNoteFields())
+               && hasValidEditedMetadata();
+      }
+
+      /** `updatedAt` yalnızca düzenlemede yazılıyor, oluşturmada yok. */
+      function editableNoteFields() {
+        return ['course', 'title', 'description', 'tag', 'updatedAt'];
+      }
+
+      function hasValidEditedMetadata() {
+        let data = request.resource.data;
+        return data.course is string && data.course.size() > 0 && data.course.size() <= 100
+               && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+               && data.description is string && data.description.size() <= 2000
+               && data.tag is string && data.tag.size() <= 50
+               && data.updatedAt == request.time;
       }
 
       function ratingPath(noteId) {
@@ -326,14 +346,41 @@ service cloud.firestore {
                       && request.resource.data.keys().hasOnly(['fileData'])
                       && request.resource.data.fileData is string;
 
-        allow update, delete: if isSignedIn()
+        // Güncelleme oluşturmayla aynı şemayı geçmek zorunda: create'te alan kümesi
+        // sabitlenip update'te serbest bırakılırsa, kontrol yalnızca ilk yazmayı
+        // bağlar ve ikincisinde atlanır.
+        allow update: if isSignedIn()
+                      && get(/databases/$(database)/documents/notes/$(noteId))
+                           .data.uploaderUid == request.auth.uid
+                      && request.resource.data.keys().hasOnly(['fileData'])
+                      && request.resource.data.fileData is string;
+
+        allow delete: if isSignedIn()
           && get(/databases/$(database)/documents/notes/$(noteId))
                .data.uploaderUid == request.auth.uid;
       }
     }
 
     match /ratings/{ratingId} {
-      allow read: if isSignedIn();
+      /**
+       * Oylar herkese açık değil.
+       *
+       * Kural `isSignedIn()` iken oturum açmış herkes bütün koleksiyonu okuyabiliyor
+       * ve her satır bir kullanıcının hangi nota kaç verdiğini söylüyordu — uid, not
+       * kimliği ve puan. Uygulamanın buna ihtiyacı yoktu; yalnızca iki okuma var:
+       * oy verenin transaction içinde kendi oyunu okuması, ve not sahibinin notu
+       * silerken o notun oylarını `where noteId == ...` ile bulması.
+       *
+       * İki dal tam olarak o iki okumaya karşılık geliyor. Firestore liste
+       * sorgusunu kurala göre değerlendirdiği için `where uid == ben` ya da
+       * `where noteId == kendi notum` taşımayan bir sorgu geçmiyor; koleksiyonun
+       * tamamını çekmek artık mümkün değil.
+       */
+      allow read: if isSignedIn() && (
+                    resource.data.uid == request.auth.uid
+                    || get(/databases/$(database)/documents/notes/$(resource.data.noteId))
+                         .data.uploaderUid == request.auth.uid
+                  );
 
       // Doküman kimliği "<oyVerenUid>_<notId>" biçiminde; bu kalıbı zorunlu
       // kılmak bir kullanıcının başkasının oyunu yazmasını engelliyor.
