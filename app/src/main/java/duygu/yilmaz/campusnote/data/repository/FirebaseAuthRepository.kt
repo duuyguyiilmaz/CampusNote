@@ -23,6 +23,10 @@ class FirebaseAuthRepository(
             ?: throw IllegalStateException("Registered user is missing")
     }
 
+    override suspend fun deleteCurrentUser() {
+        auth.currentUser?.delete()?.await()
+    }
+
     override fun signOut() {
         auth.signOut()
     }

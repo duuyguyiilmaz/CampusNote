@@ -6,6 +6,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import duygu.yilmaz.campusnote.R
 import duygu.yilmaz.campusnote.databinding.ActivityMainBinding
+import duygu.yilmaz.campusnote.ui.auth.CompleteProfileActivity
 import duygu.yilmaz.campusnote.ui.auth.LoginActivity
 import duygu.yilmaz.campusnote.ui.feed.FeedFragment
 import duygu.yilmaz.campusnote.ui.leaderboard.LeaderboardFragment
@@ -25,6 +26,15 @@ class MainActivity : AppCompatActivity() {
             finish()
             return
         }
+
+        // Oturum var ama profili olmayabilir; bkz. MainViewModel.resolveRoute.
+        viewModel.route.observe(this) { route ->
+            if (route == MainRoute.NeedsProfile) {
+                startActivity(Intent(this, CompleteProfileActivity::class.java))
+                finish()
+            }
+        }
+        viewModel.resolveRoute()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
