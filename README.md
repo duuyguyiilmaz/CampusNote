@@ -226,6 +226,14 @@ readable only by their owner: all four `getUser` calls in the app pass the calle
 uid, and the leaderboard takes the uploader's name from the note, so the open rule was
 granting an access nobody needed.
 
+**A vote can only be deleted with its note.** `ratings` is a top-level collection
+rather than a subcollection, so deleting a note never touched the votes cast on it and
+the documents piled up unreachable — the rule was a flat `if false`, and rightly so on its
+own terms: a deleted vote does not lower the note's total but does hand the voter a fresh
+first-time vote, so free deletion was a way to pad a score. `existsAfter()` ties the two
+together instead. A vote may be deleted only when the same commit removes its note, and
+only by that note's owner, which is exactly what `deleteNote` now writes.
+
 **Attaching a file is owner-only too.** Creating a content document used to be open
 to any signed-in user, and the rules said why: a batch cannot `get()` its own
 uncommitted parent note, so ownership could not be checked. The `get()` half was true and
@@ -446,7 +454,7 @@ enforces — who may delete a note, whether a score can move without a vote behi
 invisible to them. That is the layer an attacker actually meets: the Android client can
 be replaced, the rules cannot.
 
-61 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
+65 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
 [`firestore.rules`](firestore.rules) against the local Firestore emulator through
 `@firebase/rules-unit-testing`. `npm test` starts the emulator, runs the suite and shuts
 it down again; nothing touches the real project, and no billing account is involved.
@@ -459,7 +467,7 @@ it down again; nothing touches the real project, and no billing account is invol
 | `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals, the department, or the identity fields; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
 | `note creation is pinned to an exact shape` | One test per way a hand-rolled request used to get through: an unexpected field, a missing one, a resurrected `avgRating`, another department, a forged `uploaderName`, an email address written onto a note, a client-chosen `createdAt`, a wrong type, and an empty or oversized title. Each asserts the refusal, so relaxing any single check turns exactly one test red. |
 | `note content` | The batched note-plus-file upload, owner-only create, replace and delete, that a file on another department's note cannot be read — otherwise the boundary is walked around through the file path — that a content document carrying anything but `fileData` is refused, and that a batch cannot pair a legitimate note of its own with a file smuggled onto someone else's. |
-| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range and the ban on deleting votes. |
+| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range. Deletion has four: a vote cannot be removed on its own, not even by the note's owner; the owner may remove it in the same commit that deletes the note; a stranger cannot reach it by deleting a note they do not own; and a vote whose note is already gone stays refused, which is the gap the prune script covers. |
 | `unmatched paths` | A path no `match` block covers is denied, so adding a collection to the app without adding a rule fails closed rather than open. |
 
 Fixtures are seeded with `withSecurityRulesDisabled`, so a broken rule surfaces as a
@@ -523,6 +531,27 @@ before and after.
 against the emulator, including the assertion the change exists for: afterwards no
 document in the collection has an `uploaderEmail` field at all.
 
+### Clearing orphaned votes
+
+```bash
+cd firestore-tests
+npm run prune:orphan-ratings -- --project <your-project-id>            # reports only
+npm run prune:orphan-ratings -- --project <your-project-id> --apply    # deletes
+```
+
+Votes cast on notes deleted before the change above are still in the `ratings`
+collection, and no client can reach them: the delete rule calls `get()` on the note, and
+a note that is gone turns that into an evaluation error, which fails closed. This is the
+only thing that can clear them. It reads both collections once and compares in memory
+rather than issuing a `get()` per vote, since the collection it is aimed at is one that
+has been accumulating. A rating carrying no `noteId` is reported and left alone —
+deleting on a guess is worse than saying so.
+
+[`prune-orphan-ratings.test.js`](firestore-tests/prune-orphan-ratings.test.js) runs it
+against the emulator: the orphan goes, the live vote stays, and the note id is read from
+the field rather than split out of the document id, which would be ambiguous whenever a
+uid contains an underscore.
+
 ### Continuous integration
 
 [`.github/workflows/android.yml`](.github/workflows/android.yml) runs on every push to
@@ -564,7 +593,7 @@ app/src/test/java/duygu/yilmaz/campusnote/
                         diff tests, and FeedScreenTest
 
 firestore-tests/        emulator-backed tests for firestore.rules,
-                        plus two data migrations and their own tests
+                        plus three data migrations and their own tests
 ```
 
 ---

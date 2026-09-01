@@ -303,7 +303,34 @@ service cloud.firestore {
                             && get(/databases/$(database)/documents/notes/$(request.resource.data.noteId))
                                  .data.uploaderUid != request.auth.uid;
 
-      allow delete: if false;
+      /**
+       * Bir oy yalnızca ait olduğu notla birlikte silinebilir.
+       *
+       * Kural eskiden `if false` idi ve tek başına doğruydu: silinen bir oy notun
+       * toplamını düşürmüyor, ama oy verene ikinci kez oy verme hakkı kazandırıyor
+       * — kural onu ilk oy sayıp sayıyı bir daha artırıyor. Yani serbest silme,
+       * puan şişirmenin kısa yoluydu.
+       *
+       * Kapalı hâlin bedeli sahipsiz dokümanlardı: `ratings` notun alt koleksiyonu
+       * değil ayrı bir üst düzey koleksiyon, dolayısıyla not silinince oyları
+       * kalıyor ve hiçbir istemci onları temizleyemiyordu.
+       *
+       * `existsAfter` ikisini birbirine bağlıyor: silme ancak commit'ten sonra not
+       * ortada yoksa geçiyor. Tek başına gönderilen bir oy silme hâlâ reddediliyor,
+       * çünkü not yerinde duruyor. `get()` batch öncesi hâli okuduğu için notun
+       * sahibi de aynı commit içinde doğrulanabiliyor — oyu silebilecek tek kişi
+       * notu silebilecek kişiyle aynı.
+       *
+       * Notu zaten silinmiş eski oylar bu yolla temizlenemez: `get()` olmayan notta
+       * değerlendirme hatasına düşer, yani kapalı kalır. Onlar için
+       * `firestore-tests/prune-orphan-ratings.js` var.
+       */
+      allow delete: if isSignedIn()
+                    && !existsAfter(
+                         /databases/$(database)/documents/notes/$(resource.data.noteId)
+                       )
+                    && get(/databases/$(database)/documents/notes/$(resource.data.noteId))
+                         .data.uploaderUid == request.auth.uid;
     }
 
     // Yukarıda eşleşmeyen her yol reddedilir. Yeni bir koleksiyon eklendiğinde

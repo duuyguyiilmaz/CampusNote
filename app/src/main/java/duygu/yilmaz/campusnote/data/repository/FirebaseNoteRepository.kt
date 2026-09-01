@@ -135,10 +135,34 @@ class FirebaseNoteRepository(
     }
 
     /** Notu ve içerik dokümanını birlikte siler — Firestore alt koleksiyonları kendiliğinden silmez. */
+    /**
+     * Notu, dosyasını ve ona verilmiş oyları tek commit'te siler.
+     *
+     * Oylar eskiden kalıyordu: `ratings` ayrı bir üst düzey koleksiyon, notun alt
+     * koleksiyonu değil, dolayısıyla notu silmek onlara dokunmuyordu. Geride kalan
+     * doküman kimseye görünmüyor ama sonsuza kadar duruyor ve `<uid>_<noteId>`
+     * kimliğini işgal ediyor.
+     *
+     * Aynı batch'te olmaları şart, süslemeden değil: güvenlik kuralı bir oyun
+     * silinmesine ancak notu da aynı commit'te siliniyorsa izin veriyor
+     * (`existsAfter`). Ayrı ayrı gönderilseler ikisi de reddedilirdi — ve reddin
+     * kendisi doğru, çünkü tek başına silinen bir oy, oy verenin ikinci kez
+     * oylayıp sayıyı şişirmesine kapı açardı.
+     *
+     * Sınır: Firestore bir batch'te en çok 500 yazma kabul ediyor, yani ~498'den
+     * fazla oy almış bir not bu yolla silinemez. Bölüm ölçeğinde ulaşılacak bir
+     * sayı değil; aşılırsa silme hata verir, sessizce yarım kalmaz.
+     */
     override suspend fun deleteNote(noteId: String) {
         val noteReference = firestore.collection(NOTES_COLLECTION).document(noteId)
 
+        val ratings = firestore.collection(RATINGS_COLLECTION)
+            .whereEqualTo(NOTE_ID_FIELD, noteId)
+            .get()
+            .await()
+
         firestore.runBatch { batch ->
+            ratings.documents.forEach { batch.delete(it.reference) }
             batch.delete(noteReference.fileDocument())
             batch.delete(noteReference)
         }.await()
@@ -275,6 +299,8 @@ class FirebaseNoteRepository(
 
     private companion object {
         const val NOTES_COLLECTION = "notes"
+        const val RATINGS_COLLECTION = "ratings"
+        const val NOTE_ID_FIELD = "noteId"
         const val CONTENT_COLLECTION = "content"
         const val FILE_DOCUMENT = "file"
         const val FILE_DATA_FIELD = "fileData"

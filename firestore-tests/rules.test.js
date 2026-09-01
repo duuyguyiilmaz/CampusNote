@@ -661,14 +661,65 @@ describe("ratings", () => {
     }
   });
 
-  test("votes cannot be deleted", async () => {
+  /** Seeds a vote without going through the rules, so a broken rule shows up as a
+   * failed assertion rather than a failed setup. */
+  const seedVote = async (vote = validVote, id = `${RATER}_${NOTE}`) => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(
-        doc(context.firestore(), "ratings", `${RATER}_${NOTE}`),
-        validVote,
-      );
+      await setDoc(doc(context.firestore(), "ratings", id), vote);
     });
+  };
+
+  /**
+   * A vote on its own must stay put. Deleting one does not lower the note's total,
+   * but it does hand the voter a second first-time vote — the rule would count it
+   * afresh and the tally would climb. Free deletion was the short path to a padded
+   * score, which is why the rule used to be a flat `if false`.
+   */
+  test("a vote cannot be deleted on its own", async () => {
+    await seedVote();
     await assertFails(deleteDoc(doc(rater, "ratings", `${RATER}_${NOTE}`)));
+  });
+
+  test("the note's owner cannot delete a vote while the note stays", async () => {
+    await seedVote();
+    await assertFails(deleteDoc(doc(owner, "ratings", `${RATER}_${NOTE}`)));
+  });
+
+  /**
+   * The pairing the repository now performs. `ratings` is a top-level collection
+   * rather than a subcollection of the note, so deleting a note never touched its
+   * votes and the documents accumulated with nothing able to reach them.
+   */
+  test("the owner may delete a vote in the same commit as its note", async () => {
+    await seedVote();
+
+    const batch = writeBatch(owner);
+    batch.delete(doc(owner, "ratings", `${RATER}_${NOTE}`));
+    batch.delete(doc(owner, "notes", NOTE));
+    await assertSucceeds(batch.commit());
+  });
+
+  test("a stranger cannot delete votes by deleting a note they do not own", async () => {
+    await seedVote();
+
+    const batch = writeBatch(rater);
+    batch.delete(doc(rater, "ratings", `${RATER}_${NOTE}`));
+    batch.delete(doc(rater, "notes", NOTE));
+    await assertFails(batch.commit());
+  });
+
+  /**
+   * The gap the rule deliberately leaves: once a note is gone, `get()` on it fails
+   * and the delete is refused. Votes orphaned before this change are cleaned up by
+   * `prune-orphan-ratings.js`, not by a client.
+   */
+  test("a vote whose note is already gone cannot be deleted by a client", async () => {
+    await seedVote();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await deleteDoc(doc(context.firestore(), "notes", NOTE));
+    });
+
+    await assertFails(deleteDoc(doc(owner, "ratings", `${RATER}_${NOTE}`)));
   });
 });
 
