@@ -50,9 +50,55 @@ service cloud.firestore {
        */
       allow read: if isOwner(userId);
 
-      // Kayıt sırasında kullanıcı yalnızca kendi dokümanını oluşturabilir.
+      /**
+       * Kayıt.
+       *
+       * Buradaki tek kontrol "kendi belgeni yazıyorsun ve `id` alanı belge kimliğiyle
+       * aynı" idi. Geri kalan her şey serbestti, ve bunun en ağır sonucu şuydu:
+       * `@ogr.akdeniz.edu.tr` kısıtı yalnızca `RegisterActivity`'de, yani istemcide
+       * yaşıyordu. Firebase Auth'ta e-posta/parola açık olduğu için herhangi biri
+       * gmail adresiyle hesap açıp Firestore'a doğrudan bağlanarak kendine profil
+       * yazabiliyordu — üstelik profildeki `email` alanına oturumdakinden başka bir
+       * adres, `department` alanına da listede olmayan bir bölüm koyarak.
+       *
+       * Okuma kapsamı `department`'a bağlandığından beri bu bir erişim sorunu:
+       * `ownDepartment()` tam da bu belgeden okuyor, yani doğrulanmamış bir profil
+       * istediği bölümün bütün notlarını açıyordu.
+       *
+       * Adres oturumun kendisinden alınıyor — istemcinin yazdığı değerden değil —
+       * ve alan adı burada, sunucuda kontrol ediliyor.
+       */
       allow create: if isOwner(userId)
-                    && request.resource.data.id == userId;
+                    && hasExactProfileFields()
+                    && request.resource.data.id == userId
+                    && request.resource.data.email == request.auth.token.email
+                    && isUniversityAddress(request.auth.token.email)
+                    // Bölüm listesinin 144 girdisini kurala gömmek onu her müfredat
+                    // değişikliğinde bozardı; buradaki iş boş ya da devasa bir değerin
+                    // `ownDepartment()` üzerinden erişim kapsamı olmasını engellemek.
+                    && request.resource.data.department is string
+                    && request.resource.data.department.size() > 0
+                    && request.resource.data.department.size() <= 120
+                    // Sunucu saati; kayıt tarihi istemciden gelmiyor.
+                    && request.resource.data.createdAt == request.time;
+
+      function profileFields() {
+        return ['id', 'email', 'department', 'createdAt'];
+      }
+
+      function hasExactProfileFields() {
+        return request.resource.data.keys().hasOnly(profileFields())
+               && request.resource.data.keys().hasAll(profileFields());
+      }
+
+      /**
+       * `matches` bütün dizeyi eşleştiriyor. Nokta karakter sınıfıyla yazıldı
+       * (`[.]`), kaçış yerine: kural dilinde ters bölü iki kez kaçmak zorunda ve
+       * sessizce yanlış yazılması kolay.
+       */
+      function isUniversityAddress(email) {
+        return email is string && email.matches('.*@ogr[.]akdeniz[.]edu[.]tr');
+      }
 
       // Uygulama bu dokümanı yalnızca oluşturuyor, hiç güncellemiyor
       // (`saveUser` tek çağrısı kayıt akışında). Açık bırakmanın bedeli vardı:
@@ -198,16 +244,36 @@ service cloud.firestore {
                       || isRatingWrite(noteId)
                     );
 
-      // Sahibi metadata'yı düzenleyebilir ama puan alanlarına, sahiplik bilgisine
-      // ve bölüme dokunamaz — kendi notunu öne çıkarmanın en kısa yolu buydu.
-      // `avgRating` listede: alan artık yazılmıyor, düzenlemeyle geri gelmesin.
+      /**
+       * Sahibi yalnızca metadata'yı düzenleyebilir.
+       *
+       * Bu kontrol eskiden kara listeydi: dokunulmaması gereken alanlar sayılıyor,
+       * geri kalan her şey serbest bırakılıyordu. Sayılmayan bir alan — bugün var
+       * olmayan ama yarın eklenecek olan da dahil — sessizce yazılabilir demekti;
+       * üstelik `title`'a sayı, `description`'a megabaytlık metin koymak da mümkündü.
+       *
+       * Artık beyaz liste: değişebilecek alan kümesi `hasOnly` ile sabit ve her biri
+       * oluşturmadakiyle aynı tip/boyut kontrolünden geçiyor. Yeni bir alan eklemek
+       * kuralı da güncellemeyi gerektiriyor, ki doğrusu bu.
+       */
       function isMetadataEditByOwner() {
         return resource.data.uploaderUid == request.auth.uid
-               && !changedFields().hasAny([
-                    'ratingSum', 'ratingCount', 'avgRating',
-                    'uploaderUid', 'uploaderName', 'uploaderEmail',
-                    'department', 'createdAt'
-                  ]);
+               && changedFields().hasOnly(editableNoteFields())
+               && hasValidEditedMetadata();
+      }
+
+      /** `updatedAt` yalnızca düzenlemede yazılıyor, oluşturmada yok. */
+      function editableNoteFields() {
+        return ['course', 'title', 'description', 'tag', 'updatedAt'];
+      }
+
+      function hasValidEditedMetadata() {
+        let data = request.resource.data;
+        return data.course is string && data.course.size() > 0 && data.course.size() <= 100
+               && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+               && data.description is string && data.description.size() <= 2000
+               && data.tag is string && data.tag.size() <= 50
+               && data.updatedAt == request.time;
       }
 
       function ratingPath(noteId) {
@@ -280,14 +346,41 @@ service cloud.firestore {
                       && request.resource.data.keys().hasOnly(['fileData'])
                       && request.resource.data.fileData is string;
 
-        allow update, delete: if isSignedIn()
+        // Güncelleme oluşturmayla aynı şemayı geçmek zorunda: create'te alan kümesi
+        // sabitlenip update'te serbest bırakılırsa, kontrol yalnızca ilk yazmayı
+        // bağlar ve ikincisinde atlanır.
+        allow update: if isSignedIn()
+                      && get(/databases/$(database)/documents/notes/$(noteId))
+                           .data.uploaderUid == request.auth.uid
+                      && request.resource.data.keys().hasOnly(['fileData'])
+                      && request.resource.data.fileData is string;
+
+        allow delete: if isSignedIn()
           && get(/databases/$(database)/documents/notes/$(noteId))
                .data.uploaderUid == request.auth.uid;
       }
     }
 
     match /ratings/{ratingId} {
-      allow read: if isSignedIn();
+      /**
+       * Oylar herkese açık değil.
+       *
+       * Kural `isSignedIn()` iken oturum açmış herkes bütün koleksiyonu okuyabiliyor
+       * ve her satır bir kullanıcının hangi nota kaç verdiğini söylüyordu — uid, not
+       * kimliği ve puan. Uygulamanın buna ihtiyacı yoktu; yalnızca iki okuma var:
+       * oy verenin transaction içinde kendi oyunu okuması, ve not sahibinin notu
+       * silerken o notun oylarını `where noteId == ...` ile bulması.
+       *
+       * İki dal tam olarak o iki okumaya karşılık geliyor. Firestore liste
+       * sorgusunu kurala göre değerlendirdiği için `where uid == ben` ya da
+       * `where noteId == kendi notum` taşımayan bir sorgu geçmiyor; koleksiyonun
+       * tamamını çekmek artık mümkün değil.
+       */
+      allow read: if isSignedIn() && (
+                    resource.data.uid == request.auth.uid
+                    || get(/databases/$(database)/documents/notes/$(resource.data.noteId))
+                         .data.uploaderUid == request.auth.uid
+                  );
 
       // Doküman kimliği "<oyVerenUid>_<notId>" biçiminde; bu kalıbı zorunlu
       // kılmak bir kullanıcının başkasının oyunu yazmasını engelliyor.
@@ -301,7 +394,48 @@ service cloud.firestore {
                             // notun toplamını değiştirmese de liderlik tablosunun
                             // oy sayısını şişirirdi.
                             && get(/databases/$(database)/documents/notes/$(request.resource.data.noteId))
-                                 .data.uploaderUid != request.auth.uid;
+                                 .data.uploaderUid != request.auth.uid
+                            && totalsFollowTheVote(request.resource.data.noteId);
+
+      function notePath(noteId) {
+        return /databases/$(database)/documents/notes/$(noteId);
+      }
+
+      /**
+       * Oyun karşılığı toplam aynı commit'te yazılmış olmalı.
+       *
+       * Bağ eskiden tek yönlüydü: notun kuralı "toplam değişiyorsa yanında oy
+       * bulunsun" diyordu, ama oyun kuralı "oy yazılıyorsa toplam da doğru
+       * değişsin" demiyordu. Tek başına oy belgesi yazmak serbestti ve bu,
+       * sınırsız puan şişirmenin yoluydu:
+       *
+       *   1. oy belgesini tek başına 1 yap   (toplam değişmez)
+       *   2. oyu 5'e çıkar + toplamı güncelle (fark 4 eklenir, sayı artmaz)
+       *   3. oy belgesini tek başına 1 yap   (toplam değişmez)
+       *   4. 2. adıma dön
+       *
+       * Her turda not 4 puan kazanıyor ve tek bir oy verenden geliyordu.
+       *
+       * `getAfter` notun commit sonrası hâlini okuyor; beklenen değerler notun
+       * kendi kuralındaki aritmetiğin aynısı — iki taraf da RatingCalculator ile
+       * birebir aynı olmak zorunda, tabanları dahil.
+       */
+      function totalsFollowTheVote(noteId) {
+        let before = get(notePath(noteId)).data;
+        let after = getAfter(notePath(noteId)).data;
+        let votedBefore = exists(/databases/$(database)/documents/ratings/$(ratingId));
+        let previous = votedBefore
+          ? get(/databases/$(database)/documents/ratings/$(ratingId)).data.rating
+          : 0;
+        let rawSum = before.ratingSum + request.resource.data.rating - previous;
+
+        return after.ratingSum == (rawSum < 0 ? 0 : rawSum)
+               && after.ratingCount == (
+                    votedBefore
+                      ? (before.ratingCount < 1 ? 1 : before.ratingCount)
+                      : before.ratingCount + 1
+                  );
+      }
 
       /**
        * Bir oy yalnızca ait olduğu notla birlikte silinebilir.

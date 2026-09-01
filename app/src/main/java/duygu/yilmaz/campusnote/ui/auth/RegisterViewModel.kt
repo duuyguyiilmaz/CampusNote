@@ -41,8 +41,8 @@ class RegisterViewModel(
                     UserProfile(
                         id = authenticatedUser.uid,
                         email = email,
-                        department = department,
-                        createdAt = System.currentTimeMillis()
+                        department = department
+                        // createdAt sunucuda yazılıyor; bkz. FirebaseUserRepository.
                     )
                 )
                 AuthUiState.Success

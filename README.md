@@ -183,9 +183,9 @@ Cloud Firestore, four collections:
 | Field | Type | Notes |
 |---|---|---|
 | `id` | string | matches the Firebase Auth UID |
-| `email` | string | |
-| `department` | string | |
-| `createdAt` | number | |
+| `email` | string | must equal the session's own address, and end in `@ogr.akdeniz.edu.tr` |
+| `department` | string | non-empty; `ownDepartment()` reads it to decide what the account may read |
+| `createdAt` | timestamp | `request.time`; profiles written before this carry epoch millis and are still read |
 
 Older user documents may still carry `hasUploadedNote` and `points`. Neither is read or
 written any more: the contribution gate is derived from the user's notes, and so is the
@@ -218,13 +218,25 @@ Firebase Console, so they can be reviewed and versioned. Deploy with:
 firebase deploy --only firestore:rules
 ```
 
+**Registration is restricted on the server, not only on the form.** The create rule used
+to check that you were writing your own document and that its `id` field agreed with the
+document id, and nothing else — so the `@ogr.akdeniz.edu.tr` requirement lived only in
+`RegisterActivity`. Firebase Auth accepts any address, so anyone could sign up with a
+personal one, skip the Android screen entirely and write themselves a profile carrying any
+`email`, any `department`, any `createdAt` and any extra fields they liked. Since reads are
+now scoped by `department` and `ownDepartment()` reads it from this very document, that
+forged profile opened a department's notes. The rule now pins the field set, takes the
+address from `request.auth.token.email` rather than from the request body, checks the
+domain itself, requires a non-empty department, and requires `createdAt` to be
+`request.time`.
+
 The rules require authentication everywhere, restrict note edits and deletes to the
 uploader, and pin each rating document to its author's UID. The delete rule is the
 *only* ownership check on deletion — the app code does not verify it.
 
 **Reads are scoped, not merely filtered.** Every read used to be `if isSignedIn()`, so any
-signed-in student could pull every profile, every note and every attached file in the
-university. That the app only ever asked for its own department was a property of the app,
+signed-in student could pull every profile, every note, every attached file and every vote
+in the university — the votes being a record of who rated what, and how. That the app only ever asked for its own department was a property of the app,
 and the app is not the only client anyone can write. Notes and their file subcollections
 are now readable only when their `department` matches the department on the caller's own
 profile, or the note is the caller's own. Firestore evaluates a list against the *query*
@@ -236,7 +248,8 @@ single-branch rule rejected them outright — the feed opened empty in productio
 how the branch was found. Profiles went further and are
 readable only by their owner: all four `getUser` calls in the app pass the caller's own
 uid, and the leaderboard takes the uploader's name from the note, so the open rule was
-granting an access nobody needed.
+granting an access nobody needed. Votes are the same shape of fix — readable by the voter,
+and by the owner of the note being rated, which are exactly the two reads the app makes.
 
 **A vote can only be deleted with its note.** `ratings` is a top-level collection
 rather than a subcollection, so deleting a note never touched the votes cast on it and
@@ -272,11 +285,22 @@ and the two score fields; everything else was open to a client that skipped the 
 UI, which an attacker was never obliged to use.
 
 They also verify the scoring rather than trusting it. A vote writes the note's totals and
-the rating document in one atomic commit, and the rule for the note uses `getAfter()` to
-read the rating being written in that same commit, recompute the expected `ratingSum` and
-`ratingCount` from it, and reject anything that does not match. So the totals cannot move
-without a real vote behind them, a changed vote cannot be counted twice, and rating your
-own note is refused by the server rather than only by the client.
+the rating document in one atomic commit, and each side of that commit checks the other
+with `getAfter()`: the note's rule recomputes the expected `ratingSum` and `ratingCount`
+from the rating being written beside it, and the rating's rule recomputes the same two
+numbers and requires the note to actually carry them. So the totals cannot move without a
+real vote behind them, a vote cannot be written without the totals that follow from it, a
+changed vote cannot be counted twice, and rating your own note is refused by the server
+rather than only by the client.
+
+The second direction was missing until recently, and its absence was the worst hole in
+this file. Only "totals moved, so show me the vote" was enforced; "a vote was written, so
+the totals must follow" was not, which left a rating document writable entirely on its
+own — and the test suite asserted that as correct behaviour, so CI stayed green over it.
+It was not untidiness but unbounded inflation, four points a lap from one voter: write the
+vote alone as 1, raise it to 5 with the totals (`sum += 4`, count unchanged because the
+rule sees a changed vote), write it alone as 1 again, repeat. The lone write is now
+refused, which breaks the loop at step one.
 
 The expected totals are the same arithmetic as
 [`RatingCalculator`](app/src/main/java/duygu/yilmaz/campusnote/data/model/RatingCalculation.kt),
@@ -423,7 +447,7 @@ the app is built around — what the screen actually shows.
 
 | Suite | What it pins down |
 |---|---|
-| `RatingCalculatorTest` | First-time votes, changed votes, unchanged votes, average recalculation, and two inconsistent-data guards — the total flooring at zero, and the vote count flooring at one so the average never divides by zero. |
+| `RatingCalculatorTest` | First-time votes, changed votes, unchanged votes, and two inconsistent-data guards: the total flooring at zero, and the vote count flooring at one. Both floors are mirrored in `firestore.rules`, so the client and the server have to agree on them exactly. |
 | `FeedViewModelTest` | The contribution gate: locked without an upload, unlocked with one, and locked for a missing profile or a blank department — and that the department query is never even built while locked. Also the paging: the window each page asks for, when there is more to fetch, that the last page stops asking, and that the list stays on screen while the next page loads. |
 | `UploadViewModelTest` | The uid, email and department written onto a note, including the `UNKNOWN_DEPARTMENT` fallback that keeps a blank department out of `whereEqualTo` queries. |
 | `NoteDetailViewModelTest` | Metadata and file content loading as separate states, no file read for a note without one, and the rating rules (own note, missing session, deleted note). |
@@ -488,7 +512,7 @@ enforces — who may delete a note, whether a score can move without a vote behi
 invisible to them. That is the layer an attacker actually meets: the Android client can
 be replaced, the rules cannot.
 
-65 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
+87 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
 [`firestore.rules`](firestore.rules) against the local Firestore emulator through
 `@firebase/rules-unit-testing`. `npm test` starts the emulator, runs the suite and shuts
 it down again; nothing touches the real project, and no billing account is involved.
@@ -496,12 +520,12 @@ it down again; nothing touches the real project, and no billing account is invol
 | Group | What it pins down |
 |---|---|
 | `signed-out access` | Every collection is closed to an unauthenticated client — the one guard shared by all four rule blocks. |
-| `users` | Self-registration only, the document id matching the `id` field, that nobody updates a profile afterwards — including the two shapes of the old hole, awarding yourself points and writing points onto someone else — and that a profile is readable only by its owner. |
+| `users` | Self-registration only, the document id matching the `id` field, that a personal address cannot register at all and the profile's `email` must be the session's own — removing those two clauses turns exactly those two tests red — that a blank department, a client-chosen `createdAt` and any unexpected or missing field are refused, that nobody updates a profile afterwards — including the two shapes of the old hole, awarding yourself points and writing points onto someone else — and that a profile is readable only by its owner. |
 | `notes` (reads) | A note in the reader's own department is readable and another department's note is not; an unfiltered query is refused, one filtered to the reader's own department is allowed, and one filtered to another department is refused. Two more cover the query the app actually builds for a profile: `where uploaderUid == me` is allowed without a department filter, and the same query for someone else's uid is refused. |
-| `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals, the department, or the identity fields; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
+| `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; an edit may touch only the metadata fields and each is type- and size-checked, so a field nobody expects cannot be introduced and `updatedAt` cannot be backdated; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
 | `note creation is pinned to an exact shape` | One test per way a hand-rolled request used to get through: an unexpected field, a missing one, a resurrected `avgRating`, another department, a forged `uploaderName`, an email address written onto a note, a client-chosen `createdAt`, a wrong type, and an empty or oversized title. Each asserts the refusal, so relaxing any single check turns exactly one test red. |
-| `note content` | The batched note-plus-file upload, owner-only create, replace and delete, that a file on another department's note cannot be read — otherwise the boundary is walked around through the file path — that a content document carrying anything but `fileData` is refused, and that a batch cannot pair a legitimate note of its own with a file smuggled onto someone else's. |
-| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range. Deletion has four: a vote cannot be removed on its own, not even by the note's owner; the owner may remove it in the same commit that deletes the note; a stranger cannot reach it by deleting a note they do not own; and a vote whose note is already gone stays refused, which is the gap the prune script covers. |
+| `note content` | The batched note-plus-file upload, owner-only create, replace and delete, that replacing a file must keep the same shape — create pinned it and update did not, so writing the document twice skipped the check — that a file on another department's note cannot be read — otherwise the boundary is walked around through the file path — that a content document carrying anything but `fileData` is refused, and that a batch cannot pair a legitimate note of its own with a file smuggled onto someone else's. |
+| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range. Six cover who may read a vote: your own is readable, someone else's is not, the whole collection cannot be pulled, and of the two queries the app makes — your own votes, and the votes on your own note when deleting it — each is allowed for the person entitled to it and refused for anyone else. Six cover the link back to the note: a vote cannot be written or changed without the totals that follow from it, the totals must match the vote from this side too, the inflation loop above is refused at its first move, and — because the app writes through `runTransaction` rather than a batch — the transaction the repository actually issues is exercised in both directions. Removing that one clause turns exactly those three red and leaves the other 86 green. Deletion has four: a vote cannot be removed on its own, not even by the note's owner; the owner may remove it in the same commit that deletes the note; a stranger cannot reach it by deleting a note they do not own; and a vote whose note is already gone stays refused, which is the gap the prune script covers. |
 | `unmatched paths` | A path no `match` block covers is denied, so adding a collection to the app without adding a rule fails closed rather than open. |
 
 Fixtures are seeded with `withSecurityRulesDisabled`, so a broken rule surfaces as a
@@ -513,9 +537,11 @@ everything would otherwise pass a suite made only of `assertFails`.
 
 ## Data migrations
 
-The feed and the leaderboard currently download every note in the department and sort in
-the client. Paginating them means ordering in the query instead — and Firestore's
-ordering has two behaviours that turn old data into damage a user can see:
+### Normalising `createdAt`
+
+The feed and the leaderboard used to download every note in the department and sort in the
+client. Paginating them meant ordering in the query instead — and Firestore's ordering has
+two behaviours that turn old data into damage a user can see:
 
 - **A document that lacks the ordered field is excluded from the query.** Not sorted
   last: absent. A note written before `createdAt` existed would vanish from the feed
@@ -523,8 +549,8 @@ ordering has two behaviours that turn old data into damage a user can see:
 - **Values sort by type before value, and numbers come before timestamps.** A note whose
   `createdAt` is epoch millis would land below every timestamped note whatever its date.
 
-`toPost()` still reads both shapes, which is the evidence that both exist. So the data is
-normalised before the ordering changes, not after:
+`toPost()` still reads both shapes, which is the evidence that both exist. The data was
+normalised before the ordering changed, not after:
 
 ```bash
 cd firestore-tests
@@ -586,7 +612,9 @@ against the emulator: the orphan goes, the live vote stays, and the note id is r
 the field rather than split out of the document id, which would be ambiguous whenever a
 uid contains an underscore.
 
-### Continuous integration
+---
+
+## Continuous integration
 
 [`.github/workflows/android.yml`](.github/workflows/android.yml) runs on every push to
 `main` and on every pull request. Two jobs run in parallel: unit tests, a debug build and
@@ -596,6 +624,12 @@ test report are uploaded as build artifacts.
 Because `google-services.json` is not in the repository, CI copies the example file into
 place before building. The placeholder credentials are enough — the Google Services
 plugin only parses the file at build time and never contacts Firebase.
+
+That is also the limit of what CI can tell you about the security rules: it runs
+`firestore.rules` against the emulator, which proves the file is correct and says nothing
+about whether the Firebase project is running it. Nothing here holds credentials for the
+live project, so nothing here can check. Deploying is part of merging a rules change — see
+[Known limitations](#known-limitations).
 
 ---
 

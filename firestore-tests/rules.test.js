@@ -13,6 +13,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  runTransaction,
   updateDoc,
   where,
   writeBatch,
@@ -125,17 +126,24 @@ function noteFields(overrides = {}) {
  * @param uid oy dokümanının sahibi olarak yazılacak uid — kurala göre çağıranınki olmalı
  * @param totals notun yazılacak yeni değerleri; `extra` ile fazladan alan sızdırılır
  */
-function vote(db, uid, noteId, rating, { sum, count, extra = {} }) {
+function vote(
+  db,
+  uid,
+  noteId,
+  rating,
+  { sum, count, extra = {}, id = `${uid}_${noteId}`, voteOverrides = {} },
+) {
   const batch = writeBatch(db);
   batch.update(doc(db, "notes", noteId), {
     ratingSum: sum,
     ratingCount: count,
     ...extra,
   });
-  batch.set(doc(db, "ratings", `${uid}_${noteId}`), {
+  batch.set(doc(db, "ratings", id), {
     uid,
     noteId,
     rating,
+    ...voteOverrides,
   });
   return batch.commit();
 }
@@ -172,26 +180,91 @@ describe("users", () => {
     await assertFails(getDoc(doc(rater, "users", OWNER)));
   });
 
+  /** A profile in exactly the shape the create rule now demands. */
+  const profileFields = (overrides = {}) => ({
+    id: RATER,
+    email: RATER_EMAIL,
+    department: DEPARTMENT,
+    createdAt: serverTimestamp(),
+    ...overrides,
+  });
+
   test("registration writes a profile whose id matches the caller", async () => {
     await testEnv.clearFirestore();
-    await assertSucceeds(
-      setDoc(doc(rater, "users", RATER), {
-        id: RATER,
-        email: "rater@ogr.akdeniz.edu.tr",
-        department: "Bilgisayar Mühendisliği",
-        createdAt: 1,
-      }),
-    );
+    await assertSucceeds(setDoc(doc(rater, "users", RATER), profileFields()));
   });
 
   test("a user cannot create a profile under someone else's uid", async () => {
     await testEnv.clearFirestore();
-    await assertFails(setDoc(doc(rater, "users", OWNER), { id: OWNER }));
+    await assertFails(
+      setDoc(doc(rater, "users", OWNER), profileFields({ id: OWNER })),
+    );
   });
 
   test("a create whose id field disagrees with the document id is rejected", async () => {
     await testEnv.clearFirestore();
-    await assertFails(setDoc(doc(rater, "users", RATER), { id: OWNER }));
+    await assertFails(
+      setDoc(doc(rater, "users", RATER), profileFields({ id: OWNER })),
+    );
+  });
+
+  /**
+   * The university restriction used to live only in RegisterActivity. Firebase Auth
+   * accepts any address, so anyone could sign up with a personal one, skip the
+   * Android screen and write themselves a profile — and since reads are scoped by
+   * `department`, which is read from this very document, that profile opened a
+   * department's notes.
+   */
+  test("a profile cannot be created from a non-university account", async () => {
+    await testEnv.clearFirestore();
+    const outsider = testEnv
+      .authenticatedContext("outsider-uid", { email: "someone@gmail.com" })
+      .firestore();
+
+    await assertFails(
+      setDoc(
+        doc(outsider, "users", "outsider-uid"),
+        profileFields({ id: "outsider-uid", email: "someone@gmail.com" }),
+      ),
+    );
+  });
+
+  test("the profile's email must be the session's own", async () => {
+    await testEnv.clearFirestore();
+    // Claiming a university address while signed in as someone else was the other
+    // half of the same forgery.
+    await assertFails(
+      setDoc(
+        doc(rater, "users", RATER),
+        profileFields({ email: "rektor@ogr.akdeniz.edu.tr" }),
+      ),
+    );
+  });
+
+  test("a profile carrying an unexpected or missing field is rejected", async () => {
+    await testEnv.clearFirestore();
+    await assertFails(
+      setDoc(doc(rater, "users", RATER), profileFields({ points: 999999 })),
+    );
+
+    const { department, ...withoutDepartment } = profileFields();
+    await assertFails(setDoc(doc(rater, "users", RATER), withoutDepartment));
+  });
+
+  test("a blank department is rejected", async () => {
+    await testEnv.clearFirestore();
+    // `ownDepartment()` reads this field to decide what the account may read, so an
+    // empty one is not a cosmetic problem.
+    await assertFails(
+      setDoc(doc(rater, "users", RATER), profileFields({ department: "" })),
+    );
+  });
+
+  test("createdAt must be the server's clock", async () => {
+    await testEnv.clearFirestore();
+    await assertFails(
+      setDoc(doc(rater, "users", RATER), profileFields({ createdAt: 1 })),
+    );
   });
 
   test("nobody may update a profile, not even its owner", async () => {
@@ -422,7 +495,56 @@ describe("notes", () => {
 
   test("the uploader may edit their note's metadata", async () => {
     await assertSucceeds(
-      updateDoc(doc(owner, "notes", NOTE), { title: "Güncellenmiş başlık" }),
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "Güncellenmiş başlık",
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  /**
+   * The check used to be a blacklist — it named the fields that must not move and
+   * let everything else through. A field nobody thought of, including one added
+   * next year, was writable by default, and the metadata that *was* allowed had no
+   * type or size bound at all.
+   */
+  test("an edit cannot introduce a field nobody expects", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "Güncellenmiş başlık",
+        updatedAt: serverTimestamp(),
+        isFeatured: true,
+      }),
+    );
+  });
+
+  test("an edit cannot put the wrong type or size in the metadata", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: 42,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "a".repeat(201),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "",
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test("an edit cannot backdate updatedAt", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE), {
+        title: "Güncellenmiş başlık",
+        updatedAt: 1,
+      }),
     );
   });
 
@@ -547,6 +669,22 @@ describe("note content", () => {
     await assertSucceeds(deleteDoc(doc(owner, "notes", NOTE, "content", "file")));
   });
 
+  /**
+   * Create pinned the shape and update did not, so the whole check could be skipped
+   * by writing the document twice — a valid one first, anything at all second.
+   */
+  test("replacing a file must keep the same shape", async () => {
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE, "content", "file"), {
+        fileData: "eWVuaQ==",
+        uploaderUid: RATER,
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(owner, "notes", NOTE, "content", "file"), { fileData: 42 }),
+    );
+  });
+
   test("someone else cannot overwrite or delete the file", async () => {
     await assertFails(
       setDoc(doc(rater, "notes", NOTE, "content", "file"), {
@@ -611,56 +749,6 @@ describe("note content", () => {
 describe("ratings", () => {
   const validVote = { uid: RATER, noteId: NOTE, rating: 4 };
 
-  test("a vote is written under <uid>_<noteId>", async () => {
-    await assertSucceeds(
-      setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), validVote),
-    );
-  });
-
-  test("re-voting replaces the existing document", async () => {
-    await assertSucceeds(
-      setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), validVote),
-    );
-    await assertSucceeds(
-      setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), {
-        ...validVote,
-        rating: 2,
-      }),
-    );
-  });
-
-  test("a user cannot vote in someone else's name", async () => {
-    // The uid field and the document id are checked separately, so both
-    // halves of the forgery have to be rejected on their own.
-    await assertFails(
-      setDoc(doc(rater, "ratings", `${OWNER}_${NOTE}`), {
-        ...validVote,
-        uid: OWNER,
-      }),
-    );
-    await assertFails(
-      setDoc(doc(rater, "ratings", `${OWNER}_${NOTE}`), validVote),
-    );
-  });
-
-  test("the document id must match the uid and note it claims", async () => {
-    await assertFails(
-      setDoc(doc(rater, "ratings", `${RATER}_other-note`), validVote),
-    );
-    await assertFails(setDoc(doc(rater, "ratings", "arbitrary-id"), validVote));
-  });
-
-  test("the rating must be an integer between 1 and 5", async () => {
-    for (const rating of [0, 6, -1, 3.5, "4"]) {
-      await assertFails(
-        setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), {
-          ...validVote,
-          rating,
-        }),
-      );
-    }
-  });
-
   /** Seeds a vote without going through the rules, so a broken rule shows up as a
    * failed assertion rather than a failed setup. */
   const seedVote = async (vote = validVote, id = `${RATER}_${NOTE}`) => {
@@ -668,6 +756,197 @@ describe("ratings", () => {
       await setDoc(doc(context.firestore(), "ratings", id), vote);
     });
   };
+
+
+  test("a user may read their own vote", async () => {
+    await seedVote();
+    await assertSucceeds(getDoc(doc(rater, "ratings", `${RATER}_${NOTE}`)));
+  });
+
+  /**
+   * The open read rule exposed every vote in the database to every signed-in user:
+   * who rated what, and how. The app never needed that — the voter reads their own
+   * document inside the rating transaction, and the note's owner reads the votes on
+   * their own note when deleting it.
+   */
+  test("a user cannot read someone else's vote", async () => {
+    await seedVote({ uid: OWNER, noteId: NOTE, rating: 4 }, `${OWNER}_${NOTE}`);
+    await assertFails(getDoc(doc(rater, "ratings", `${OWNER}_${NOTE}`)));
+  });
+
+  test("the whole ratings collection cannot be pulled", async () => {
+    await assertFails(getDocs(collection(rater, "ratings")));
+  });
+
+  test("a user may query their own votes", async () => {
+    await assertSucceeds(
+      getDocs(query(collection(rater, "ratings"), where("uid", "==", RATER))),
+    );
+  });
+
+  test("the note's owner may query the votes on their note", async () => {
+    // This is the read `deleteNote` performs before removing a note.
+    await assertSucceeds(
+      getDocs(query(collection(owner, "ratings"), where("noteId", "==", NOTE))),
+    );
+  });
+
+  test("a stranger cannot query the votes on someone else's note", async () => {
+    await assertFails(
+      getDocs(query(collection(rater, "ratings"), where("noteId", "==", NOTE))),
+    );
+  });
+
+  test("a vote is written under <uid>_<noteId>", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 4, { sum: 4, count: 1 }));
+  });
+
+  test("re-voting replaces the existing document", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 4, { sum: 4, count: 1 }));
+    // Changing 4 to 2 moves the sum by the difference and leaves the count.
+    await assertSucceeds(vote(rater, RATER, NOTE, 2, { sum: 2, count: 1 }));
+  });
+
+  /**
+   * The other half of the link, and the one that was missing.
+   *
+   * The note's own rule says "if the totals move, a vote must justify them". It
+   * never said the reverse — "if a vote is written, the totals must move with it" —
+   * so a rating document could be written entirely on its own, and the test here
+   * asserted that as correct behaviour.
+   *
+   * That was not a tidiness problem. It was unbounded score inflation from a single
+   * voter, four points a lap:
+   *
+   *   1. write the vote alone as 1        (totals untouched)
+   *   2. raise it to 5 with the totals    (sum += 4, count unchanged)
+   *   3. write it alone as 1 again        (totals untouched)
+   *   4. go to 2
+   *
+   * Step 1 is what is now refused, which breaks the loop at its first move.
+   */
+  test("a vote cannot be written without the totals that follow from it", async () => {
+    await assertFails(
+      setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), validVote),
+    );
+  });
+
+  test("an existing vote cannot be changed without the totals following", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 5, { sum: 5, count: 1 }));
+
+    // The lone downgrade that made the loop above possible.
+    await assertFails(
+      setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), {
+        ...validVote,
+        rating: 1,
+      }),
+    );
+  });
+
+  test("the inflation loop does not survive its first lap", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 5, { sum: 5, count: 1 }));
+
+    // Every remaining step of the loop, each refused on its own: dropping the vote
+    // silently, and then claiming the difference as if it had been dropped.
+    await assertFails(
+      setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), {
+        ...validVote,
+        rating: 1,
+      }),
+    );
+    await assertFails(vote(rater, RATER, NOTE, 5, { sum: 9, count: 1 }));
+  });
+
+  /**
+   * The app does not use a batch here — `FirebaseRatingRepository.submitRating`
+   * wraps the two writes in `runTransaction`, so it can re-read the note and
+   * compute the new totals from what it finds. Rules treat a transaction's writes
+   * as one commit the same way they treat a batch's, and `getAfter()` sees across
+   * it, but that is the mechanism the app actually ships and nothing here exercised
+   * it. This does, with the arithmetic the repository performs.
+   */
+  test("the vote the app writes, through a transaction, is accepted", async () => {
+    await assertSucceeds(
+      runTransaction(rater, async (transaction) => {
+        const noteRef = doc(rater, "notes", NOTE);
+        const note = await transaction.get(noteRef);
+
+        transaction.update(noteRef, {
+          ratingSum: note.data().ratingSum + 4,
+          ratingCount: note.data().ratingCount + 1,
+        });
+        transaction.set(doc(rater, "ratings", `${RATER}_${NOTE}`), {
+          uid: RATER,
+          noteId: NOTE,
+          rating: 4,
+        });
+      }),
+    );
+  });
+
+  test("a transaction cannot write the vote without the totals either", async () => {
+    await assertFails(
+      runTransaction(rater, async (transaction) => {
+        transaction.set(doc(rater, "ratings", `${RATER}_${NOTE}`), {
+          uid: RATER,
+          noteId: NOTE,
+          rating: 4,
+        });
+      }),
+    );
+  });
+
+  test("the totals must match the vote from this side too", async () => {
+    // Written as a batch, so the note rule is satisfied by the vote beside it and
+    // the arithmetic is the only thing left to reject.
+    await assertFails(vote(rater, RATER, NOTE, 1, { sum: 5, count: 1 }));
+    await assertFails(vote(rater, RATER, NOTE, 4, { sum: 4, count: 2 }));
+  });
+
+  test("a user cannot vote in someone else's name", async () => {
+    // The uid field and the document id are checked separately, so both
+    // halves of the forgery have to be rejected on their own.
+    await assertFails(
+      vote(rater, RATER, NOTE, 4, {
+        sum: 4,
+        count: 1,
+        id: `${OWNER}_${NOTE}`,
+        voteOverrides: { uid: OWNER },
+      }),
+    );
+    await assertFails(
+      vote(rater, RATER, NOTE, 4, { sum: 4, count: 1, id: `${OWNER}_${NOTE}` }),
+    );
+  });
+
+  test("the document id must match the uid and note it claims", async () => {
+    await assertFails(
+      vote(rater, RATER, NOTE, 4, {
+        sum: 4,
+        count: 1,
+        id: `${RATER}_other-note`,
+      }),
+    );
+    await assertFails(
+      vote(rater, RATER, NOTE, 4, { sum: 4, count: 1, id: "arbitrary-id" }),
+    );
+  });
+
+  test("the rating must be an integer between 1 and 5", async () => {
+    // Each case carries the totals the rule would compute *if* the rating were
+    // valid, so the range check is the only thing left that can reject it. The
+    // string case is the exception: it fails on the arithmetic as well, since a
+    // string cannot be added to a sum.
+    for (const [rating, sum] of [
+      [0, 0],
+      [6, 6],
+      [-1, 0],
+      [3.5, 3.5],
+      ["4", 4],
+    ]) {
+      await assertFails(vote(rater, RATER, NOTE, rating, { sum, count: 1 }));
+    }
+  });
 
   /**
    * A vote on its own must stay put. Deleting one does not lower the note's total,
@@ -696,6 +975,37 @@ describe("ratings", () => {
     const batch = writeBatch(owner);
     batch.delete(doc(owner, "ratings", `${RATER}_${NOTE}`));
     batch.delete(doc(owner, "notes", NOTE));
+    await assertSucceeds(batch.commit());
+  });
+
+  /**
+   * The realistic delete: a note with many votes, all removed in the commit that
+   * removes it. Rules cap the document access calls one request may make, and each
+   * rating delete here evaluates `existsAfter()` and `get()` on the note. If those
+   * are counted per rating rather than cached per path, a note with a dozen votes
+   * becomes undeletable — which is exactly the size of note that would have them.
+   */
+  test("a note with many votes can still be deleted in one commit", async () => {
+    const voters = Array.from({ length: 12 }, (_, i) => `voter-${i}`);
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      for (const uid of voters) {
+        await setDoc(doc(db, "ratings", `${uid}_${NOTE}`), {
+          uid,
+          noteId: NOTE,
+          rating: 4,
+        });
+      }
+    });
+
+    const batch = writeBatch(owner);
+    for (const uid of voters) {
+      batch.delete(doc(owner, "ratings", `${uid}_${NOTE}`));
+    }
+    batch.delete(doc(owner, "notes", NOTE, "content", "file"));
+    batch.delete(doc(owner, "notes", NOTE));
+
     await assertSucceeds(batch.commit());
   });
 
