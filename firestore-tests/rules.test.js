@@ -13,6 +13,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  runTransaction,
   updateDoc,
   where,
   writeBatch,
@@ -179,26 +180,91 @@ describe("users", () => {
     await assertFails(getDoc(doc(rater, "users", OWNER)));
   });
 
+  /** A profile in exactly the shape the create rule now demands. */
+  const profileFields = (overrides = {}) => ({
+    id: RATER,
+    email: RATER_EMAIL,
+    department: DEPARTMENT,
+    createdAt: serverTimestamp(),
+    ...overrides,
+  });
+
   test("registration writes a profile whose id matches the caller", async () => {
     await testEnv.clearFirestore();
-    await assertSucceeds(
-      setDoc(doc(rater, "users", RATER), {
-        id: RATER,
-        email: "rater@ogr.akdeniz.edu.tr",
-        department: "Bilgisayar Mühendisliği",
-        createdAt: 1,
-      }),
-    );
+    await assertSucceeds(setDoc(doc(rater, "users", RATER), profileFields()));
   });
 
   test("a user cannot create a profile under someone else's uid", async () => {
     await testEnv.clearFirestore();
-    await assertFails(setDoc(doc(rater, "users", OWNER), { id: OWNER }));
+    await assertFails(
+      setDoc(doc(rater, "users", OWNER), profileFields({ id: OWNER })),
+    );
   });
 
   test("a create whose id field disagrees with the document id is rejected", async () => {
     await testEnv.clearFirestore();
-    await assertFails(setDoc(doc(rater, "users", RATER), { id: OWNER }));
+    await assertFails(
+      setDoc(doc(rater, "users", RATER), profileFields({ id: OWNER })),
+    );
+  });
+
+  /**
+   * The university restriction used to live only in RegisterActivity. Firebase Auth
+   * accepts any address, so anyone could sign up with a personal one, skip the
+   * Android screen and write themselves a profile — and since reads are scoped by
+   * `department`, which is read from this very document, that profile opened a
+   * department's notes.
+   */
+  test("a profile cannot be created from a non-university account", async () => {
+    await testEnv.clearFirestore();
+    const outsider = testEnv
+      .authenticatedContext("outsider-uid", { email: "someone@gmail.com" })
+      .firestore();
+
+    await assertFails(
+      setDoc(
+        doc(outsider, "users", "outsider-uid"),
+        profileFields({ id: "outsider-uid", email: "someone@gmail.com" }),
+      ),
+    );
+  });
+
+  test("the profile's email must be the session's own", async () => {
+    await testEnv.clearFirestore();
+    // Claiming a university address while signed in as someone else was the other
+    // half of the same forgery.
+    await assertFails(
+      setDoc(
+        doc(rater, "users", RATER),
+        profileFields({ email: "rektor@ogr.akdeniz.edu.tr" }),
+      ),
+    );
+  });
+
+  test("a profile carrying an unexpected or missing field is rejected", async () => {
+    await testEnv.clearFirestore();
+    await assertFails(
+      setDoc(doc(rater, "users", RATER), profileFields({ points: 999999 })),
+    );
+
+    const { department, ...withoutDepartment } = profileFields();
+    await assertFails(setDoc(doc(rater, "users", RATER), withoutDepartment));
+  });
+
+  test("a blank department is rejected", async () => {
+    await testEnv.clearFirestore();
+    // `ownDepartment()` reads this field to decide what the account may read, so an
+    // empty one is not a cosmetic problem.
+    await assertFails(
+      setDoc(doc(rater, "users", RATER), profileFields({ department: "" })),
+    );
+  });
+
+  test("createdAt must be the server's clock", async () => {
+    await testEnv.clearFirestore();
+    await assertFails(
+      setDoc(doc(rater, "users", RATER), profileFields({ createdAt: 1 })),
+    );
   });
 
   test("nobody may update a profile, not even its owner", async () => {
@@ -676,6 +742,45 @@ describe("ratings", () => {
       }),
     );
     await assertFails(vote(rater, RATER, NOTE, 5, { sum: 9, count: 1 }));
+  });
+
+  /**
+   * The app does not use a batch here — `FirebaseRatingRepository.submitRating`
+   * wraps the two writes in `runTransaction`, so it can re-read the note and
+   * compute the new totals from what it finds. Rules treat a transaction's writes
+   * as one commit the same way they treat a batch's, and `getAfter()` sees across
+   * it, but that is the mechanism the app actually ships and nothing here exercised
+   * it. This does, with the arithmetic the repository performs.
+   */
+  test("the vote the app writes, through a transaction, is accepted", async () => {
+    await assertSucceeds(
+      runTransaction(rater, async (transaction) => {
+        const noteRef = doc(rater, "notes", NOTE);
+        const note = await transaction.get(noteRef);
+
+        transaction.update(noteRef, {
+          ratingSum: note.data().ratingSum + 4,
+          ratingCount: note.data().ratingCount + 1,
+        });
+        transaction.set(doc(rater, "ratings", `${RATER}_${NOTE}`), {
+          uid: RATER,
+          noteId: NOTE,
+          rating: 4,
+        });
+      }),
+    );
+  });
+
+  test("a transaction cannot write the vote without the totals either", async () => {
+    await assertFails(
+      runTransaction(rater, async (transaction) => {
+        transaction.set(doc(rater, "ratings", `${RATER}_${NOTE}`), {
+          uid: RATER,
+          noteId: NOTE,
+          rating: 4,
+        });
+      }),
+    );
   });
 
   test("the totals must match the vote from this side too", async () => {

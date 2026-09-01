@@ -50,9 +50,55 @@ service cloud.firestore {
        */
       allow read: if isOwner(userId);
 
-      // Kayıt sırasında kullanıcı yalnızca kendi dokümanını oluşturabilir.
+      /**
+       * Kayıt.
+       *
+       * Buradaki tek kontrol "kendi belgeni yazıyorsun ve `id` alanı belge kimliğiyle
+       * aynı" idi. Geri kalan her şey serbestti, ve bunun en ağır sonucu şuydu:
+       * `@ogr.akdeniz.edu.tr` kısıtı yalnızca `RegisterActivity`'de, yani istemcide
+       * yaşıyordu. Firebase Auth'ta e-posta/parola açık olduğu için herhangi biri
+       * gmail adresiyle hesap açıp Firestore'a doğrudan bağlanarak kendine profil
+       * yazabiliyordu — üstelik profildeki `email` alanına oturumdakinden başka bir
+       * adres, `department` alanına da listede olmayan bir bölüm koyarak.
+       *
+       * Okuma kapsamı `department`'a bağlandığından beri bu bir erişim sorunu:
+       * `ownDepartment()` tam da bu belgeden okuyor, yani doğrulanmamış bir profil
+       * istediği bölümün bütün notlarını açıyordu.
+       *
+       * Adres oturumun kendisinden alınıyor — istemcinin yazdığı değerden değil —
+       * ve alan adı burada, sunucuda kontrol ediliyor.
+       */
       allow create: if isOwner(userId)
-                    && request.resource.data.id == userId;
+                    && hasExactProfileFields()
+                    && request.resource.data.id == userId
+                    && request.resource.data.email == request.auth.token.email
+                    && isUniversityAddress(request.auth.token.email)
+                    // Bölüm listesinin 144 girdisini kurala gömmek onu her müfredat
+                    // değişikliğinde bozardı; buradaki iş boş ya da devasa bir değerin
+                    // `ownDepartment()` üzerinden erişim kapsamı olmasını engellemek.
+                    && request.resource.data.department is string
+                    && request.resource.data.department.size() > 0
+                    && request.resource.data.department.size() <= 120
+                    // Sunucu saati; kayıt tarihi istemciden gelmiyor.
+                    && request.resource.data.createdAt == request.time;
+
+      function profileFields() {
+        return ['id', 'email', 'department', 'createdAt'];
+      }
+
+      function hasExactProfileFields() {
+        return request.resource.data.keys().hasOnly(profileFields())
+               && request.resource.data.keys().hasAll(profileFields());
+      }
+
+      /**
+       * `matches` bütün dizeyi eşleştiriyor. Nokta karakter sınıfıyla yazıldı
+       * (`[.]`), kaçış yerine: kural dilinde ters bölü iki kez kaçmak zorunda ve
+       * sessizce yanlış yazılması kolay.
+       */
+      function isUniversityAddress(email) {
+        return email is string && email.matches('.*@ogr[.]akdeniz[.]edu[.]tr');
+      }
 
       // Uygulama bu dokümanı yalnızca oluşturuyor, hiç güncellemiyor
       // (`saveUser` tek çağrısı kayıt akışında). Açık bırakmanın bedeli vardı:

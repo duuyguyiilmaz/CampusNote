@@ -183,9 +183,9 @@ Cloud Firestore, four collections:
 | Field | Type | Notes |
 |---|---|---|
 | `id` | string | matches the Firebase Auth UID |
-| `email` | string | |
-| `department` | string | |
-| `createdAt` | number | |
+| `email` | string | must equal the session's own address, and end in `@ogr.akdeniz.edu.tr` |
+| `department` | string | non-empty; `ownDepartment()` reads it to decide what the account may read |
+| `createdAt` | timestamp | `request.time`; profiles written before this carry epoch millis and are still read |
 
 Older user documents may still carry `hasUploadedNote` and `points`. Neither is read or
 written any more: the contribution gate is derived from the user's notes, and so is the
@@ -217,6 +217,18 @@ Firebase Console, so they can be reviewed and versioned. Deploy with:
 ```bash
 firebase deploy --only firestore:rules
 ```
+
+**Registration is restricted on the server, not only on the form.** The create rule used
+to check that you were writing your own document and that its `id` field agreed with the
+document id, and nothing else — so the `@ogr.akdeniz.edu.tr` requirement lived only in
+`RegisterActivity`. Firebase Auth accepts any address, so anyone could sign up with a
+personal one, skip the Android screen entirely and write themselves a profile carrying any
+`email`, any `department`, any `createdAt` and any extra fields they liked. Since reads are
+now scoped by `department` and `ownDepartment()` reads it from this very document, that
+forged profile opened a department's notes. The rule now pins the field set, takes the
+address from `request.auth.token.email` rather than from the request body, checks the
+domain itself, requires a non-empty department, and requires `createdAt` to be
+`request.time`.
 
 The rules require authentication everywhere, restrict note edits and deletes to the
 uploader, and pin each rating document to its author's UID. The delete rule is the
@@ -499,7 +511,7 @@ enforces — who may delete a note, whether a score can move without a vote behi
 invisible to them. That is the layer an attacker actually meets: the Android client can
 be replaced, the rules cannot.
 
-69 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
+76 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
 [`firestore.rules`](firestore.rules) against the local Firestore emulator through
 `@firebase/rules-unit-testing`. `npm test` starts the emulator, runs the suite and shuts
 it down again; nothing touches the real project, and no billing account is involved.
@@ -507,12 +519,12 @@ it down again; nothing touches the real project, and no billing account is invol
 | Group | What it pins down |
 |---|---|
 | `signed-out access` | Every collection is closed to an unauthenticated client — the one guard shared by all four rule blocks. |
-| `users` | Self-registration only, the document id matching the `id` field, that nobody updates a profile afterwards — including the two shapes of the old hole, awarding yourself points and writing points onto someone else — and that a profile is readable only by its owner. |
+| `users` | Self-registration only, the document id matching the `id` field, that a personal address cannot register at all and the profile's `email` must be the session's own — removing those two clauses turns exactly those two tests red — that a blank department, a client-chosen `createdAt` and any unexpected or missing field are refused, that nobody updates a profile afterwards — including the two shapes of the old hole, awarding yourself points and writing points onto someone else — and that a profile is readable only by its owner. |
 | `notes` (reads) | A note in the reader's own department is readable and another department's note is not; an unfiltered query is refused, one filtered to the reader's own department is allowed, and one filtered to another department is refused. Two more cover the query the app actually builds for a profile: `where uploaderUid == me` is allowed without a department filter, and the same query for someone else's uid is refused. |
 | `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals, the department, or the identity fields; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
 | `note creation is pinned to an exact shape` | One test per way a hand-rolled request used to get through: an unexpected field, a missing one, a resurrected `avgRating`, another department, a forged `uploaderName`, an email address written onto a note, a client-chosen `createdAt`, a wrong type, and an empty or oversized title. Each asserts the refusal, so relaxing any single check turns exactly one test red. |
 | `note content` | The batched note-plus-file upload, owner-only create, replace and delete, that a file on another department's note cannot be read — otherwise the boundary is walked around through the file path — that a content document carrying anything but `fileData` is refused, and that a batch cannot pair a legitimate note of its own with a file smuggled onto someone else's. |
-| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range. Four cover the link back to the note: a vote cannot be written or changed without the totals that follow from it, the totals must match the vote from this side too, and the inflation loop above is refused at its first move. Removing that one clause turns exactly those three red and leaves the other 86 green. Deletion has four: a vote cannot be removed on its own, not even by the note's owner; the owner may remove it in the same commit that deletes the note; a stranger cannot reach it by deleting a note they do not own; and a vote whose note is already gone stays refused, which is the gap the prune script covers. |
+| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range. Six cover the link back to the note: a vote cannot be written or changed without the totals that follow from it, the totals must match the vote from this side too, the inflation loop above is refused at its first move, and — because the app writes through `runTransaction` rather than a batch — the transaction the repository actually issues is exercised in both directions. Removing that one clause turns exactly those three red and leaves the other 86 green. Deletion has four: a vote cannot be removed on its own, not even by the note's owner; the owner may remove it in the same commit that deletes the note; a stranger cannot reach it by deleting a note they do not own; and a vote whose note is already gone stays refused, which is the gap the prune script covers. |
 | `unmatched paths` | A path no `match` block covers is denied, so adding a collection to the app without adding a rule fails closed rather than open. |
 
 Fixtures are seeded with `withSecurityRulesDisabled`, so a broken rule surfaces as a
