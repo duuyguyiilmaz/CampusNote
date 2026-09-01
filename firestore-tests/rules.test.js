@@ -125,17 +125,24 @@ function noteFields(overrides = {}) {
  * @param uid oy dokümanının sahibi olarak yazılacak uid — kurala göre çağıranınki olmalı
  * @param totals notun yazılacak yeni değerleri; `extra` ile fazladan alan sızdırılır
  */
-function vote(db, uid, noteId, rating, { sum, count, extra = {} }) {
+function vote(
+  db,
+  uid,
+  noteId,
+  rating,
+  { sum, count, extra = {}, id = `${uid}_${noteId}`, voteOverrides = {} },
+) {
   const batch = writeBatch(db);
   batch.update(doc(db, "notes", noteId), {
     ratingSum: sum,
     ratingCount: count,
     ...extra,
   });
-  batch.set(doc(db, "ratings", `${uid}_${noteId}`), {
+  batch.set(doc(db, "ratings", id), {
     uid,
     noteId,
     rating,
+    ...voteOverrides,
   });
   return batch.commit();
 }
@@ -612,52 +619,114 @@ describe("ratings", () => {
   const validVote = { uid: RATER, noteId: NOTE, rating: 4 };
 
   test("a vote is written under <uid>_<noteId>", async () => {
-    await assertSucceeds(
+    await assertSucceeds(vote(rater, RATER, NOTE, 4, { sum: 4, count: 1 }));
+  });
+
+  test("re-voting replaces the existing document", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 4, { sum: 4, count: 1 }));
+    // Changing 4 to 2 moves the sum by the difference and leaves the count.
+    await assertSucceeds(vote(rater, RATER, NOTE, 2, { sum: 2, count: 1 }));
+  });
+
+  /**
+   * The other half of the link, and the one that was missing.
+   *
+   * The note's own rule says "if the totals move, a vote must justify them". It
+   * never said the reverse — "if a vote is written, the totals must move with it" —
+   * so a rating document could be written entirely on its own, and the test here
+   * asserted that as correct behaviour.
+   *
+   * That was not a tidiness problem. It was unbounded score inflation from a single
+   * voter, four points a lap:
+   *
+   *   1. write the vote alone as 1        (totals untouched)
+   *   2. raise it to 5 with the totals    (sum += 4, count unchanged)
+   *   3. write it alone as 1 again        (totals untouched)
+   *   4. go to 2
+   *
+   * Step 1 is what is now refused, which breaks the loop at its first move.
+   */
+  test("a vote cannot be written without the totals that follow from it", async () => {
+    await assertFails(
       setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), validVote),
     );
   });
 
-  test("re-voting replaces the existing document", async () => {
-    await assertSucceeds(
-      setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), validVote),
-    );
-    await assertSucceeds(
+  test("an existing vote cannot be changed without the totals following", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 5, { sum: 5, count: 1 }));
+
+    // The lone downgrade that made the loop above possible.
+    await assertFails(
       setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), {
         ...validVote,
-        rating: 2,
+        rating: 1,
       }),
     );
+  });
+
+  test("the inflation loop does not survive its first lap", async () => {
+    await assertSucceeds(vote(rater, RATER, NOTE, 5, { sum: 5, count: 1 }));
+
+    // Every remaining step of the loop, each refused on its own: dropping the vote
+    // silently, and then claiming the difference as if it had been dropped.
+    await assertFails(
+      setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), {
+        ...validVote,
+        rating: 1,
+      }),
+    );
+    await assertFails(vote(rater, RATER, NOTE, 5, { sum: 9, count: 1 }));
+  });
+
+  test("the totals must match the vote from this side too", async () => {
+    // Written as a batch, so the note rule is satisfied by the vote beside it and
+    // the arithmetic is the only thing left to reject.
+    await assertFails(vote(rater, RATER, NOTE, 1, { sum: 5, count: 1 }));
+    await assertFails(vote(rater, RATER, NOTE, 4, { sum: 4, count: 2 }));
   });
 
   test("a user cannot vote in someone else's name", async () => {
     // The uid field and the document id are checked separately, so both
     // halves of the forgery have to be rejected on their own.
     await assertFails(
-      setDoc(doc(rater, "ratings", `${OWNER}_${NOTE}`), {
-        ...validVote,
-        uid: OWNER,
+      vote(rater, RATER, NOTE, 4, {
+        sum: 4,
+        count: 1,
+        id: `${OWNER}_${NOTE}`,
+        voteOverrides: { uid: OWNER },
       }),
     );
     await assertFails(
-      setDoc(doc(rater, "ratings", `${OWNER}_${NOTE}`), validVote),
+      vote(rater, RATER, NOTE, 4, { sum: 4, count: 1, id: `${OWNER}_${NOTE}` }),
     );
   });
 
   test("the document id must match the uid and note it claims", async () => {
     await assertFails(
-      setDoc(doc(rater, "ratings", `${RATER}_other-note`), validVote),
+      vote(rater, RATER, NOTE, 4, {
+        sum: 4,
+        count: 1,
+        id: `${RATER}_other-note`,
+      }),
     );
-    await assertFails(setDoc(doc(rater, "ratings", "arbitrary-id"), validVote));
+    await assertFails(
+      vote(rater, RATER, NOTE, 4, { sum: 4, count: 1, id: "arbitrary-id" }),
+    );
   });
 
   test("the rating must be an integer between 1 and 5", async () => {
-    for (const rating of [0, 6, -1, 3.5, "4"]) {
-      await assertFails(
-        setDoc(doc(rater, "ratings", `${RATER}_${NOTE}`), {
-          ...validVote,
-          rating,
-        }),
-      );
+    // Each case carries the totals the rule would compute *if* the rating were
+    // valid, so the range check is the only thing left that can reject it. The
+    // string case is the exception: it fails on the arithmetic as well, since a
+    // string cannot be added to a sum.
+    for (const [rating, sum] of [
+      [0, 0],
+      [6, 6],
+      [-1, 0],
+      [3.5, 3.5],
+      ["4", 4],
+    ]) {
+      await assertFails(vote(rater, RATER, NOTE, rating, { sum, count: 1 }));
     }
   });
 

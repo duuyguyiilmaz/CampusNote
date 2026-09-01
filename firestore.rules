@@ -301,7 +301,48 @@ service cloud.firestore {
                             // notun toplamını değiştirmese de liderlik tablosunun
                             // oy sayısını şişirirdi.
                             && get(/databases/$(database)/documents/notes/$(request.resource.data.noteId))
-                                 .data.uploaderUid != request.auth.uid;
+                                 .data.uploaderUid != request.auth.uid
+                            && totalsFollowTheVote(request.resource.data.noteId);
+
+      function notePath(noteId) {
+        return /databases/$(database)/documents/notes/$(noteId);
+      }
+
+      /**
+       * Oyun karşılığı toplam aynı commit'te yazılmış olmalı.
+       *
+       * Bağ eskiden tek yönlüydü: notun kuralı "toplam değişiyorsa yanında oy
+       * bulunsun" diyordu, ama oyun kuralı "oy yazılıyorsa toplam da doğru
+       * değişsin" demiyordu. Tek başına oy belgesi yazmak serbestti ve bu,
+       * sınırsız puan şişirmenin yoluydu:
+       *
+       *   1. oy belgesini tek başına 1 yap   (toplam değişmez)
+       *   2. oyu 5'e çıkar + toplamı güncelle (fark 4 eklenir, sayı artmaz)
+       *   3. oy belgesini tek başına 1 yap   (toplam değişmez)
+       *   4. 2. adıma dön
+       *
+       * Her turda not 4 puan kazanıyor ve tek bir oy verenden geliyordu.
+       *
+       * `getAfter` notun commit sonrası hâlini okuyor; beklenen değerler notun
+       * kendi kuralındaki aritmetiğin aynısı — iki taraf da RatingCalculator ile
+       * birebir aynı olmak zorunda, tabanları dahil.
+       */
+      function totalsFollowTheVote(noteId) {
+        let before = get(notePath(noteId)).data;
+        let after = getAfter(notePath(noteId)).data;
+        let votedBefore = exists(/databases/$(database)/documents/ratings/$(ratingId));
+        let previous = votedBefore
+          ? get(/databases/$(database)/documents/ratings/$(ratingId)).data.rating
+          : 0;
+        let rawSum = before.ratingSum + request.resource.data.rating - previous;
+
+        return after.ratingSum == (rawSum < 0 ? 0 : rawSum)
+               && after.ratingCount == (
+                    votedBefore
+                      ? (before.ratingCount < 1 ? 1 : before.ratingCount)
+                      : before.ratingCount + 1
+                  );
+      }
 
       /**
        * Bir oy yalnızca ait olduğu notla birlikte silinebilir.

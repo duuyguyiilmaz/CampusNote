@@ -272,11 +272,22 @@ and the two score fields; everything else was open to a client that skipped the 
 UI, which an attacker was never obliged to use.
 
 They also verify the scoring rather than trusting it. A vote writes the note's totals and
-the rating document in one atomic commit, and the rule for the note uses `getAfter()` to
-read the rating being written in that same commit, recompute the expected `ratingSum` and
-`ratingCount` from it, and reject anything that does not match. So the totals cannot move
-without a real vote behind them, a changed vote cannot be counted twice, and rating your
-own note is refused by the server rather than only by the client.
+the rating document in one atomic commit, and each side of that commit checks the other
+with `getAfter()`: the note's rule recomputes the expected `ratingSum` and `ratingCount`
+from the rating being written beside it, and the rating's rule recomputes the same two
+numbers and requires the note to actually carry them. So the totals cannot move without a
+real vote behind them, a vote cannot be written without the totals that follow from it, a
+changed vote cannot be counted twice, and rating your own note is refused by the server
+rather than only by the client.
+
+The second direction was missing until recently, and its absence was the worst hole in
+this file. Only "totals moved, so show me the vote" was enforced; "a vote was written, so
+the totals must follow" was not, which left a rating document writable entirely on its
+own — and the test suite asserted that as correct behaviour, so CI stayed green over it.
+It was not untidiness but unbounded inflation, four points a lap from one voter: write the
+vote alone as 1, raise it to 5 with the totals (`sum += 4`, count unchanged because the
+rule sees a changed vote), write it alone as 1 again, repeat. The lone write is now
+refused, which breaks the loop at step one.
 
 The expected totals are the same arithmetic as
 [`RatingCalculator`](app/src/main/java/duygu/yilmaz/campusnote/data/model/RatingCalculation.kt),
@@ -488,7 +499,7 @@ enforces — who may delete a note, whether a score can move without a vote behi
 invisible to them. That is the layer an attacker actually meets: the Android client can
 be replaced, the rules cannot.
 
-65 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
+69 tests in [`firestore-tests/rules.test.js`](firestore-tests/rules.test.js) run
 [`firestore.rules`](firestore.rules) against the local Firestore emulator through
 `@firebase/rules-unit-testing`. `npm test` starts the emulator, runs the suite and shuts
 it down again; nothing touches the real project, and no billing account is involved.
@@ -501,7 +512,7 @@ it down again; nothing touches the real project, and no billing account is invol
 | `notes` | `uploaderUid` cannot be forged and a note cannot be born with a score; the uploader may edit metadata but not the totals, the department, or the identity fields; a vote and the totals it implies are accepted only together, must match the arithmetic exactly, cannot be counted twice, and cannot be cast on your own note; delete is owner-only. |
 | `note creation is pinned to an exact shape` | One test per way a hand-rolled request used to get through: an unexpected field, a missing one, a resurrected `avgRating`, another department, a forged `uploaderName`, an email address written onto a note, a client-chosen `createdAt`, a wrong type, and an empty or oversized title. Each asserts the refusal, so relaxing any single check turns exactly one test red. |
 | `note content` | The batched note-plus-file upload, owner-only create, replace and delete, that a file on another department's note cannot be read — otherwise the boundary is walked around through the file path — that a content document carrying anything but `fileData` is refused, and that a batch cannot pair a legitimate note of its own with a file smuggled onto someone else's. |
-| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range. Deletion has four: a vote cannot be removed on its own, not even by the note's owner; the owner may remove it in the same commit that deletes the note; a stranger cannot reach it by deleting a note they do not own; and a vote whose note is already gone stays refused, which is the gap the prune script covers. |
+| `ratings` | The `<uid>_<noteId>` document id, which is what stops one user voting as another, plus the 1–5 integer range. Four cover the link back to the note: a vote cannot be written or changed without the totals that follow from it, the totals must match the vote from this side too, and the inflation loop above is refused at its first move. Removing that one clause turns exactly those three red and leaves the other 86 green. Deletion has four: a vote cannot be removed on its own, not even by the note's owner; the owner may remove it in the same commit that deletes the note; a stranger cannot reach it by deleting a note they do not own; and a vote whose note is already gone stays refused, which is the gap the prune script covers. |
 | `unmatched paths` | A path no `match` block covers is denied, so adding a collection to the app without adding a rule fails closed rather than open. |
 
 Fixtures are seeded with `withSecurityRulesDisabled`, so a broken rule surfaces as a
